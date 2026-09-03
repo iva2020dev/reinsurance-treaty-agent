@@ -30,15 +30,20 @@ Example output:
 
 ```
 ============================= test session starts ==============================
-collected 5 items
+collected 10 items
 
-tests/test_parser.py::test_extract_treaty_sections_handles_minimal_two_page_treaty PASSED [ 20%]
-tests/test_parser.py::test_extract_treaty_sections_handles_rich_multi_page_treaty PASSED [ 40%]
-tests/test_parser.py::test_extract_treaty_sections_raises_on_malformed_pdf PASSED [ 60%]
-tests/test_parser.py::test_extract_treaty_sections_raises_on_missing_file PASSED [ 80%]
+tests/test_parser.py::test_extract_treaty_sections_handles_minimal_two_page_treaty PASSED [ 10%]
+tests/test_parser.py::test_extract_treaty_sections_handles_rich_multi_page_treaty PASSED [ 20%]
+tests/test_parser.py::test_extract_treaty_sections_raises_on_malformed_pdf PASSED [ 30%]
+tests/test_parser.py::test_extract_treaty_sections_raises_on_missing_file PASSED [ 40%]
+tests/test_tools.py::test_query_historical_claims_returns_claims_for_known_cedent PASSED [ 50%]
+tests/test_tools.py::test_query_historical_claims_returns_empty_list_for_unknown_cedent PASSED [ 60%]
+tests/test_tools.py::test_calculate_loss_ratio_known_inputs PASSED       [ 70%]
+tests/test_tools.py::test_calculate_loss_ratio_empty_claims_is_zero PASSED [ 80%]
+tests/test_tools.py::test_calculate_loss_ratio_claim_exceeding_layer_top_is_capped PASSED [ 90%]
 tests/test_workflow.py::test_module_imports PASSED                       [100%]
 
-============================== 5 passed in 0.06s ===============================
+============================== 10 passed in 0.06s ===============================
 ```
 
 Run a single test file, e.g. just the parser tests:
@@ -103,6 +108,36 @@ Now clearly distinct, symmetric names — both pass:
 |---|---|---|---|
 | `test_extract_treaty_sections_handles_minimal_two_page_treaty` | `sample_treaty.pdf` | 2 | page 1 has "Attachment Point", page 2 has "EXCLUSIONS" |
 | `test_extract_treaty_sections_handles_rich_multi_page_treaty` | `sample_rich_treaty.pdf` | 4 | page 1 cedent name, page 2 "Layer 1", page 3 "EXCLUSIONS", page 4 "Arbitration" |
+
+Run just the tools tests (`query_historical_claims` and
+`calculate_loss_ratio`, from `src/tools.py`):
+
+```bash
+python3 -m pytest tests/test_tools.py -v
+```
+
+Example output:
+
+```
+============================= test session starts ==============================
+collected 5 items
+
+tests/test_tools.py::test_query_historical_claims_returns_claims_for_known_cedent PASSED [ 20%]
+tests/test_tools.py::test_query_historical_claims_returns_empty_list_for_unknown_cedent PASSED [ 40%]
+tests/test_tools.py::test_calculate_loss_ratio_known_inputs PASSED       [ 60%]
+tests/test_tools.py::test_calculate_loss_ratio_empty_claims_is_zero PASSED [ 80%]
+tests/test_tools.py::test_calculate_loss_ratio_claim_exceeding_layer_top_is_capped PASSED [100%]
+
+============================== 5 passed in 0.01s ===============================
+```
+
+| Test | Checks |
+|---|---|
+| `test_query_historical_claims_returns_claims_for_known_cedent` | "Acme Insurance Co." returns its 3 rows from `data/historical_claims.csv`, amounts sum correctly |
+| `test_query_historical_claims_returns_empty_list_for_unknown_cedent` | An unmatched cedent name returns `[]`, not an error |
+| `test_calculate_loss_ratio_known_inputs` | A claim below the attachment point cedes 0; a claim partially above it cedes the portion within the layer |
+| `test_calculate_loss_ratio_empty_claims_is_zero` | No claims → ratio of `0.0` |
+| `test_calculate_loss_ratio_claim_exceeding_layer_top_is_capped` | A claim far exceeding the layer's top is capped at the limit → ratio of `1.0` |
 
 ## Sample Treaty Fixtures
 

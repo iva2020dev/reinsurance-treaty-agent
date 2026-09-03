@@ -29,7 +29,7 @@
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
-- [ ] Implement Deterministic Tools
+- [ ] Implement Deterministic Tools (@claude)
   - **ID**: implement-deterministic-tools
   - **Tags**: tools, business-logic, testing
   - **Details**: Build Python functions in `src/tools.py` that the agent
@@ -40,7 +40,7 @@
     `query_historical_claims` to read. Write unit tests covering both
     functions as part of this task (do not defer to a separate testing
     task).
-  - **Files**: `src/tools.py`, `data/` (mock claims CSV), `tests/test_tools.py`
+  - **Files**: `src/tools.py`, `data/historical_claims.csv`, `tests/test_tools.py`, `README.md`
   - **Acceptance**: `query_historical_claims` returns claims for a known
     cedent from the mock CSV, and an empty list for an unknown cedent;
     `calculate_loss_ratio` returns a correct, deterministic ratio for
@@ -48,6 +48,9 @@
     cedent, an unknown cedent (empty list), `calculate_loss_ratio` with a
     known expected result, and at least one edge case (e.g. an empty
     claims list).
+  - **Status**: Implemented and verified, including
+    `tests/test_tools.py` coverage (see REASONING.md, 2026-09-03
+    17:23:12) — awaiting human approval before closing.
 
 - [ ] Build the Agentic Workflow Graph
   - **ID**: build-agentic-workflow-graph
