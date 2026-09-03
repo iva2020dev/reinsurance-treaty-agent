@@ -31,56 +31,85 @@
 
 - [ ] Implement Deterministic Tools
   - **ID**: implement-deterministic-tools
-  - **Tags**: tools, business-logic
+  - **Tags**: tools, business-logic, testing
   - **Details**: Build Python functions in `src/tools.py` that the agent
     can call: `query_historical_claims(cedent_name: str)` (reads a local
     mock CSV of past claims) and `calculate_loss_ratio(attachment_point:
     float, limit: float, claims: list)` (deterministic math, no LLM calls).
-  - **Files**: `src/tools.py`, `data/`
+    Add a mock historical-claims CSV under `data/` for
+    `query_historical_claims` to read. Write unit tests covering both
+    functions as part of this task (do not defer to a separate testing
+    task).
+  - **Files**: `src/tools.py`, `data/` (mock claims CSV), `tests/test_tools.py`
   - **Acceptance**: `query_historical_claims` returns claims for a known
-    cedent from the mock CSV (empty list for unknown cedents);
+    cedent from the mock CSV, and an empty list for an unknown cedent;
     `calculate_loss_ratio` returns a correct, deterministic ratio for
-    known inputs and is covered by unit tests.
+    known inputs. `pytest tests/test_tools.py` passes and covers: a known
+    cedent, an unknown cedent (empty list), `calculate_loss_ratio` with a
+    known expected result, and at least one edge case (e.g. an empty
+    claims list).
 
 - [ ] Build the Agentic Workflow Graph
   - **ID**: build-agentic-workflow-graph
-  - **Tags**: workflow, langgraph, agent
+  - **Tags**: workflow, langgraph, agent, testing
   - **Details**: Implement a LangGraph state machine in `src/workflow.py`
     with: an **Extractor Node** (extracts terms from parsed text against
     `src/models.py` schemas), a **Verifier Node** (validates completeness
     and triggers tool calls for historical claims), and an **Analyst
     Node** (compares treaty terms against historical data and flags
-    anomalies).
-  - **Files**: `src/workflow.py`
+    anomalies). Write unit tests for each node as part of this task (do
+    not defer to a separate testing task).
+  - **Files**: `src/workflow.py`, `tests/test_workflow.py`
   - **Acceptance**: Running the graph end-to-end on parsed treaty text
     produces a populated `AnomalyReport`; each node's output is validated
     against its Pydantic schema before advancing to the next node.
+    `pytest tests/test_workflow.py` passes and covers, per node in
+    isolation: the Extractor Node on well-formed input; the Verifier Node
+    both when required data is complete and when it is missing/incomplete
+    (triggers the historical-claims tool call / flags incompleteness); and
+    the Analyst Node both when it finds no anomalies and when it flags at
+    least one.
   - **Blocked by**: implement-deterministic-tools
 
-- [ ] Write Unit Tests
-  - **ID**: write-unit-tests
-  - **Tags**: testing
-  - **Details**: Write pytest test suites verifying schema validation
-    (`src/models.py`), tool calculations (`src/tools.py`), and parser
-    error handling (`src/parser.py`), extending `tests/test_parser.py`
-    and adding coverage alongside `tests/test_workflow.py`.
-  - **Files**: `tests/test_parser.py`, `tests/test_workflow.py`, `tests/`
-  - **Acceptance**: `pytest tests/` passes and covers at least: one
-    invalid-input case per schema, `calculate_loss_ratio` with known
-    inputs/expected output, and the parser's behavior on a malformed PDF.
-  - **Blocked by**: implement-deterministic-tools, build-agentic-workflow-graph
+- [ ] Write Integration Tests for End-to-End Workflow
+  - **ID**: write-integration-tests
+  - **Tags**: testing, integration
+  - **Details**: Write integration tests exercising the full pipeline —
+    parse a treaty PDF, extract terms, query historical claims, calculate
+    the loss ratio, and produce the final `AnomalyReport` — as a single
+    run through `src/workflow.py`, using the real `data/sample_treaty.pdf`
+    and `data/sample_rich_treaty.pdf` fixtures rather than mocking
+    individual nodes. Cover both success and failure paths end-to-end.
+  - **Files**: `tests/test_integration.py`
+  - **Acceptance**: `pytest tests/test_integration.py` passes and covers
+    at least: (1) success — a full run on `sample_treaty.pdf` and on
+    `sample_rich_treaty.pdf` each produces a valid `AnomalyReport`; (2)
+    failure — a malformed/unreadable PDF fails the run with a clear,
+    caught error rather than an unhandled exception; (3) failure — a
+    cedent with no historical claims data is handled gracefully (e.g. an
+    empty-claims `AnomalyReport` or an explicit flagged finding, not a
+    crash); (4) failure — treaty text missing a required term (e.g. no
+    extractable limit) is handled gracefully rather than crashing.
+  - **Blocked by**: build-agentic-workflow-graph
 
 - [ ] Create User Interface & API
   - **ID**: create-ui-api
-  - **Tags**: ui, streamlit, api
+  - **Tags**: ui, streamlit, api, testing
   - **Details**: Build a clean Streamlit UI in `src/app.py` where a user
     can upload a mock treaty PDF, run the agent workflow in real-time,
-    and view the structured anomaly report with page citations.
-  - **Files**: `src/app.py`
+    and view the structured anomaly report with page citations. Write
+    unit tests for the app as part of this task (do not defer to a
+    separate testing task), e.g. using `streamlit.testing.v1.AppTest` or
+    by testing any extracted helper functions (e.g. report formatting)
+    directly.
+  - **Files**: `src/app.py`, `tests/test_app.py`
   - **Acceptance**: Uploading a sample treaty PDF through the running
     Streamlit app triggers the full workflow and renders the resulting
     `AnomalyReport` (including page citations) in the UI without errors.
-  - **Blocked by**: build-agentic-workflow-graph
+    `pytest tests/test_app.py` passes and covers at least one successful
+    upload-and-render run and one failure case (e.g. uploading a
+    malformed PDF) surfacing a clear error in the UI instead of crashing.
+  - **Blocked by**: build-agentic-workflow-graph, write-integration-tests
 
 
 ## P2
