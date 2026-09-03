@@ -29,7 +29,8 @@ This project uses `TASKS.md` following the [TASKS.md specification](https://gith
 8. **Ask** for human approval before marking the task done — never
    self-approve; wait for an explicit go-ahead
 9. **Remove** completed task from `TASKS.md` only after that approval
-   (history in git)
+   (history in git), on its own branch/PR titled
+   `Closing task as "Done": <task title>`
 10. **Add** any new tasks discovered during work
 
 **Priority levels:** P0 = critical, P1 = high, P2 = medium, P3 = low

@@ -53,7 +53,11 @@ This repo is used with both Junie and Claude Code. Both read this file.
    explicit go-ahead before removing the task from TASKS.md. Never
    self-approve a task as complete.
 9. **Remove** completed tasks from TASKS.md only after that approval
-   (history is tracked in git)
+   (history is tracked in git), committing the removal on its own
+   branch/PR titled `Closing task as "Done": <task title>` (e.g.
+   `Closing task as "Done": Build the Agentic Workflow Graph`) — every
+   PR whose only purpose is closing an approved task uses this exact
+   naming
 10. **Add** new tasks discovered during work to the appropriate priority section
 
 ### Priority Levels
