@@ -204,3 +204,60 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `Blocked by` references on `build-agentic-workflow-graph` and
   `write-unit-tests` to no longer name it.
 
+## 2026-09-03 13:27:28 — Rearranged backlog: split write-unit-tests, added write-integration-tests
+
+- **Goal**: Human asked to split the standalone `write-unit-tests` task
+  across each functionality task that creates new code, with necessary
+  Acceptance Criteria added to each, and to replace `write-unit-tests`
+  with a new task covering integration tests for the whole workflow
+  (success and failure cases).
+- **Analysis**: A single trailing `write-unit-tests` task risks unit
+  tests being written well after the code they cover (as already
+  happened once with `build-pdf-ingestion-parsing`, where
+  `tests/test_parser.py` had to be retrofitted after the fact on
+  request). The three still-open functionality tasks
+  (`implement-deterministic-tools`, `build-agentic-workflow-graph`,
+  `create-ui-api`) each produce new testable code, so unit-test
+  responsibility and AC belong on each of them directly, matching the
+  precedent already set by `define-core-data-schemas` and
+  `build-pdf-ingestion-parsing`, which included their own verification.
+  A genuine end-to-end integration task is still needed, though — no
+  single functionality task exercises the full parse → extract → tool
+  calls → analyst pipeline together, and only an integration test can
+  catch a contract mismatch between nodes that unit tests (which test
+  nodes/functions in isolation) would miss.
+- **Decision**: Added `- **Tags**: ..., testing` and an explicit
+  "write unit tests as part of this task" instruction plus a
+  `tests/test_*.py` file and matching AC to
+  `implement-deterministic-tools` (unit tests for both tool functions,
+  including a known/unknown cedent and an edge case),
+  `build-agentic-workflow-graph` (per-node tests: Extractor on
+  well-formed input; Verifier with complete vs. missing/incomplete data;
+  Analyst with vs. without a flagged anomaly), and `create-ui-api` (a
+  successful upload-and-render run plus one failure case, via
+  `streamlit.testing.v1.AppTest` or by testing extracted helpers).
+  Added `implement-deterministic-tools`'s missing mock claims CSV to its
+  own Files/Details, since `query_historical_claims` needs one to read
+  and no such fixture exists yet. Replaced `write-unit-tests` with
+  `write-integration-tests`: a single `tests/test_integration.py`
+  driving the real `src/workflow.py` graph (no node mocking) against the
+  two existing PDF fixtures, with AC requiring both success (two
+  fixtures, valid `AnomalyReport`) and three distinct failure paths
+  (malformed PDF, cedent with no historical claims, missing required
+  treaty term) — "for all cases: success and failed" as asked. Placed it
+  right after `build-agentic-workflow-graph` (its only blocker) and
+  before `create-ui-api`, and added it as a second blocker on
+  `create-ui-api` so the UI is only built once the underlying workflow
+  is proven correct end-to-end, not just unit-by-unit.
+- **Action**: Edited TASKS.md: added `tests: testing` tag + unit-test
+  Details/Files/AC to `implement-deterministic-tools`,
+  `build-agentic-workflow-graph`, and `create-ui-api`; removed
+  `write-unit-tests`; added `write-integration-tests` (blocked by
+  `build-agentic-workflow-graph`); updated `create-ui-api`'s
+  `Blocked by` to `build-agentic-workflow-graph, write-integration-tests`.
+  `deploy-to-production` is unchanged (still blocked by `create-ui-api`
+  only — transitively covers the new task).
+- **Outcome**: Verified the new dependency chain is acyclic and each
+  `Blocked by` reference names an ID that still exists in TASKS.md
+  (grep check). No code changed — TASKS.md restructuring only.
+
