@@ -1,0 +1,16 @@
+#!/bin/sh
+# Auto-regenerates the workflow graph diagram in README.md whenever
+# src/workflow.py is part of this commit. Does NOT touch
+# data/workflow_graph.png (that requires a network call to mermaid.ink -
+# regenerate it manually with `python3 scripts/regenerate_workflow_graph.py --png`
+# when you want an updated PNG).
+#
+# Enable with: git config core.hooksPath .githooks
+
+set -e
+
+if git diff --cached --name-only | grep -q '^src/workflow\.py$'; then
+    echo "src/workflow.py changed - regenerating workflow graph diagram in README.md..."
+    python3 scripts/regenerate_workflow_graph.py
+    git add README.md
+fi

@@ -1,13 +1,59 @@
 # reinsurance-treaty-agent
 Reinsurance Treaty Analyzer Agent. Tech Stack: Python 3.11+, Pydantic v2, LangGraph (for deterministic agent orchestration), FastAPI (for API/services), Pytest (testing), Docker &amp; Streamlit (for easy deployment &amp; UI). AI Tooling: Claude Code (CLI) inside PyCharm, interacting with Claude 3.5 Sonnet via Anthropic API.
 
+## Workflow Graph
+
+The agentic workflow in `src/workflow.py` is a LangGraph state machine:
+the Extractor Node reads treaty terms from parsed text, the Verifier
+Node checks completeness and (if complete) looks up historical claims
+for the cedent, and the Analyst Node computes the loss ratio and flags
+anomalies. If extraction is incomplete, the graph ends right after the
+Verifier Node instead of running the Analyst Node.
+
+<!-- workflow-graph:start -->
+```mermaid
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	extractor(extractor)
+	verifier(verifier)
+	analyst(analyst)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> extractor;
+	extractor --> verifier;
+	verifier -.-> __end__;
+	verifier -.-> analyst;
+	analyst --> __end__;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc
+```
+<!-- workflow-graph:end -->
+
+This diagram is regenerated automatically by a pre-commit hook whenever
+`src/workflow.py` changes (see `scripts/regenerate_workflow_graph.py`
+and `## Setup` below). To regenerate it by hand:
+
+```bash
+python3 scripts/regenerate_workflow_graph.py
+```
+
 ## Setup
 
 ```bash
 python3 -m venv venv
 source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
+git config core.hooksPath .githooks
 ```
+
+That last command enables `.githooks/pre-commit`, which automatically
+regenerates the workflow graph diagram (above) in `README.md` whenever
+`src/workflow.py` is part of a commit.
 
 ## Running Tests
 
@@ -30,20 +76,26 @@ Example output:
 
 ```
 ============================= test session starts ==============================
-collected 10 items
+collected 16 items
 
-tests/test_parser.py::test_extract_treaty_sections_handles_minimal_two_page_treaty PASSED [ 10%]
-tests/test_parser.py::test_extract_treaty_sections_handles_rich_multi_page_treaty PASSED [ 20%]
-tests/test_parser.py::test_extract_treaty_sections_raises_on_malformed_pdf PASSED [ 30%]
-tests/test_parser.py::test_extract_treaty_sections_raises_on_missing_file PASSED [ 40%]
-tests/test_tools.py::test_query_historical_claims_returns_claims_for_known_cedent PASSED [ 50%]
-tests/test_tools.py::test_query_historical_claims_returns_empty_list_for_unknown_cedent PASSED [ 60%]
-tests/test_tools.py::test_calculate_loss_ratio_known_inputs PASSED       [ 70%]
-tests/test_tools.py::test_calculate_loss_ratio_empty_claims_is_zero PASSED [ 80%]
-tests/test_tools.py::test_calculate_loss_ratio_claim_exceeding_layer_top_is_capped PASSED [ 90%]
-tests/test_workflow.py::test_module_imports PASSED                       [100%]
+tests/test_parser.py::test_extract_treaty_sections_handles_minimal_two_page_treaty PASSED [  6%]
+tests/test_parser.py::test_extract_treaty_sections_handles_rich_multi_page_treaty PASSED [ 12%]
+tests/test_parser.py::test_extract_treaty_sections_raises_on_malformed_pdf PASSED [ 18%]
+tests/test_parser.py::test_extract_treaty_sections_raises_on_missing_file PASSED [ 25%]
+tests/test_tools.py::test_query_historical_claims_returns_claims_for_known_cedent PASSED [ 31%]
+tests/test_tools.py::test_query_historical_claims_returns_empty_list_for_unknown_cedent PASSED [ 37%]
+tests/test_tools.py::test_calculate_loss_ratio_known_inputs PASSED       [ 43%]
+tests/test_tools.py::test_calculate_loss_ratio_empty_claims_is_zero PASSED [ 50%]
+tests/test_tools.py::test_calculate_loss_ratio_claim_exceeding_layer_top_is_capped PASSED [ 56%]
+tests/test_workflow.py::test_extractor_node_well_formed_input PASSED     [ 62%]
+tests/test_workflow.py::test_extractor_node_flags_missing_fields PASSED  [ 68%]
+tests/test_workflow.py::test_verifier_node_complete_triggers_historical_claims_lookup PASSED [ 75%]
+tests/test_workflow.py::test_verifier_node_flags_incompleteness_without_calling_tools PASSED [ 81%]
+tests/test_workflow.py::test_analyst_node_no_anomalies PASSED            [ 87%]
+tests/test_workflow.py::test_analyst_node_flags_at_least_one_anomaly PASSED [ 93%]
+tests/test_workflow_graph_docs.py::test_readme_workflow_graph_matches_live_graph PASSED [100%]
 
-============================== 10 passed in 0.06s ===============================
+============================== 16 passed in 0.12s ===============================
 ```
 
 Run a single test file, e.g. just the parser tests:
@@ -138,6 +190,38 @@ tests/test_tools.py::test_calculate_loss_ratio_claim_exceeding_layer_top_is_capp
 | `test_calculate_loss_ratio_known_inputs` | A claim below the attachment point cedes 0; a claim partially above it cedes the portion within the layer |
 | `test_calculate_loss_ratio_empty_claims_is_zero` | No claims → ratio of `0.0` |
 | `test_calculate_loss_ratio_claim_exceeding_layer_top_is_capped` | A claim far exceeding the layer's top is capped at the limit → ratio of `1.0` |
+
+Run just the workflow tests (the Extractor/Verifier/Analyst nodes,
+from `src/workflow.py`):
+
+```bash
+python3 -m pytest tests/test_workflow.py -v
+```
+
+Example output:
+
+```
+============================= test session starts ==============================
+collected 6 items
+
+tests/test_workflow.py::test_extractor_node_well_formed_input PASSED     [ 16%]
+tests/test_workflow.py::test_extractor_node_flags_missing_fields PASSED  [ 33%]
+tests/test_workflow.py::test_verifier_node_complete_triggers_historical_claims_lookup PASSED [ 50%]
+tests/test_workflow.py::test_verifier_node_flags_incompleteness_without_calling_tools PASSED [ 66%]
+tests/test_workflow.py::test_analyst_node_no_anomalies PASSED            [ 83%]
+tests/test_workflow.py::test_analyst_node_flags_at_least_one_anomaly PASSED [100%]
+
+============================== 6 passed in 0.16s ===============================
+```
+
+| Test | Checks |
+|---|---|
+| `test_extractor_node_well_formed_input` | Regex extraction reads cedent/attachment point/limit/premium/exclusions and their page citations from clean `Label: value` text |
+| `test_extractor_node_flags_missing_fields` | Sections missing numeric fields return `treaty=None` plus the list of missing field names, instead of raising |
+| `test_verifier_node_complete_triggers_historical_claims_lookup` | A valid treaty triggers a real `query_historical_claims` call and returns the cedent's claims |
+| `test_verifier_node_flags_incompleteness_without_calling_tools` | `treaty=None` marks the run incomplete and skips the tool call entirely (empty claims) |
+| `test_analyst_node_no_anomalies` | A moderate loss ratio with claims data present produces `findings == []` |
+| `test_analyst_node_flags_at_least_one_anomaly` | Zero historical claims produces a `LOW` "no historical data" finding |
 
 ## Sample Treaty Fixtures
 

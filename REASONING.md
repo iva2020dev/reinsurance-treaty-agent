@@ -342,3 +342,147 @@ This file contains the reasoning transcript of the AI agent for the current sess
   names any blocker, since implement-deterministic-tools was its only
   one and is now closed).
 
+## 2026-09-03 17:52:56 — Task: Build the Agentic Workflow Graph (build-agentic-workflow-graph)
+
+- **Goal**: Implement a LangGraph state machine in `src/workflow.py`
+  with an Extractor Node, a Verifier Node, and an Analyst Node, running
+  end-to-end on parsed treaty text to produce a populated
+  `AnomalyReport`, with unit tests per node covering both the
+  success and the incomplete/no-anomaly-vs-anomaly branches.
+- **Analysis**: `langgraph` 1.2.11 is installed (`StateGraph`, `END`
+  importable). `src/parser.py`'s `extract_treaty_sections()` returns
+  `list[PageSection]` (page_number + text) — the natural input to the
+  Extractor Node. `src/tools.py` already has `query_historical_claims`
+  and `calculate_loss_ratio`, both taking/returning `ClaimsData` from
+  `src/models.py`. A gap surfaced while designing the Extractor Node:
+  `TreatyTerms` (from the already-closed `define-core-data-schemas`
+  task) has no cedent name field, but the Verifier Node must call
+  `query_historical_claims(cedent_name)`, and a cedent name is a treaty
+  term, not workflow-only scratch state — so it belongs on `TreatyTerms`
+  itself, and by extension on the `AnomalyReport` it produces. No
+  permanent test file exercises `TreatyTerms` today (only an earlier
+  ad-hoc script, not committed), so widening the schema now breaks
+  nothing tracked by CI.
+  Separately: the task doesn't specify *how* the Extractor Node reads
+  terms out of text — via an LLM, or deterministically. `requirements.txt`
+  has `anthropic`/`langchain-core`, and a real `ANTHROPIC_API_KEY` is
+  present in this environment's `.env`, so an LLM-based extractor is
+  possible. But this project's own README describes its LangGraph layer
+  as "deterministic agent orchestration," and the two existing PDF
+  fixtures use a consistent `Label: value` layout specifically so a
+  deterministic extractor can read them.
+- **Decision**: Added `cedent_name: str = Field(min_length=1)` to
+  `TreatyTerms` in `src/models.py` — a schema widening, not a breaking
+  change, since no other code constructs `TreatyTerms` without it yet.
+  Built the Extractor Node as **regex-based, not LLM-based**: it's
+  free, deterministic (no network call, no flakiness, no per-run cost
+  against a real API key), and testable without mocking an LLM client —
+  directly in line with "deterministic agent orchestration." The
+  tradeoff, made explicit rather than hidden: it only works on treaty
+  text using the `Label: value` convention the fixtures use, not
+  arbitrary prose; swapping in an LLM-based extractor later would only
+  require replacing this one node's internals, since the node's
+  input/output contract (`PageSection` list in, `TreatyTerms` or
+  `None` + missing-field list out) doesn't change either way.
+  For a treaty with multiple layers (the rich fixture has two), the
+  extractor takes each field's *first* regex match across pages in page
+  order — i.e. Layer 1 — since `TreatyTerms` models a single layer and
+  the task doesn't ask for multi-layer extraction.
+  Exclusions are extracted by finding the "EXCLUSIONS" section and
+  taking every non-empty line after it that doesn't end in `:` (drops
+  the intro sentence "This treaty excludes losses ... from:"), stripping
+  any leading "N. " numbering — this handles both the minimal fixture's
+  unnumbered 2-item list and the rich fixture's numbered 10-item list
+  with one rule.
+  The Verifier Node's "validates completeness" is interpreted as: if
+  the Extractor Node found every required field (cedent, attachment
+  point, limit, premium) and successfully built a valid `TreatyTerms`,
+  proceed to query historical claims for that cedent; otherwise, mark
+  the run incomplete and skip the tool call entirely (there's no cedent
+  to query for). Missing/incomplete is a normal, expected branch (e.g. a
+  scanned or non-conforming treaty), not an exception — the graph should
+  end gracefully with `complete: False`, not crash.
+  The Analyst Node flags a `LOW` finding if the cedent has zero
+  historical claims (a data-quality flag, not a math result), and a
+  `MEDIUM`/`HIGH` finding if the computed loss ratio is
+  \>=0.5 / \>1.0 respectively (thresholds chosen as clearly-labeled,
+  round, defensible defaults — a layer at or past half-exhausted
+  historically is worth a human's attention, past fully-exhausted is
+  more urgent — not derived from any real actuarial standard, since
+  none was specified).
+- **Action**: Added `cedent_name` to `TreatyTerms` in `src/models.py`.
+  Implemented `src/workflow.py`: `WorkflowState` (TypedDict),
+  `extract_treaty_terms()`/`extractor_node`, `verifier_node`,
+  `analyst_node`, `build_workflow_graph()` (LangGraph `StateGraph` with
+  a conditional edge after the verifier: complete → analyst, incomplete
+  → END), and `run_workflow()`. Added `tests/test_workflow.py` (6
+  tests): Extractor on well-formed synthetic sections and on sections
+  missing all numeric fields; Verifier with a real cedent (triggers
+  `query_historical_claims` against the real CSV, 3 claims returned)
+  and with `treaty=None` (flags incomplete, empty claims, no tool
+  call); Analyst with no anomalies (moderate loss ratio, non-empty
+  claims → `findings == []`) and with at least one (empty claims →
+  `LOW` "no historical data" finding).
+- **Outcome**: Ran the full graph end-to-end via `run_workflow()` on
+  both real fixtures: `sample_treaty.pdf` → complete, loss_ratio 0.3,
+  no findings; `sample_rich_treaty.pdf` → complete, loss_ratio 1.25
+  (two Meridian claims: 15M and 42M against a 10M/20M Layer-1 layer),
+  one `HIGH` finding — confirms both the regex extraction and the
+  loss-ratio math are correct against real, richer treaty text, not
+  just synthetic test fixtures. `pytest tests/test_workflow.py -v` — 6
+  passed. Full suite `pytest tests/ -v` — 15 passed, no regressions.
+  Acceptance criteria met.
+
+- **2026-09-03 18:16:32 update**: Human asked how the LangGraph could be
+  visualized, then asked to add it to `README.md`. Used
+  `app.get_graph().draw_mermaid()` (no extra dependency needed, unlike
+  `draw_png()` which requires `pygraphviz`/Graphviz) and pasted its
+  exact output — including the `flowchart` config frontmatter block —
+  into a new "Workflow Graph" section at the top of `README.md`, with
+  the one-line command to regenerate it if the graph's structure
+  changes. Verified the pasted diagram is byte-for-byte what that
+  command currently produces.
+
+- **2026-09-03 18:26:01 update**: Human asked to view the graph
+  visually. Rendered it with `app.get_graph().draw_mermaid_png()` (this
+  calls the public `mermaid.ink` rendering service over the network,
+  unlike the text-only `draw_mermaid()` used in `README.md` — worth
+  noting if this is ever run on a graph structure that shouldn't leave
+  the machine, though this one is harmless), showed it inline, then
+  saved a permanent copy to `data/workflow_graph.png` on request.
+
+- **2026-09-03 18:31:41 update**: Human asked to implement auto-
+  regeneration of the workflow graph diagram whenever `src/workflow.py`
+  changes. Split this into three pieces rather than one network-
+  dependent hook:
+  1. `scripts/regenerate_workflow_graph.py` — the actual regeneration
+     logic, extracted so both the hook and a human can call it.
+     Replaces the mermaid block in `README.md` between
+     `<!-- workflow-graph:start/end -->` markers (added those markers
+     first, since find-and-replace needs a stable anchor).
+     `--png` additionally regenerates `data/workflow_graph.png`.
+  2. `.githooks/pre-commit` — checks whether `src/workflow.py` is
+     staged; if so, runs the script and re-stages `README.md`. Does
+     **not** regenerate the PNG automatically: `draw_mermaid_png()`
+     calls the public `mermaid.ink` service over the network on every
+     invocation, and a commit hook that can fail/hang without network
+     access, or that silently depends on an external service's
+     uptime, is worse than a manual `--png` step run when actually
+     wanted. Requires `git config core.hooksPath .githooks` once (added
+     to `README.md`'s Setup section) since git hooks aren't
+     auto-enabled from a committed `.githooks/` directory.
+  3. `tests/test_workflow_graph_docs.py` — a safety net independent of
+     the hook: asserts the live graph's mermaid text is contained in
+     README's documented block, so drift is caught by `pytest` even if
+     someone commits with `--no-verify` or never ran
+     `git config core.hooksPath`.
+  Tested all three end-to-end with temporary throwaway edits to
+  `src/workflow.py` (reverted after, not committed): (a) staging a
+  comment-only change correctly reported "already up to date"; (b)
+  staging a real structural change (rerouting `analyst -> verifier`
+  instead of `analyst -> END`) correctly regenerated and re-staged
+  `README.md` with the new edges; (c) tampering with README's mermaid
+  block by hand and running the new test correctly failed with a clear
+  "out of date, run this command" message. Updated the full-suite
+  example output in `README.md` (15 → 16, for the new test).
+
