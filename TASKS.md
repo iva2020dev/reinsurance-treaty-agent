@@ -10,12 +10,12 @@
      policy: Prefer fixing root causes over symptoms.
      policy: Review AGENTS.md and CLAUDE.md before starting any work.
      policy: A scheduled cloud routine checks github.com/tasksmd/tasks.md for new releases roughly every second Monday; see AGENTS.md "Keeping tasks.md tooling current".
-     policy: Every dated entry here and in REASONING.md MUST include time as YYYY-MM-DD HH:MM:SS (24h) — see AGENTS.md "Timestamp Format". -->
+     policy: Every dated entry here and in REASONING.md MUST include time as YYYY-MM-DD HH:MM:SS (24h) — see AGENTS.md "Timestamp Format".
+     policy: NEVER mark a task done or remove it from this file without explicit human approval first. Present the verified work and wait. -->
 
 <!-- Recently completed:
      ✅ 2026-09-03 11:52:52 Spec-First Development & File Structure (spec-first-file-structure)
      ✅ 2026-09-03 12:15:09 Define Core Data Schemas (define-core-data-schemas)
-     ✅ 2026-09-03 12:27:05 Build PDF Ingestion & Parsing (build-pdf-ingestion-parsing)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -26,6 +26,20 @@
 ## P1
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
+
+- [ ] Build PDF Ingestion & Parsing (@claude)
+  - **ID**: build-pdf-ingestion-parsing
+  - **Tags**: parsing, pdf
+  - **Details**: Write a robust utility in `src/parser.py` using `pypdf`
+    or a layout extractor to ingest a treaty PDF, extract text by page,
+    and return structured sections with page citations.
+  - **Files**: `src/parser.py`, `data/`
+  - **Acceptance**: Given a sample treaty PDF in `data/`, the parser
+    returns structured text sections each tagged with the source page
+    number; malformed/unreadable PDFs raise a clear, catchable error.
+  - **Status**: Implemented and verified (see REASONING.md,
+    2026-09-03 12:26:10) — awaiting human approval before closing.
+    See PR #5.
 
 - [ ] Implement Deterministic Tools
   - **ID**: implement-deterministic-tools
@@ -53,7 +67,7 @@
   - **Acceptance**: Running the graph end-to-end on parsed treaty text
     produces a populated `AnomalyReport`; each node's output is validated
     against its Pydantic schema before advancing to the next node.
-  - **Blocked by**: implement-deterministic-tools
+  - **Blocked by**: build-pdf-ingestion-parsing, implement-deterministic-tools
 
 - [ ] Write Unit Tests
   - **ID**: write-unit-tests
@@ -66,7 +80,7 @@
   - **Acceptance**: `pytest tests/` passes and covers at least: one
     invalid-input case per schema, `calculate_loss_ratio` with known
     inputs/expected output, and the parser's behavior on a malformed PDF.
-  - **Blocked by**: implement-deterministic-tools, build-agentic-workflow-graph
+  - **Blocked by**: build-pdf-ingestion-parsing, implement-deterministic-tools, build-agentic-workflow-graph
 
 - [ ] Create User Interface & API
   - **ID**: create-ui-api

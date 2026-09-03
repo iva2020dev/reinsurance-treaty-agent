@@ -42,8 +42,13 @@ This repo is used with both Junie and Claude Code. Both read this file.
    - **Reasoning**: Why you made these choices
 5. **Work** on the task following all policies in TASKS.md
 6. **Update** REASONING.md during work with major decisions or discoveries
-7. **Remove** completed tasks from TASKS.md (history is tracked in git)
-8. **Add** new tasks discovered during work to the appropriate priority section
+7. **Ask** for human approval before marking a task done — present the
+   verified work (what was built, how it was verified) and wait for an
+   explicit go-ahead before removing the task from TASKS.md. Never
+   self-approve a task as complete.
+8. **Remove** completed tasks from TASKS.md only after that approval
+   (history is tracked in git)
+9. **Add** new tasks discovered during work to the appropriate priority section
 
 ### Priority Levels
 

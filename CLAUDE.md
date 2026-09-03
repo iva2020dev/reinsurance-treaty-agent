@@ -22,8 +22,11 @@ This project uses `TASKS.md` following the [TASKS.md specification](https://gith
    - Goal, Analysis, Decision, Action, Reasoning
 5. **Update** `REASONING.md` during work with major decisions
 6. **Complete** task and document outcome in `REASONING.md`
-7. **Remove** completed task from `TASKS.md` (history in git)
-8. **Add** any new tasks discovered during work
+7. **Ask** for human approval before marking the task done — never
+   self-approve; wait for an explicit go-ahead
+8. **Remove** completed task from `TASKS.md` only after that approval
+   (history in git)
+9. **Add** any new tasks discovered during work
 
 **Priority levels:** P0 = critical, P1 = high, P2 = medium, P3 = low
 

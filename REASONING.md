@@ -145,7 +145,10 @@ This file contains the reasoning transcript of the AI agent for the current sess
   1-indexed `page_number`s and the expected text on each page; a
   malformed PDF (`b"not a pdf at all"`) and a missing file both raise
   `ParserError` with a clear message. Re-ran `pytest tests/` — 2 passed,
-  no regressions. Acceptance criteria met; task removed from TASKS.md,
-  and its `Blocked by: build-pdf-ingestion-parsing` reference dropped
-  from `build-agentic-workflow-graph` and `write-unit-tests`.
+  no regressions. Acceptance criteria met. Per the newly added policy
+  (never mark a task done without explicit human approval), the task
+  is kept open in TASKS.md with a `Status` note pointing here and to
+  PR #5, and the `Blocked by: build-pdf-ingestion-parsing` references in
+  `build-agentic-workflow-graph` and `write-unit-tests` are restored,
+  pending that approval.
 
