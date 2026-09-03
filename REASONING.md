@@ -180,3 +180,15 @@ This file contains the reasoning transcript of the AI agent for the current sess
   counts had drifted after this addition) and added a "Sample Treaty
   Fixtures" table documenting both PDFs and their saved parse results.
 
+- **2026-09-03 13:14:15 update**: Human asked to see both treaty tests
+  and make them clearly distinct. Renamed
+  `test_extract_treaty_sections_returns_one_section_per_page` to
+  `test_extract_treaty_sections_handles_minimal_two_page_treaty` so it
+  reads as the symmetric counterpart to
+  `..._handles_rich_multi_page_treaty` (same "handles_<size>_treaty"
+  pattern, naming which fixture and page count each covers). Updated
+  the matching command/output examples in `README.md`. Ran both by name
+  (`pytest tests/test_parser.py -k "minimal_two_page_treaty or
+  rich_multi_page_treaty" -v`) — 2 passed; re-ran the full suite —
+  5 passed, no regressions.
+

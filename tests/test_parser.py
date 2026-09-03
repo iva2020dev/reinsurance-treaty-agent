@@ -8,7 +8,7 @@ SAMPLE_TREATY_PATH = "data/sample_treaty.pdf"
 SAMPLE_RICH_TREATY_PATH = "data/sample_rich_treaty.pdf"
 
 
-def test_extract_treaty_sections_returns_one_section_per_page():
+def test_extract_treaty_sections_handles_minimal_two_page_treaty():
     sections = extract_treaty_sections(SAMPLE_TREATY_PATH)
 
     assert len(sections) == 2
