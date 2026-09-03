@@ -565,3 +565,10 @@ This file contains the reasoning transcript of the AI agent for the current sess
   verifying this task's own commit, not a scope change — noting it here
   per that policy rather than opening a separate task for it.
 
+- **2026-09-03 19:18:42 — Approved done**: PR #12 merged into `main`
+  (merge commit `65084f9`, 2026-09-03T19:17:47Z). Human explicitly
+  approved the task as done. Removed `write-integration-tests` from
+  TASKS.md per the human-approval policy, and dropped it from
+  `create-ui-api`'s `Blocked by` field (now unblocked — no remaining
+  blockers).
+
