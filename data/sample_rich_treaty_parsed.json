@@ -1,0 +1,18 @@
+[
+  {
+    "page_number": 1,
+    "text": "PROPERTY CATASTROPHE EXCESS OF LOSS REINSURANCE TREATY\nCedent: Meridian Insurance Group, Inc.\nReinsurer: Northbridge Reinsurance Company Ltd.\nBroker: Aon Benfield Re Solutions\nTreaty Type: Property Catastrophe Excess of Loss\nTreaty Reference: MIG-NRC-2026-CAT-01\nPeriod of Cover: 1 January 2026 to 31 December 2026, both days inclusive\nTerritory: United States of America and Puerto Rico\nCurrency: United States Dollars (USD)\nLines of Business: Commercial Property, Homeowners, Inland Marine"
+  },
+  {
+    "page_number": 2,
+    "text": "FINANCIAL TERMS\nLayer 1:\n  Attachment Point: 10,000,000\n  Limit: 20,000,000\n  Reinsurance Premium: 1,800,000\n  Reinstatements: 2 at 100% pro rata additional premium\nLayer 2:\n  Attachment Point: 30,000,000\n  Limit: 40,000,000\n  Reinsurance Premium: 950,000\n  Reinstatements: 1 at 100% pro rata additional premium\nBrokerage: 10% of gross reinsurance premium\nProfit Commission: Not applicable\nPayment Terms: Quarterly in advance, net 30 days"
+  },
+  {
+    "page_number": 3,
+    "text": "EXCLUSIONS\nThis Treaty excludes losses directly or indirectly arising from:\n1. War, invasion, act of foreign enemy, hostilities or warlike operations\n2. Nuclear reaction, nuclear radiation, or radioactive contamination\n3. Terrorism, as defined under the Terrorism Risk Insurance Act (TRIA)\n4. Pollution and environmental contamination, seepage or contamination\n5. Asbestos-related bodily injury or property damage claims\n6. Cyber-attack, data breach, or loss of electronic data\n7. Communicable disease, pandemic, or epidemic-related business interruption\n8. Losses sustained prior to the inception date of this Treaty\n9. Fraudulent or dishonest acts of the Cedent\u2019s employees\n10. Currency fluctuation and cryptocurrency-denominated losses"
+  },
+  {
+    "page_number": 4,
+    "text": "CLAIMS, REPORTING & DISPUTE RESOLUTION\nNotice of Loss: The Cedent shall notify the Reinsurer within 30 days of\nbecoming aware of any loss reasonably likely to involve this Treaty.\nClaims Payment Currency: All claims shall be settled in United States Dollars,\nregardless of the currency in which the underlying policy was written.\nLoss Reserves: The Cedent shall report loss reserves quarterly, itemized by\noccurrence and layer.\nArbitration: Any dispute arising under this Treaty shall be settled by\narbitration in New York, New York, under the rules of the American\nArbitration Association. Each party shall appoint one arbitrator, and the\ntwo arbitrators shall jointly appoint a third.\nGoverning Law: This Treaty shall be governed by the laws of the State of\nNew York, without regard to conflict-of-laws principles."
+  }
+]

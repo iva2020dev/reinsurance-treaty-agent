@@ -10,7 +10,9 @@
      policy: Prefer fixing root causes over symptoms.
      policy: Review AGENTS.md and CLAUDE.md before starting any work.
      policy: A scheduled cloud routine checks github.com/tasksmd/tasks.md for new releases roughly every second Monday; see AGENTS.md "Keeping tasks.md tooling current".
-     policy: Every dated entry here and in REASONING.md MUST include time as YYYY-MM-DD HH:MM:SS (24h) — see AGENTS.md "Timestamp Format". -->
+     policy: Every dated entry here and in REASONING.md MUST include time as YYYY-MM-DD HH:MM:SS (24h) — see AGENTS.md "Timestamp Format".
+     policy: NEVER mark a task done or remove it from this file without explicit human approval first. Present the verified work and wait.
+     policy: If the human adds or changes actions within an in-progress task, update that task's entry here (Files/Details/Status) to match, and log the change as a dated update in REASONING.md — see AGENTS.md "Mandatory Workflow". -->
 
 <!-- Recently completed:
      ✅ 2026-09-03 11:52:52 Spec-First Development & File Structure (spec-first-file-structure)
@@ -26,16 +28,21 @@
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
-- [ ] Build PDF Ingestion & Parsing
+- [ ] Build PDF Ingestion & Parsing (@claude)
   - **ID**: build-pdf-ingestion-parsing
   - **Tags**: parsing, pdf
   - **Details**: Write a robust utility in `src/parser.py` using `pypdf`
     or a layout extractor to ingest a treaty PDF, extract text by page,
     and return structured sections with page citations.
-  - **Files**: `src/parser.py`, `data/`
+  - **Files**: `src/parser.py`, `data/sample_treaty.pdf`, `data/sample_treaty_parsed.json`, `data/sample_rich_treaty.pdf`, `data/sample_rich_treaty_parsed.json`, `tests/test_parser.py`, `README.md`
   - **Acceptance**: Given a sample treaty PDF in `data/`, the parser
     returns structured text sections each tagged with the source page
     number; malformed/unreadable PDFs raise a clear, catchable error.
+  - **Status**: Implemented and verified, including real
+    `tests/test_parser.py` coverage and a second, richer 4-page fixture
+    (`data/sample_rich_treaty.pdf`) with detailed insurance-contract
+    content (see REASONING.md, 2026-09-03 12:26:10, 12:49:35, and
+    13:09:58) — awaiting human approval before closing. See PR #5.
 
 - [ ] Implement Deterministic Tools
   - **ID**: implement-deterministic-tools
