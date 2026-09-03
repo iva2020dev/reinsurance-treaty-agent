@@ -261,3 +261,67 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `Blocked by` reference names an ID that still exists in TASKS.md
   (grep check). No code changed — TASKS.md restructuring only.
 
+## 2026-09-03 17:23:12 — Task: Implement Deterministic Tools (implement-deterministic-tools)
+
+- **Goal**: Build `query_historical_claims(cedent_name)` and
+  `calculate_loss_ratio(attachment_point, limit, claims)` in
+  `src/tools.py`, plus a mock historical-claims CSV under `data/` and
+  unit tests, per the task's (now-embedded) AC.
+- **Analysis**: `src/models.py` already defines `ClaimsData` (cedent_name,
+  claim_amount, claim_date) — `query_historical_claims` should return
+  `list[ClaimsData]`, reusing that schema rather than inventing a new
+  claim shape. No claims CSV exists yet under `data/`. The two existing
+  treaty fixtures name cedents "Acme Insurance Co." (`sample_treaty.pdf`)
+  and "Meridian Insurance Group, Inc." (`sample_rich_treaty.pdf`) — using
+  those same names in the mock CSV means the later
+  `write-integration-tests` task can exercise a real
+  parse-then-query-claims path without needing a second set of fixture
+  names invented from scratch.
+  For `calculate_loss_ratio`: the task only says "deterministic math,"
+  not which formula. A reinsurance XoL layer's "burn rate" — the
+  standard way to express how much of a layer's capacity historical
+  losses would have consumed — is: for each claim, the amount ceded to
+  this layer is `max(0, min(claim_amount, attachment_point + limit) -
+  attachment_point)` (i.e. the claim capped at the layer's top, minus
+  everything below the attachment point); loss_ratio is the sum of ceded
+  amounts divided by the limit. This uses exactly the three inputs named
+  in the task signature and produces a standard, interpretable ratio
+  (0 = layer untouched historically, 1.0 = layer would have been fully
+  exhausted, >1.0 = losses would have exceeded the layer).
+- **Decision**: `query_historical_claims` reads the CSV with the stdlib
+  `csv` module (no new dependency — `pandas` isn't in requirements.txt
+  and the file is small/flat) and returns `list[ClaimsData]`, so its
+  output round-trips through the same Pydantic validation as everywhere
+  else. Filtering is case-sensitive exact match on `cedent_name` (no
+  fuzzy matching) — the task and AC only specify "a known cedent" vs.
+  "an unknown cedent," not partial/fuzzy lookup, and adding fuzzy
+  matching would be unrequested scope. `calculate_loss_ratio` takes
+  `claims: list[ClaimsData]` (typed, matching the schema) rather than a
+  bare `list`, and sums claim_amount directly rather than requiring the
+  caller to pre-extract amounts. Named the mock CSV
+  `data/historical_claims.csv` (matches the domain term
+  "historical claims" used throughout AGENTS.md/TASKS.md), with columns
+  `cedent_name,claim_amount,claim_date` mirroring `ClaimsData` field
+  order/names exactly, and included both existing fixture cedents plus
+  one additional cedent name that appears nowhere in the CSV (to test the
+  "unknown cedent" path meaningfully) and one cedent with multiple claim
+  rows (to test aggregation).
+- **Action**: Added `data/historical_claims.csv` (7 rows across 3
+  cedents: "Acme Insurance Co." with 3 claims, "Meridian Insurance
+  Group, Inc." — quoted, since its name contains a comma — with 2
+  claims, and "Sentinel Mutual Assurance" with 1 claim, unused by any
+  existing test so it's available for future integration coverage).
+  Implemented `query_historical_claims()` and `calculate_loss_ratio()`
+  in `src/tools.py` per the design above. Added `tests/test_tools.py`
+  with 5 tests: known cedent (3 rows, correct sum), unknown cedent
+  (empty list), a known-inputs loss-ratio calculation (one claim below
+  the attachment point ceding 0, one partially ceding), an empty-claims
+  edge case (ratio 0.0), and a claim exceeding the layer top (ratio
+  capped at 1.0).
+- **Outcome**: `pytest tests/test_tools.py -v` — 5 passed. Manually
+  verified the CSV's comma-containing cedent name ("Meridian Insurance
+  Group, Inc.") is parsed correctly by `csv.DictReader` as a single
+  field (2 claims returned, not split on the embedded comma). Full
+  suite `pytest tests/ -v` — 10 passed, no regressions. Acceptance
+  criteria met.
+
