@@ -486,3 +486,10 @@ This file contains the reasoning transcript of the AI agent for the current sess
   "out of date, run this command" message. Updated the full-suite
   example output in `README.md` (15 → 16, for the new test).
 
+- **2026-09-03 18:44:29 — Approved done**: PR #10 merged into `main`
+  (merge commit `525356b`, 2026-09-03T18:43:36Z). Human explicitly
+  approved the task as done. Removed `build-agentic-workflow-graph`
+  from TASKS.md per the human-approval policy, and dropped it from the
+  `Blocked by` fields on `write-integration-tests` (now unblocked) and
+  `create-ui-api` (now blocked only by `write-integration-tests`).
+
