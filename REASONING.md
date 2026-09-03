@@ -197,4 +197,10 @@ This file contains the reasoning transcript of the AI agent for the current sess
   Tests section, so the "both treaty tests, distinct" example shown in
   chat is also documented for future readers rather than living only
   in the conversation.
+- **2026-09-03 13:19:12 — Approved done**: PR #5 merged into `main`
+  (merge commit `4c0b571`, 2026-09-03T13:17:45Z). Human explicitly
+  approved the task as done. Removed `build-pdf-ingestion-parsing` from
+  TASKS.md per the human-approval policy, and restored the
+  `Blocked by` references on `build-agentic-workflow-graph` and
+  `write-unit-tests` to no longer name it.
 
