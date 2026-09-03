@@ -9,9 +9,10 @@
      policy: Before building ANY new feature, check if an upstream tool already does this.
      policy: Prefer fixing root causes over symptoms.
      policy: Review AGENTS.md and CLAUDE.md before starting any work.
-     policy: A scheduled cloud routine checks github.com/tasksmd/tasks.md for new releases roughly every second Monday; see AGENTS.md "Keeping tasks.md tooling current". -->
+     policy: A scheduled cloud routine checks github.com/tasksmd/tasks.md for new releases roughly every second Monday; see AGENTS.md "Keeping tasks.md tooling current".
+     policy: Every dated entry here and in REASONING.md MUST include time as YYYY-MM-DD HH:MM:SS (24h) — see AGENTS.md "Timestamp Format". -->
 
-<!-- Recently completed (2026-09-03):
+<!-- Recently completed (2026-09-03 11:52:52):
      ✅ Spec-First Development & File Structure (spec-first-file-structure)
      See REASONING.md for detailed decision logs. -->
 

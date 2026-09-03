@@ -3,7 +3,7 @@
 
 This file contains the reasoning transcript of the AI agent for the current session.
 
-## 2026-09-03 — Task: Spec-First Development & File Structure (spec-first-file-structure)
+## 2026-09-03 11:52:52 — Task: Spec-First Development & File Structure (spec-first-file-structure)
 
 - **Goal**: Create the modular `data/`, `src/`, `tests/` scaffold described
   in the task so subsequent feature work (parsing, tools, workflow, app) has
@@ -40,4 +40,6 @@ This file contains the reasoning transcript of the AI agent for the current sess
   importable and both test files are discovered and pass. All Acceptance
   criteria met; task removed from TASKS.md per the tasks.md spec (completed
   top-level tasks are removed, not checked off — history lives in git).
+  PR #1 (`task/spec-first-file-structure`) merged by the repo owner at
+  2026-09-03 11:52:52 UTC (merge commit `7bd522a`).
 

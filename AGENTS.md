@@ -97,7 +97,7 @@ pnpm tasks:install      # Install tasks.md commands for your agent
 ### Format
 
 ```markdown
-## YYYY-MM-DD HH:MM
+## YYYY-MM-DD HH:MM:SS
 
 ### Task: [Task Title]
 - **Goal**: What you're trying to achieve
@@ -115,6 +115,15 @@ pnpm tasks:install      # Install tasks.md commands for your agent
 - **After** completing: Document outcome and any learnings
 
 This creates a valuable audit trail of AI agent work.
+
+### Timestamp Format
+
+Every dated entry in `REASONING.md` and every "Recently completed" note in
+`TASKS.md` **MUST** include the time of day alongside the date, in
+24-hour `HH:MM:SS` format (`YYYY-MM-DD HH:MM:SS`) — not just the date.
+For a completion note, use the time the task actually finished (e.g. a
+PR's merge time), not the time the entry was written. This applies going
+forward to all future entries, not just this one.
 
 ## Skills
 
