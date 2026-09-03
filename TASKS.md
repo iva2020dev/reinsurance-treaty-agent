@@ -21,6 +21,7 @@
      ✅ 2026-09-03 13:19:12 Build PDF Ingestion & Parsing (build-pdf-ingestion-parsing)
      ✅ 2026-09-03 17:47:28 Implement Deterministic Tools (implement-deterministic-tools)
      ✅ 2026-09-03 18:44:29 Build the Agentic Workflow Graph (build-agentic-workflow-graph)
+     ✅ 2026-09-03 19:18:42 Write Integration Tests for End-to-End Workflow (write-integration-tests)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -31,29 +32,6 @@
 ## P1
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
-
-- [ ] Write Integration Tests for End-to-End Workflow (@claude)
-  - **ID**: write-integration-tests
-  - **Tags**: testing, integration
-  - **Details**: Write integration tests exercising the full pipeline —
-    parse a treaty PDF, extract terms, query historical claims, calculate
-    the loss ratio, and produce the final `AnomalyReport` — as a single
-    run through `src/workflow.py`, using the real `data/sample_treaty.pdf`
-    and `data/sample_rich_treaty.pdf` fixtures rather than mocking
-    individual nodes. Cover both success and failure paths end-to-end.
-  - **Files**: `tests/test_integration.py`, `src/workflow.py` (added `run_workflow_from_pdf`), `README.md`
-  - **Acceptance**: `pytest tests/test_integration.py` passes and covers
-    at least: (1) success — a full run on `sample_treaty.pdf` and on
-    `sample_rich_treaty.pdf` each produces a valid `AnomalyReport`; (2)
-    failure — a malformed/unreadable PDF fails the run with a clear,
-    caught error rather than an unhandled exception; (3) failure — a
-    cedent with no historical claims data is handled gracefully (e.g. an
-    empty-claims `AnomalyReport` or an explicit flagged finding, not a
-    crash); (4) failure — treaty text missing a required term (e.g. no
-    extractable limit) is handled gracefully rather than crashing.
-  - **Status**: Implemented and verified, including
-    `tests/test_integration.py` coverage (see REASONING.md, 2026-09-03
-    19:05:13) — awaiting human approval before closing.
 
 - [ ] Create User Interface & API
   - **ID**: create-ui-api
@@ -72,7 +50,6 @@
     `pytest tests/test_app.py` passes and covers at least one successful
     upload-and-render run and one failure case (e.g. uploading a
     malformed PDF) surfacing a clear error in the UI instead of crashing.
-  - **Blocked by**: write-integration-tests
 
 
 ## P2
