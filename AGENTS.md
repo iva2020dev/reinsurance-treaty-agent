@@ -42,13 +42,19 @@ This repo is used with both Junie and Claude Code. Both read this file.
    - **Reasoning**: Why you made these choices
 5. **Work** on the task following all policies in TASKS.md
 6. **Update** REASONING.md during work with major decisions or discoveries
-7. **Ask** for human approval before marking a task done — present the
+7. **Sync** if the human adds or changes actions within an in-progress
+   task (e.g. "also add tests for this"): update that task's entry in
+   TASKS.md (Files, Details, Status — whatever changed) to match what
+   was actually asked for and done, and log the change in REASONING.md
+   as a dated update under that task's entry. Never let TASKS.md drift
+   out of sync with the real scope of the work.
+8. **Ask** for human approval before marking a task done — present the
    verified work (what was built, how it was verified) and wait for an
    explicit go-ahead before removing the task from TASKS.md. Never
    self-approve a task as complete.
-8. **Remove** completed tasks from TASKS.md only after that approval
+9. **Remove** completed tasks from TASKS.md only after that approval
    (history is tracked in git)
-9. **Add** new tasks discovered during work to the appropriate priority section
+10. **Add** new tasks discovered during work to the appropriate priority section
 
 ### Priority Levels
 

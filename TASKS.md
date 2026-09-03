@@ -11,7 +11,8 @@
      policy: Review AGENTS.md and CLAUDE.md before starting any work.
      policy: A scheduled cloud routine checks github.com/tasksmd/tasks.md for new releases roughly every second Monday; see AGENTS.md "Keeping tasks.md tooling current".
      policy: Every dated entry here and in REASONING.md MUST include time as YYYY-MM-DD HH:MM:SS (24h) — see AGENTS.md "Timestamp Format".
-     policy: NEVER mark a task done or remove it from this file without explicit human approval first. Present the verified work and wait. -->
+     policy: NEVER mark a task done or remove it from this file without explicit human approval first. Present the verified work and wait.
+     policy: If the human adds or changes actions within an in-progress task, update that task's entry here (Files/Details/Status) to match, and log the change as a dated update in REASONING.md — see AGENTS.md "Mandatory Workflow". -->
 
 <!-- Recently completed:
      ✅ 2026-09-03 11:52:52 Spec-First Development & File Structure (spec-first-file-structure)
