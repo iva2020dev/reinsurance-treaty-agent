@@ -34,14 +34,15 @@
   - **Details**: Write a robust utility in `src/parser.py` using `pypdf`
     or a layout extractor to ingest a treaty PDF, extract text by page,
     and return structured sections with page citations.
-  - **Files**: `src/parser.py`, `data/sample_treaty.pdf`, `data/sample_treaty_parsed.json`, `tests/test_parser.py`
+  - **Files**: `src/parser.py`, `data/sample_treaty.pdf`, `data/sample_treaty_parsed.json`, `data/sample_rich_treaty.pdf`, `data/sample_rich_treaty_parsed.json`, `tests/test_parser.py`, `README.md`
   - **Acceptance**: Given a sample treaty PDF in `data/`, the parser
     returns structured text sections each tagged with the source page
     number; malformed/unreadable PDFs raise a clear, catchable error.
   - **Status**: Implemented and verified, including real
-    `tests/test_parser.py` coverage (see REASONING.md, 2026-09-03
-    12:26:10 and 12:49:35) — awaiting human approval before closing.
-    See PR #5.
+    `tests/test_parser.py` coverage and a second, richer 4-page fixture
+    (`data/sample_rich_treaty.pdf`) with detailed insurance-contract
+    content (see REASONING.md, 2026-09-03 12:26:10, 12:49:35, and
+    13:09:58) — awaiting human approval before closing. See PR #5.
 
 - [ ] Implement Deterministic Tools
   - **ID**: implement-deterministic-tools

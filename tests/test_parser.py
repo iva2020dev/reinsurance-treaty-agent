@@ -5,6 +5,7 @@ import pytest
 from src.parser import ParserError, extract_treaty_sections
 
 SAMPLE_TREATY_PATH = "data/sample_treaty.pdf"
+SAMPLE_RICH_TREATY_PATH = "data/sample_rich_treaty.pdf"
 
 
 def test_extract_treaty_sections_returns_one_section_per_page():
@@ -14,6 +15,17 @@ def test_extract_treaty_sections_returns_one_section_per_page():
     assert [s.page_number for s in sections] == [1, 2]
     assert "Attachment Point" in sections[0].text
     assert "EXCLUSIONS" in sections[1].text
+
+
+def test_extract_treaty_sections_handles_rich_multi_page_treaty():
+    sections = extract_treaty_sections(SAMPLE_RICH_TREATY_PATH)
+
+    assert len(sections) == 4
+    assert [s.page_number for s in sections] == [1, 2, 3, 4]
+    assert "Cedent: Meridian Insurance Group" in sections[0].text
+    assert "Layer 1" in sections[1].text
+    assert "EXCLUSIONS" in sections[2].text
+    assert "Arbitration" in sections[3].text
 
 
 def test_extract_treaty_sections_raises_on_malformed_pdf(tmp_path):

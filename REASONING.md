@@ -162,3 +162,21 @@ This file contains the reasoning transcript of the AI agent for the current sess
   whether to do this now vs. defer to `write-unit-tests`; they said do
   it now. `pytest tests/` — 4 passed.
 
+- **2026-09-03 13:09:58 update**: Human asked for a second, richer sample
+  treaty — `data/sample_rich_treaty.pdf` — with more specific insurance-
+  contract content than the minimal first fixture. Built it with the
+  same hand-rolled PDF approach (no PDF-writing library available): 4
+  pages covering parties/period/territory/currency, two XoL layers with
+  attachment points, limits, premiums, reinstatements and brokerage, a
+  10-item exclusions list, and claims/reporting/arbitration/governing-law
+  provisions — closer to a real property-cat XoL treaty than the
+  original single-section fixture. Verified `extract_treaty_sections`
+  returns 4 correctly page-numbered sections with the expected content
+  on each page, saved the result as `data/sample_rich_treaty_parsed.json`
+  (same naming convention as the first fixture), and added
+  `test_extract_treaty_sections_handles_rich_multi_page_treaty` to
+  `tests/test_parser.py`. Re-ran the full suite: `pytest tests/ -v` — 5
+  passed, no regressions. Updated `README.md`'s example outputs (test
+  counts had drifted after this addition) and added a "Sample Treaty
+  Fixtures" table documenting both PDFs and their saved parse results.
+

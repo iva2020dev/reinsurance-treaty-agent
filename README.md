@@ -30,14 +30,15 @@ Example output:
 
 ```
 ============================= test session starts ==============================
-collected 4 items
+collected 5 items
 
-tests/test_parser.py::test_extract_treaty_sections_returns_one_section_per_page PASSED [ 25%]
-tests/test_parser.py::test_extract_treaty_sections_raises_on_malformed_pdf PASSED [ 50%]
-tests/test_parser.py::test_extract_treaty_sections_raises_on_missing_file PASSED [ 75%]
+tests/test_parser.py::test_extract_treaty_sections_returns_one_section_per_page PASSED [ 20%]
+tests/test_parser.py::test_extract_treaty_sections_handles_rich_multi_page_treaty PASSED [ 40%]
+tests/test_parser.py::test_extract_treaty_sections_raises_on_malformed_pdf PASSED [ 60%]
+tests/test_parser.py::test_extract_treaty_sections_raises_on_missing_file PASSED [ 80%]
 tests/test_workflow.py::test_module_imports PASSED                       [100%]
 
-============================== 4 passed in 0.05s ===============================
+============================== 5 passed in 0.06s ===============================
 ```
 
 Run a single test file, e.g. just the parser tests:
@@ -50,13 +51,14 @@ Example output:
 
 ```
 ============================= test session starts ==============================
-collected 3 items
+collected 4 items
 
-tests/test_parser.py::test_extract_treaty_sections_returns_one_section_per_page PASSED [ 33%]
-tests/test_parser.py::test_extract_treaty_sections_raises_on_malformed_pdf PASSED [ 66%]
+tests/test_parser.py::test_extract_treaty_sections_returns_one_section_per_page PASSED [ 25%]
+tests/test_parser.py::test_extract_treaty_sections_handles_rich_multi_page_treaty PASSED [ 50%]
+tests/test_parser.py::test_extract_treaty_sections_raises_on_malformed_pdf PASSED [ 75%]
 tests/test_parser.py::test_extract_treaty_sections_raises_on_missing_file PASSED [100%]
 
-============================== 3 passed in 0.05s ===============================
+============================== 4 passed in 0.06s ===============================
 ```
 
 Run a single test by name:
@@ -75,3 +77,14 @@ tests/test_parser.py::test_extract_treaty_sections_returns_one_section_per_page 
 
 ============================== 1 passed in 0.06s ===============================
 ```
+
+## Sample Treaty Fixtures
+
+`data/` holds two hand-built mock treaty PDFs used by the parser tests,
+each with its parsed output saved alongside it as JSON for inspection
+without running any code:
+
+| PDF | Parsed output | Pages | Content |
+|---|---|---|---|
+| `sample_treaty.pdf` | `sample_treaty_parsed.json` | 2 | Minimal: attachment point, limit, premium, exclusions |
+| `sample_rich_treaty.pdf` | `sample_rich_treaty_parsed.json` | 4 | Detailed: parties/period/territory, two layers with reinstatements and brokerage, a 10-item exclusions list, and claims/arbitration/governing-law provisions |
