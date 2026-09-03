@@ -76,26 +76,31 @@ Example output:
 
 ```
 ============================= test session starts ==============================
-collected 16 items
+collected 21 items
 
-tests/test_parser.py::test_extract_treaty_sections_handles_minimal_two_page_treaty PASSED [  6%]
-tests/test_parser.py::test_extract_treaty_sections_handles_rich_multi_page_treaty PASSED [ 12%]
-tests/test_parser.py::test_extract_treaty_sections_raises_on_malformed_pdf PASSED [ 18%]
-tests/test_parser.py::test_extract_treaty_sections_raises_on_missing_file PASSED [ 25%]
-tests/test_tools.py::test_query_historical_claims_returns_claims_for_known_cedent PASSED [ 31%]
-tests/test_tools.py::test_query_historical_claims_returns_empty_list_for_unknown_cedent PASSED [ 37%]
-tests/test_tools.py::test_calculate_loss_ratio_known_inputs PASSED       [ 43%]
-tests/test_tools.py::test_calculate_loss_ratio_empty_claims_is_zero PASSED [ 50%]
-tests/test_tools.py::test_calculate_loss_ratio_claim_exceeding_layer_top_is_capped PASSED [ 56%]
-tests/test_workflow.py::test_extractor_node_well_formed_input PASSED     [ 62%]
-tests/test_workflow.py::test_extractor_node_flags_missing_fields PASSED  [ 68%]
-tests/test_workflow.py::test_verifier_node_complete_triggers_historical_claims_lookup PASSED [ 75%]
-tests/test_workflow.py::test_verifier_node_flags_incompleteness_without_calling_tools PASSED [ 81%]
-tests/test_workflow.py::test_analyst_node_no_anomalies PASSED            [ 87%]
-tests/test_workflow.py::test_analyst_node_flags_at_least_one_anomaly PASSED [ 93%]
+tests/test_integration.py::test_full_pipeline_success_minimal_treaty PASSED [  4%]
+tests/test_integration.py::test_full_pipeline_success_rich_treaty PASSED [  9%]
+tests/test_integration.py::test_full_pipeline_malformed_pdf_raises_parser_error PASSED [ 14%]
+tests/test_integration.py::test_full_pipeline_unknown_cedent_handled_gracefully PASSED [ 19%]
+tests/test_integration.py::test_full_pipeline_missing_required_term_handled_gracefully PASSED [ 23%]
+tests/test_parser.py::test_extract_treaty_sections_handles_minimal_two_page_treaty PASSED [ 28%]
+tests/test_parser.py::test_extract_treaty_sections_handles_rich_multi_page_treaty PASSED [ 33%]
+tests/test_parser.py::test_extract_treaty_sections_raises_on_malformed_pdf PASSED [ 38%]
+tests/test_parser.py::test_extract_treaty_sections_raises_on_missing_file PASSED [ 42%]
+tests/test_tools.py::test_query_historical_claims_returns_claims_for_known_cedent PASSED [ 47%]
+tests/test_tools.py::test_query_historical_claims_returns_empty_list_for_unknown_cedent PASSED [ 52%]
+tests/test_tools.py::test_calculate_loss_ratio_known_inputs PASSED       [ 57%]
+tests/test_tools.py::test_calculate_loss_ratio_empty_claims_is_zero PASSED [ 61%]
+tests/test_tools.py::test_calculate_loss_ratio_claim_exceeding_layer_top_is_capped PASSED [ 66%]
+tests/test_workflow.py::test_extractor_node_well_formed_input PASSED     [ 71%]
+tests/test_workflow.py::test_extractor_node_flags_missing_fields PASSED  [ 76%]
+tests/test_workflow.py::test_verifier_node_complete_triggers_historical_claims_lookup PASSED [ 80%]
+tests/test_workflow.py::test_verifier_node_flags_incompleteness_without_calling_tools PASSED [ 85%]
+tests/test_workflow.py::test_analyst_node_no_anomalies PASSED            [ 90%]
+tests/test_workflow.py::test_analyst_node_flags_at_least_one_anomaly PASSED [ 95%]
 tests/test_workflow_graph_docs.py::test_readme_workflow_graph_matches_live_graph PASSED [100%]
 
-============================== 16 passed in 0.12s ===============================
+============================== 21 passed in 0.16s ===============================
 ```
 
 Run a single test file, e.g. just the parser tests:
@@ -222,6 +227,37 @@ tests/test_workflow.py::test_analyst_node_flags_at_least_one_anomaly PASSED [100
 | `test_verifier_node_flags_incompleteness_without_calling_tools` | `treaty=None` marks the run incomplete and skips the tool call entirely (empty claims) |
 | `test_analyst_node_no_anomalies` | A moderate loss ratio with claims data present produces `findings == []` |
 | `test_analyst_node_flags_at_least_one_anomaly` | Zero historical claims produces a `LOW` "no historical data" finding |
+
+Run just the integration tests — the full pipeline
+(`run_workflow_from_pdf`/`run_workflow`, from `src/workflow.py`) with
+no node mocking, both success and failure paths:
+
+```bash
+python3 -m pytest tests/test_integration.py -v
+```
+
+Example output:
+
+```
+============================= test session starts ==============================
+collected 5 items
+
+tests/test_integration.py::test_full_pipeline_success_minimal_treaty PASSED [ 20%]
+tests/test_integration.py::test_full_pipeline_success_rich_treaty PASSED [ 40%]
+tests/test_integration.py::test_full_pipeline_malformed_pdf_raises_parser_error PASSED [ 60%]
+tests/test_integration.py::test_full_pipeline_unknown_cedent_handled_gracefully PASSED [ 80%]
+tests/test_integration.py::test_full_pipeline_missing_required_term_handled_gracefully PASSED [100%]
+
+============================== 5 passed in 0.13s ===============================
+```
+
+| Test | Checks |
+|---|---|
+| `test_full_pipeline_success_minimal_treaty` | `sample_treaty.pdf` end-to-end → loss ratio 0.3, no findings |
+| `test_full_pipeline_success_rich_treaty` | `sample_rich_treaty.pdf` end-to-end → loss ratio 1.25, one `HIGH` finding |
+| `test_full_pipeline_malformed_pdf_raises_parser_error` | A malformed PDF raises `ParserError`, not an unhandled exception |
+| `test_full_pipeline_unknown_cedent_handled_gracefully` | A cedent with no historical claims produces a valid report with a `LOW` finding, not a crash |
+| `test_full_pipeline_missing_required_term_handled_gracefully` | Treaty text missing required fields ends the run with `complete: False`, not a crash |
 
 ## Sample Treaty Fixtures
 
