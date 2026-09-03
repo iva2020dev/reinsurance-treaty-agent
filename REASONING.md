@@ -443,3 +443,11 @@ This file contains the reasoning transcript of the AI agent for the current sess
   changes. Verified the pasted diagram is byte-for-byte what that
   command currently produces.
 
+- **2026-09-03 18:26:01 update**: Human asked to view the graph
+  visually. Rendered it with `app.get_graph().draw_mermaid_png()` (this
+  calls the public `mermaid.ink` rendering service over the network,
+  unlike the text-only `draw_mermaid()` used in `README.md` — worth
+  noting if this is ever run on a graph structure that shouldn't leave
+  the machine, though this one is harmless), showed it inline, then
+  saved a permanent copy to `data/workflow_graph.png` on request.
+
