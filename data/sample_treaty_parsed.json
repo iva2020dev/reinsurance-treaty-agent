@@ -1,0 +1,10 @@
+[
+  {
+    "page_number": 1,
+    "text": "REINSURANCE TREATY AGREEMENT\nCedent: Acme Insurance Co.\nAttachment Point: 1,000,000\nLimit: 5,000,000\nReinsurance Premium: 250,000"
+  },
+  {
+    "page_number": 2,
+    "text": "EXCLUSIONS\nThis treaty excludes losses arising from:\nWar and warlike operations\nNuclear reaction or contamination"
+  }
+]

@@ -152,3 +152,13 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `build-agentic-workflow-graph` and `write-unit-tests` are restored,
   pending that approval.
 
+- **2026-09-03 12:49:35 update**: Saved the parser's actual output on
+  the fixture as `data/sample_treaty_parsed.json` (next to
+  `data/sample_treaty.pdf`) so the extraction result is visible without
+  re-running Python. Also replaced the placeholder
+  `tests/test_parser.py::test_module_imports` with three real tests
+  (happy path returns 2 correctly page-numbered sections; malformed PDF
+  and missing file both raise `ParserError`) — asked the human first
+  whether to do this now vs. defer to `write-unit-tests`; they said do
+  it now. `pytest tests/` — 4 passed.
+
