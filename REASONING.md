@@ -493,3 +493,75 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `Blocked by` fields on `write-integration-tests` (now unblocked) and
   `create-ui-api` (now blocked only by `write-integration-tests`).
 
+## 2026-09-03 19:05:13 — Task: Write Integration Tests for End-to-End Workflow (write-integration-tests)
+
+- **Goal**: Write `tests/test_integration.py` exercising the full
+  pipeline (parse → extract → query claims → calculate loss ratio →
+  `AnomalyReport`) end-to-end, covering both success and three
+  distinct failure paths, per this task's embedded AC.
+- **Analysis**: `run_workflow(sections)` (from `build-agentic-workflow-
+  graph`) takes already-parsed `PageSection`s, not a PDF path — but the
+  task's Details explicitly says "parse a treaty PDF, extract terms,
+  ... as a single run through `src/workflow.py`." There is currently no
+  single function covering parse-through-report; callers must chain
+  `extract_treaty_sections()` (from `src/parser.py`) and `run_workflow()`
+  themselves. That chaining is exactly what an integration test should
+  exercise, and will also be needed by the later `create-ui-api` task
+  (upload a PDF, get a report) — so it belongs in `src/workflow.py`
+  now, not duplicated ad hoc in the test file.
+  Of the four required failure cases, only "malformed/unreadable PDF"
+  needs a real bad file (already covered structurally by the existing
+  parser tests' malformed-PDF fixture pattern). "Unknown cedent" and
+  "missing required term" don't correspond to either existing PDF
+  fixture (both fixture cedents exist in `historical_claims.csv`, and
+  both fixtures have every required field) — inventing a new PDF binary
+  for each would add fixture-generation complexity for no real fidelity
+  gain, since the workflow's input contract is `list[PageSection]`
+  either way.
+- **Decision**: Added `run_workflow_from_pdf(path)` to `src/workflow.py`
+  — parses then runs the graph, propagating `ParserError` uncaught for
+  a malformed/unreadable file (that's already the "clear, caught error"
+  the parser guarantees; wrapping it in a second exception type would
+  only obscure the real cause). For "unknown cedent" and "missing
+  required term," build synthetic `PageSection` lists using the same
+  `Label: value` text convention the real fixtures use (identical in
+  spirit to `tests/test_workflow.py`'s existing synthetic sections) and
+  drive them through `run_workflow()` directly — this is testing the
+  full node-to-node pipeline with real graph execution, not mocking any
+  node, so it satisfies "rather than mocking individual nodes" even
+  though it isn't literally one of the two named PDF fixtures. Using the
+  two real PDFs is reserved for the two success cases, exactly as named
+  in the AC.
+- **Action**: Added `run_workflow_from_pdf(path)` to `src/workflow.py`
+  (parses then runs the graph, propagating `ParserError` unchanged).
+  Added `tests/test_integration.py` (5 tests): the two success cases on
+  the real PDF fixtures; malformed PDF raising `ParserError`; unknown
+  cedent (synthetic sections) producing a valid report with a `LOW`
+  finding and `loss_ratio == 0.0`; missing required fields (synthetic
+  sections) ending with `complete: False` and no `report` key set at
+  all (not `None` — LangGraph only sets keys a node actually returns,
+  so a skipped Analyst Node leaves `report` absent from the state dict;
+  had to switch the assertion from `result["report"]` to
+  `result.get("report")` after a `KeyError` caught this). Documented the
+  new test file in `README.md` (command, output, checks table) and
+  refreshed the full-suite example output (16 → 21).
+- **Outcome**: `pytest tests/test_integration.py -v` — 5 passed. Full
+  suite `pytest tests/ -v` — 21 passed, no regressions. Re-ran
+  `tests/test_workflow_graph_docs.py` specifically — still passes,
+  since `run_workflow_from_pdf` adds a function but no new graph nodes/
+  edges, so the documented diagram is still accurate. Acceptance
+  criteria met.
+
+- **Note**: While committing, the `.githooks/pre-commit` hook (added in
+  `build-agentic-workflow-graph`) failed — it ran the bare `python3` on
+  `PATH`, which under git's hook execution environment resolved to a
+  different, wrong-architecture Python than the project's venv (`arm64`
+  venv vs. an `x86_64` `python3` resolved elsewhere), so
+  `regenerate_workflow_graph.py`'s `langgraph`/`pydantic` imports failed
+  with an `ImportError`. Fixed the hook to invoke
+  `$(git rev-parse --show-toplevel)/venv/bin/python3` directly (falling
+  back to bare `python3` only if no venv is found) rather than relying
+  on `PATH`. This is a small, obviously-correct fix discovered while
+  verifying this task's own commit, not a scope change — noting it here
+  per that policy rather than opening a separate task for it.
+

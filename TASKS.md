@@ -32,7 +32,7 @@
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
-- [ ] Write Integration Tests for End-to-End Workflow
+- [ ] Write Integration Tests for End-to-End Workflow (@claude)
   - **ID**: write-integration-tests
   - **Tags**: testing, integration
   - **Details**: Write integration tests exercising the full pipeline —
@@ -41,7 +41,7 @@
     run through `src/workflow.py`, using the real `data/sample_treaty.pdf`
     and `data/sample_rich_treaty.pdf` fixtures rather than mocking
     individual nodes. Cover both success and failure paths end-to-end.
-  - **Files**: `tests/test_integration.py`
+  - **Files**: `tests/test_integration.py`, `src/workflow.py` (added `run_workflow_from_pdf`), `README.md`
   - **Acceptance**: `pytest tests/test_integration.py` passes and covers
     at least: (1) success — a full run on `sample_treaty.pdf` and on
     `sample_rich_treaty.pdf` each produces a valid `AnomalyReport`; (2)
@@ -51,6 +51,9 @@
     empty-claims `AnomalyReport` or an explicit flagged finding, not a
     crash); (4) failure — treaty text missing a required term (e.g. no
     extractable limit) is handled gracefully rather than crashing.
+  - **Status**: Implemented and verified, including
+    `tests/test_integration.py` coverage (see REASONING.md, 2026-09-03
+    19:05:13) — awaiting human approval before closing.
 
 - [ ] Create User Interface & API
   - **ID**: create-ui-api

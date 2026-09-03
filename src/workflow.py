@@ -1,13 +1,14 @@
 """LangGraph state machine & agent logic."""
 
 import re
+from pathlib import Path
 from typing import TypedDict
 
 from langgraph.graph import END, StateGraph
 from pydantic import ValidationError
 
 from src.models import AnomalyFinding, AnomalyReport, ClaimsData, Severity, TreatyTerms
-from src.parser import PageSection
+from src.parser import PageSection, extract_treaty_sections
 from src.tools import calculate_loss_ratio, query_historical_claims
 
 _REQUIRED_FIELDS = ("cedent_name", "attachment_point", "limit", "reinsurance_premium")
@@ -174,3 +175,13 @@ def run_workflow(sections: list[PageSection]) -> WorkflowState:
     """Run the full workflow graph on parsed treaty sections."""
     app = build_workflow_graph()
     return app.invoke({"sections": sections})
+
+
+def run_workflow_from_pdf(path: str | Path) -> WorkflowState:
+    """Parse a treaty PDF and run the full workflow graph on it.
+
+    Raises ParserError (propagated from extract_treaty_sections) if the
+    PDF cannot be read or has no extractable text.
+    """
+    sections = extract_treaty_sections(path)
+    return run_workflow(sections)

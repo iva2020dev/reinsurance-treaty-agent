@@ -9,8 +9,30 @@
 
 set -e
 
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+PYTHON="$REPO_ROOT/venv/bin/python3"
+if [ ! -x "$PYTHON" ]; then
+    # No project venv found (or a differently-named one) - fall back to
+    # whatever python3 is on PATH. If that's the wrong interpreter/
+    # architecture for this project's dependencies, activate the venv
+    # yourself before committing, or fix this path.
+    PYTHON="python3"
+fi
+
 if git diff --cached --name-only | grep -q '^src/workflow\.py$'; then
     echo "src/workflow.py changed - regenerating workflow graph diagram in README.md..."
-    python3 scripts/regenerate_workflow_graph.py
-    git add README.md
+    # On macOS, git itself may run under Rosetta (an x86_64-only git
+    # binary), and a child process's architecture preference follows its
+    # parent by default - `arch -arm64` overrides that so a
+    # universal-binary interpreter picks its native slice instead of
+    # silently inheriting x86_64 and failing to load arm64-only
+    # extension modules (e.g. pydantic_core). `sysctl hw.optional.arm64`
+    # reports true hardware capability regardless of the calling
+    # process's own translation state, unlike `uname -m`.
+    if [ "$(uname -s)" = "Darwin" ] && [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = "1" ]; then
+        arch -arm64 "$PYTHON" "$REPO_ROOT/scripts/regenerate_workflow_graph.py"
+    else
+        "$PYTHON" "$REPO_ROOT/scripts/regenerate_workflow_graph.py"
+    fi
+    git add "$REPO_ROOT/README.md"
 fi
