@@ -1,2 +1,53 @@
 # reinsurance-treaty-agent
 Reinsurance Treaty Analyzer Agent. Tech Stack: Python 3.11+, Pydantic v2, LangGraph (for deterministic agent orchestration), FastAPI (for API/services), Pytest (testing), Docker &amp; Streamlit (for easy deployment &amp; UI). AI Tooling: Claude Code (CLI) inside PyCharm, interacting with Claude 3.5 Sonnet via Anthropic API.
+
+## Setup
+
+```bash
+python3 -m venv venv
+source venv/bin/activate   # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+## Running Tests
+
+Tests live under `tests/` and are run with `pytest` from the project root
+(so `src/` and `data/` resolve as relative paths).
+
+Run the full suite:
+
+```bash
+python3 -m pytest tests/
+```
+
+Run with per-test output (`-v`):
+
+```bash
+python3 -m pytest tests/ -v
+```
+
+Run a single test file, e.g. just the parser tests:
+
+```bash
+python3 -m pytest tests/test_parser.py -v
+```
+
+Run a single test by name:
+
+```bash
+python3 -m pytest tests/test_parser.py::test_extract_treaty_sections_returns_one_section_per_page -v
+```
+
+Example output:
+
+```
+============================= test session starts ==============================
+collected 4 items
+
+tests/test_parser.py::test_extract_treaty_sections_returns_one_section_per_page PASSED [ 25%]
+tests/test_parser.py::test_extract_treaty_sections_raises_on_malformed_pdf PASSED [ 50%]
+tests/test_parser.py::test_extract_treaty_sections_raises_on_missing_file PASSED [ 75%]
+tests/test_workflow.py::test_module_imports PASSED                       [100%]
+
+============================== 4 passed in 0.05s ===============================
+```
