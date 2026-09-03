@@ -334,4 +334,11 @@ This file contains the reasoning transcript of the AI agent for the current sess
   Verified the documented full-suite and tools-only commands both
   produce exactly the output shown: `pytest tests/ -v` — 10 passed;
   `pytest tests/test_tools.py -v` — 5 passed.
+- **2026-09-03 17:47:28 — Approved done**: PR #8 merged into `main`
+  (merge commit `0b101bd`, 2026-09-03T17:46:35Z). Human explicitly
+  approved the task as done. Removed `implement-deterministic-tools`
+  from TASKS.md per the human-approval policy, and restored
+  `build-agentic-workflow-graph`'s `Blocked by` field (it no longer
+  names any blocker, since implement-deterministic-tools was its only
+  one and is now closed).
 

@@ -18,6 +18,7 @@
      ✅ 2026-09-03 11:52:52 Spec-First Development & File Structure (spec-first-file-structure)
      ✅ 2026-09-03 12:15:09 Define Core Data Schemas (define-core-data-schemas)
      ✅ 2026-09-03 13:19:12 Build PDF Ingestion & Parsing (build-pdf-ingestion-parsing)
+     ✅ 2026-09-03 17:47:28 Implement Deterministic Tools (implement-deterministic-tools)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -28,29 +29,6 @@
 ## P1
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
-
-- [ ] Implement Deterministic Tools (@claude)
-  - **ID**: implement-deterministic-tools
-  - **Tags**: tools, business-logic, testing
-  - **Details**: Build Python functions in `src/tools.py` that the agent
-    can call: `query_historical_claims(cedent_name: str)` (reads a local
-    mock CSV of past claims) and `calculate_loss_ratio(attachment_point:
-    float, limit: float, claims: list)` (deterministic math, no LLM calls).
-    Add a mock historical-claims CSV under `data/` for
-    `query_historical_claims` to read. Write unit tests covering both
-    functions as part of this task (do not defer to a separate testing
-    task).
-  - **Files**: `src/tools.py`, `data/historical_claims.csv`, `tests/test_tools.py`, `README.md`
-  - **Acceptance**: `query_historical_claims` returns claims for a known
-    cedent from the mock CSV, and an empty list for an unknown cedent;
-    `calculate_loss_ratio` returns a correct, deterministic ratio for
-    known inputs. `pytest tests/test_tools.py` passes and covers: a known
-    cedent, an unknown cedent (empty list), `calculate_loss_ratio` with a
-    known expected result, and at least one edge case (e.g. an empty
-    claims list).
-  - **Status**: Implemented and verified, including
-    `tests/test_tools.py` coverage (see REASONING.md, 2026-09-03
-    17:23:12) — awaiting human approval before closing.
 
 - [ ] Build the Agentic Workflow Graph
   - **ID**: build-agentic-workflow-graph
@@ -72,7 +50,6 @@
     (triggers the historical-claims tool call / flags incompleteness); and
     the Analyst Node both when it finds no anomalies and when it flags at
     least one.
-  - **Blocked by**: implement-deterministic-tools
 
 - [ ] Write Integration Tests for End-to-End Workflow
   - **ID**: write-integration-tests
