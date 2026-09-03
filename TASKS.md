@@ -17,6 +17,7 @@
 <!-- Recently completed:
      ✅ 2026-09-03 11:52:52 Spec-First Development & File Structure (spec-first-file-structure)
      ✅ 2026-09-03 12:15:09 Define Core Data Schemas (define-core-data-schemas)
+     ✅ 2026-09-03 13:19:12 Build PDF Ingestion & Parsing (build-pdf-ingestion-parsing)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -27,22 +28,6 @@
 ## P1
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
-
-- [ ] Build PDF Ingestion & Parsing (@claude)
-  - **ID**: build-pdf-ingestion-parsing
-  - **Tags**: parsing, pdf
-  - **Details**: Write a robust utility in `src/parser.py` using `pypdf`
-    or a layout extractor to ingest a treaty PDF, extract text by page,
-    and return structured sections with page citations.
-  - **Files**: `src/parser.py`, `data/sample_treaty.pdf`, `data/sample_treaty_parsed.json`, `data/sample_rich_treaty.pdf`, `data/sample_rich_treaty_parsed.json`, `tests/test_parser.py`, `README.md`
-  - **Acceptance**: Given a sample treaty PDF in `data/`, the parser
-    returns structured text sections each tagged with the source page
-    number; malformed/unreadable PDFs raise a clear, catchable error.
-  - **Status**: Implemented and verified, including real
-    `tests/test_parser.py` coverage and a second, richer 4-page fixture
-    (`data/sample_rich_treaty.pdf`) with detailed insurance-contract
-    content (see REASONING.md, 2026-09-03 12:26:10, 12:49:35, and
-    13:09:58) — awaiting human approval before closing. See PR #5.
 
 - [ ] Implement Deterministic Tools
   - **ID**: implement-deterministic-tools
@@ -70,7 +55,7 @@
   - **Acceptance**: Running the graph end-to-end on parsed treaty text
     produces a populated `AnomalyReport`; each node's output is validated
     against its Pydantic schema before advancing to the next node.
-  - **Blocked by**: build-pdf-ingestion-parsing, implement-deterministic-tools
+  - **Blocked by**: implement-deterministic-tools
 
 - [ ] Write Unit Tests
   - **ID**: write-unit-tests
@@ -83,7 +68,7 @@
   - **Acceptance**: `pytest tests/` passes and covers at least: one
     invalid-input case per schema, `calculate_loss_ratio` with known
     inputs/expected output, and the parser's behavior on a malformed PDF.
-  - **Blocked by**: build-pdf-ingestion-parsing, implement-deterministic-tools, build-agentic-workflow-graph
+  - **Blocked by**: implement-deterministic-tools, build-agentic-workflow-graph
 
 - [ ] Create User Interface & API
   - **ID**: create-ui-api
