@@ -12,6 +12,7 @@
      policy: A scheduled cloud routine checks github.com/tasksmd/tasks.md for new releases roughly every second Monday; see AGENTS.md "Keeping tasks.md tooling current".
      policy: Every dated entry here and in REASONING.md MUST include time as YYYY-MM-DD HH:MM:SS (24h) — see AGENTS.md "Timestamp Format".
      policy: NEVER mark a task done or remove it from this file without explicit human approval first. Present the verified work and wait.
+     policy: Every task-closing PR (removing an approved-done task from this file) MUST be titled exactly `Closing task as "Done": <task title>` — see AGENTS.md "Mandatory Workflow".
      policy: If the human adds or changes actions within an in-progress task, update that task's entry here (Files/Details/Status) to match, and log the change as a dated update in REASONING.md — see AGENTS.md "Mandatory Workflow". -->
 
 <!-- Recently completed:
@@ -19,6 +20,7 @@
      ✅ 2026-09-03 12:15:09 Define Core Data Schemas (define-core-data-schemas)
      ✅ 2026-09-03 13:19:12 Build PDF Ingestion & Parsing (build-pdf-ingestion-parsing)
      ✅ 2026-09-03 17:47:28 Implement Deterministic Tools (implement-deterministic-tools)
+     ✅ 2026-09-03 18:44:29 Build the Agentic Workflow Graph (build-agentic-workflow-graph)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -29,32 +31,6 @@
 ## P1
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
-
-- [ ] Build the Agentic Workflow Graph (@claude)
-  - **ID**: build-agentic-workflow-graph
-  - **Tags**: workflow, langgraph, agent, testing
-  - **Details**: Implement a LangGraph state machine in `src/workflow.py`
-    with: an **Extractor Node** (extracts terms from parsed text against
-    `src/models.py` schemas), a **Verifier Node** (validates completeness
-    and triggers tool calls for historical claims), and an **Analyst
-    Node** (compares treaty terms against historical data and flags
-    anomalies). Write unit tests for each node as part of this task (do
-    not defer to a separate testing task).
-  - **Files**: `src/workflow.py`, `src/models.py` (added `cedent_name` to `TreatyTerms`), `tests/test_workflow.py`, `tests/test_workflow_graph_docs.py`, `scripts/regenerate_workflow_graph.py`, `.githooks/pre-commit`, `README.md`, `data/workflow_graph.png`
-  - **Acceptance**: Running the graph end-to-end on parsed treaty text
-    produces a populated `AnomalyReport`; each node's output is validated
-    against its Pydantic schema before advancing to the next node.
-    `pytest tests/test_workflow.py` passes and covers, per node in
-    isolation: the Extractor Node on well-formed input; the Verifier Node
-    both when required data is complete and when it is missing/incomplete
-    (triggers the historical-claims tool call / flags incompleteness); and
-    the Analyst Node both when it finds no anomalies and when it flags at
-    least one.
-  - **Status**: Implemented and verified end-to-end against both real
-    PDF fixtures plus `tests/test_workflow.py` coverage (see
-    REASONING.md, 2026-09-03 17:52:56) — awaiting human approval before
-    closing. Extractor Node is regex-based (deterministic), not LLM-based
-    — see REASONING.md for the tradeoff.
 
 - [ ] Write Integration Tests for End-to-End Workflow
   - **ID**: write-integration-tests
@@ -75,7 +51,6 @@
     empty-claims `AnomalyReport` or an explicit flagged finding, not a
     crash); (4) failure — treaty text missing a required term (e.g. no
     extractable limit) is handled gracefully rather than crashing.
-  - **Blocked by**: build-agentic-workflow-graph
 
 - [ ] Create User Interface & API
   - **ID**: create-ui-api
@@ -94,7 +69,7 @@
     `pytest tests/test_app.py` passes and covers at least one successful
     upload-and-render run and one failure case (e.g. uploading a
     malformed PDF) surfacing a clear error in the UI instead of crashing.
-  - **Blocked by**: build-agentic-workflow-graph, write-integration-tests
+  - **Blocked by**: write-integration-tests
 
 
 ## P2
