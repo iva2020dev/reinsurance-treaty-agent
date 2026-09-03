@@ -12,8 +12,9 @@
      policy: A scheduled cloud routine checks github.com/tasksmd/tasks.md for new releases roughly every second Monday; see AGENTS.md "Keeping tasks.md tooling current".
      policy: Every dated entry here and in REASONING.md MUST include time as YYYY-MM-DD HH:MM:SS (24h) — see AGENTS.md "Timestamp Format". -->
 
-<!-- Recently completed (2026-09-03 11:52:52):
-     ✅ Spec-First Development & File Structure (spec-first-file-structure)
+<!-- Recently completed:
+     ✅ 2026-09-03 11:52:52 Spec-First Development & File Structure (spec-first-file-structure)
+     ✅ 2026-09-03 12:15:09 Define Core Data Schemas (define-core-data-schemas)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -25,18 +26,6 @@
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
-- [ ] Define Core Data Schemas
-  - **ID**: define-core-data-schemas
-  - **Tags**: schema, pydantic
-  - **Details**: Use Pydantic v2 to define strict schemas in `src/models.py`
-    for: extracted treaty terms (attachment point, limit, reinsurance
-    premium, exclusions), historical claims structures, and final anomaly
-    audit reports.
-  - **Files**: `src/models.py`
-  - **Acceptance**: `TreatyTerms`, `ClaimsData`, and `AnomalyReport` (or
-    equivalent) Pydantic v2 models exist with typed, validated fields
-    covering the terms above; invalid input raises `ValidationError`.
-
 - [ ] Build PDF Ingestion & Parsing
   - **ID**: build-pdf-ingestion-parsing
   - **Tags**: parsing, pdf
@@ -47,7 +36,6 @@
   - **Acceptance**: Given a sample treaty PDF in `data/`, the parser
     returns structured text sections each tagged with the source page
     number; malformed/unreadable PDFs raise a clear, catchable error.
-  - **Blocked by**: define-core-data-schemas
 
 - [ ] Implement Deterministic Tools
   - **ID**: implement-deterministic-tools
@@ -61,7 +49,6 @@
     cedent from the mock CSV (empty list for unknown cedents);
     `calculate_loss_ratio` returns a correct, deterministic ratio for
     known inputs and is covered by unit tests.
-  - **Blocked by**: define-core-data-schemas
 
 - [ ] Build the Agentic Workflow Graph
   - **ID**: build-agentic-workflow-graph
@@ -76,7 +63,7 @@
   - **Acceptance**: Running the graph end-to-end on parsed treaty text
     produces a populated `AnomalyReport`; each node's output is validated
     against its Pydantic schema before advancing to the next node.
-  - **Blocked by**: define-core-data-schemas, build-pdf-ingestion-parsing, implement-deterministic-tools
+  - **Blocked by**: build-pdf-ingestion-parsing, implement-deterministic-tools
 
 - [ ] Write Unit Tests
   - **ID**: write-unit-tests
@@ -89,7 +76,7 @@
   - **Acceptance**: `pytest tests/` passes and covers at least: one
     invalid-input case per schema, `calculate_loss_ratio` with known
     inputs/expected output, and the parser's behavior on a malformed PDF.
-  - **Blocked by**: define-core-data-schemas, build-pdf-ingestion-parsing, implement-deterministic-tools, build-agentic-workflow-graph
+  - **Blocked by**: build-pdf-ingestion-parsing, implement-deterministic-tools, build-agentic-workflow-graph
 
 - [ ] Create User Interface & API
   - **ID**: create-ui-api

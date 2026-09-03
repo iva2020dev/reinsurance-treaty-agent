@@ -43,3 +43,58 @@ This file contains the reasoning transcript of the AI agent for the current sess
   PR #1 (`task/spec-first-file-structure`) merged by the repo owner at
   2026-09-03 11:52:52 UTC (merge commit `7bd522a`).
 
+## 2026-09-03 12:14:15 — Task: Define Core Data Schemas (define-core-data-schemas)
+
+- **Goal**: Define strict Pydantic v2 schemas in `src/models.py` for
+  extracted treaty terms, historical claims, and the final anomaly audit
+  report — the shared contract that `parser.py`, `tools.py`, and
+  `workflow.py` will all be built against.
+- **Analysis**: `src/models.py` currently has only a module docstring
+  (from the spec-first-file-structure scaffold). `requirements.txt` pins
+  `pydantic>=2.0`, so v2 syntax (`BaseModel`, `Field`, `field_validator`)
+  is available. The task's acceptance criteria name three schemas
+  (`TreatyTerms`, `ClaimsData`, `AnomalyReport`) and specific treaty
+  fields (attachment point, limit, reinsurance premium, exclusions).
+  Downstream tasks need: `build-pdf-ingestion-parsing` — a page-citation
+  concept (so `TreatyTerms` fields should be traceable to source pages);
+  `implement-deterministic-tools` — `calculate_loss_ratio` takes
+  `attachment_point`, `limit`, and a `claims` list, and
+  `query_historical_claims` returns claims for a cedent, so `ClaimsData`
+  needs a `cedent_name` plus a claim amount; `build-agentic-workflow-graph`
+  — the Analyst node "flags anomalies," so `AnomalyReport` needs a list of
+  discrete, typed findings, not just free text.
+- **Decision**: Model each treaty field's page citation directly on
+  `TreatyTerms` (a `page_citations: dict[str, int]` mapping field name to
+  source page) rather than a separate wrapper type, since the task asks
+  for "structured sections with page citations" attached to extracted
+  terms, and the Streamlit UI (`create-ui-api`) needs to render citations
+  next to the values they support. Exclusions are `list[str]` (free-text
+  clauses — a treaty can have an open-ended number of exclusion clauses,
+  not a fixed schema). `ClaimsData` represents one historical claim record
+  (cedent, claim amount, date) rather than a claims-list wrapper, since
+  `query_historical_claims` naturally returns `list[ClaimsData]` and
+  `calculate_loss_ratio` takes `list[ClaimsData]` — matching both
+  downstream tool signatures without an extra container type.
+  `AnomalyReport` holds a list of `AnomalyFinding` (field, description,
+  severity) plus the computed loss ratio and treaty/claims echoed back,
+  so the UI can render one finding per anomaly with severity-based styling.
+  Used `field_validator`/`Field(gt=0)` where negative values are
+  nonsensical (limit, premium, attachment point, claim amount) rather than
+  leaving them unconstrained, since "strict schemas" was explicit in the
+  task goal.
+- **Action**: Rewrote `src/models.py`: added `Severity` enum, `TreatyTerms`
+  (attachment_point, limit, reinsurance_premium, exclusions,
+  page_citations), `ClaimsData` (cedent_name, claim_amount, claim_date),
+  `AnomalyFinding` (field, description, severity), and `AnomalyReport`
+  (treaty, claims, loss_ratio, findings). All numeric fields use
+  `Field(gt=0)`; `exclusions` defaults to an empty list.
+- **Outcome**: Ran an ad-hoc validation script (not committed — permanent
+  schema tests belong to the separate `write-unit-tests` task, which lists
+  "one invalid-input case per schema" as an explicit acceptance criterion):
+  constructing `TreatyTerms`/`ClaimsData`/`AnomalyFinding`/`AnomalyReport`
+  with valid data succeeds and round-trips through `model_dump_json()`;
+  `TreatyTerms(attachment_point=-1, ...)` and `ClaimsData(cedent_name="",
+  ...)` both raise `pydantic.ValidationError` as required. Re-ran
+  `pytest tests/` — 2 passed, no regressions. Acceptance criteria met;
+  task removed from TASKS.md per the tasks.md spec.
+
