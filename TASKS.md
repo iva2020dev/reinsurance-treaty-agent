@@ -30,7 +30,7 @@
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
-- [ ] Build the Agentic Workflow Graph
+- [ ] Build the Agentic Workflow Graph (@claude)
   - **ID**: build-agentic-workflow-graph
   - **Tags**: workflow, langgraph, agent, testing
   - **Details**: Implement a LangGraph state machine in `src/workflow.py`
@@ -40,7 +40,7 @@
     Node** (compares treaty terms against historical data and flags
     anomalies). Write unit tests for each node as part of this task (do
     not defer to a separate testing task).
-  - **Files**: `src/workflow.py`, `tests/test_workflow.py`
+  - **Files**: `src/workflow.py`, `src/models.py` (added `cedent_name` to `TreatyTerms`), `tests/test_workflow.py`
   - **Acceptance**: Running the graph end-to-end on parsed treaty text
     produces a populated `AnomalyReport`; each node's output is validated
     against its Pydantic schema before advancing to the next node.
@@ -50,6 +50,11 @@
     (triggers the historical-claims tool call / flags incompleteness); and
     the Analyst Node both when it finds no anomalies and when it flags at
     least one.
+  - **Status**: Implemented and verified end-to-end against both real
+    PDF fixtures plus `tests/test_workflow.py` coverage (see
+    REASONING.md, 2026-09-03 17:52:56) — awaiting human approval before
+    closing. Extractor Node is regex-based (deterministic), not LLM-based
+    — see REASONING.md for the tradeoff.
 
 - [ ] Write Integration Tests for End-to-End Workflow
   - **ID**: write-integration-tests

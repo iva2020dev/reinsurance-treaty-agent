@@ -15,6 +15,7 @@ class Severity(str, Enum):
 class TreatyTerms(BaseModel):
     """Terms extracted from a reinsurance treaty PDF."""
 
+    cedent_name: str = Field(min_length=1, description="The ceding insurer party to this treaty")
     attachment_point: float = Field(gt=0, description="Loss level at which reinsurance coverage begins")
     limit: float = Field(gt=0, description="Maximum reinsurance coverage above the attachment point")
     reinsurance_premium: float = Field(gt=0, description="Premium ceded to the reinsurer")
