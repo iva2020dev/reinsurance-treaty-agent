@@ -325,3 +325,13 @@ This file contains the reasoning transcript of the AI agent for the current sess
   suite `pytest tests/ -v` — 10 passed, no regressions. Acceptance
   criteria met.
 
+- **2026-09-03 17:40:48 update**: Human asked to document the tools
+  tests in `README.md`. Added a "Run just the tools tests" example
+  (command + output + a checks table, matching the existing parser
+  section's format) to the Running Tests section, and refreshed the
+  full-suite example output (it still said "5 items"/"5 passed" from
+  before `test_tools.py` existed — now correctly shows all 10).
+  Verified the documented full-suite and tools-only commands both
+  produce exactly the output shown: `pytest tests/ -v` — 10 passed;
+  `pytest tests/test_tools.py -v` — 5 passed.
+

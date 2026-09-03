@@ -40,7 +40,7 @@
     `query_historical_claims` to read. Write unit tests covering both
     functions as part of this task (do not defer to a separate testing
     task).
-  - **Files**: `src/tools.py`, `data/historical_claims.csv`, `tests/test_tools.py`
+  - **Files**: `src/tools.py`, `data/historical_claims.csv`, `tests/test_tools.py`, `README.md`
   - **Acceptance**: `query_historical_claims` returns claims for a known
     cedent from the mock CSV, and an empty list for an unknown cedent;
     `calculate_loss_ratio` returns a correct, deterministic ratio for
