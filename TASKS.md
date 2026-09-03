@@ -40,7 +40,7 @@
     Node** (compares treaty terms against historical data and flags
     anomalies). Write unit tests for each node as part of this task (do
     not defer to a separate testing task).
-  - **Files**: `src/workflow.py`, `src/models.py` (added `cedent_name` to `TreatyTerms`), `tests/test_workflow.py`, `README.md`, `data/workflow_graph.png`
+  - **Files**: `src/workflow.py`, `src/models.py` (added `cedent_name` to `TreatyTerms`), `tests/test_workflow.py`, `tests/test_workflow_graph_docs.py`, `scripts/regenerate_workflow_graph.py`, `.githooks/pre-commit`, `README.md`, `data/workflow_graph.png`
   - **Acceptance**: Running the graph end-to-end on parsed treaty text
     produces a populated `AnomalyReport`; each node's output is validated
     against its Pydantic schema before advancing to the next node.

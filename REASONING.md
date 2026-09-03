@@ -451,3 +451,38 @@ This file contains the reasoning transcript of the AI agent for the current sess
   the machine, though this one is harmless), showed it inline, then
   saved a permanent copy to `data/workflow_graph.png` on request.
 
+- **2026-09-03 18:31:41 update**: Human asked to implement auto-
+  regeneration of the workflow graph diagram whenever `src/workflow.py`
+  changes. Split this into three pieces rather than one network-
+  dependent hook:
+  1. `scripts/regenerate_workflow_graph.py` — the actual regeneration
+     logic, extracted so both the hook and a human can call it.
+     Replaces the mermaid block in `README.md` between
+     `<!-- workflow-graph:start/end -->` markers (added those markers
+     first, since find-and-replace needs a stable anchor).
+     `--png` additionally regenerates `data/workflow_graph.png`.
+  2. `.githooks/pre-commit` — checks whether `src/workflow.py` is
+     staged; if so, runs the script and re-stages `README.md`. Does
+     **not** regenerate the PNG automatically: `draw_mermaid_png()`
+     calls the public `mermaid.ink` service over the network on every
+     invocation, and a commit hook that can fail/hang without network
+     access, or that silently depends on an external service's
+     uptime, is worse than a manual `--png` step run when actually
+     wanted. Requires `git config core.hooksPath .githooks` once (added
+     to `README.md`'s Setup section) since git hooks aren't
+     auto-enabled from a committed `.githooks/` directory.
+  3. `tests/test_workflow_graph_docs.py` — a safety net independent of
+     the hook: asserts the live graph's mermaid text is contained in
+     README's documented block, so drift is caught by `pytest` even if
+     someone commits with `--no-verify` or never ran
+     `git config core.hooksPath`.
+  Tested all three end-to-end with temporary throwaway edits to
+  `src/workflow.py` (reverted after, not committed): (a) staging a
+  comment-only change correctly reported "already up to date"; (b)
+  staging a real structural change (rerouting `analyst -> verifier`
+  instead of `analyst -> END`) correctly regenerated and re-staged
+  `README.md` with the new edges; (c) tampering with README's mermaid
+  block by hand and running the new test correctly failed with a clear
+  "out of date, run this command" message. Updated the full-suite
+  example output in `README.md` (15 → 16, for the new test).
+

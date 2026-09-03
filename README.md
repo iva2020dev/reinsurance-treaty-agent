@@ -10,6 +10,7 @@ for the cedent, and the Analyst Node computes the loss ratio and flags
 anomalies. If extraction is incomplete, the graph ends right after the
 Verifier Node instead of running the Analyst Node.
 
+<!-- workflow-graph:start -->
 ```mermaid
 ---
 config:
@@ -31,11 +32,14 @@ graph TD;
 	classDef first fill-opacity:0
 	classDef last fill:#bfb6fc
 ```
+<!-- workflow-graph:end -->
 
-Regenerate this diagram after changing the graph's structure:
+This diagram is regenerated automatically by a pre-commit hook whenever
+`src/workflow.py` changes (see `scripts/regenerate_workflow_graph.py`
+and `## Setup` below). To regenerate it by hand:
 
 ```bash
-python3 -c "from src.workflow import build_workflow_graph; print(build_workflow_graph().get_graph().draw_mermaid())"
+python3 scripts/regenerate_workflow_graph.py
 ```
 
 ## Setup
@@ -44,7 +48,12 @@ python3 -c "from src.workflow import build_workflow_graph; print(build_workflow_
 python3 -m venv venv
 source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
+git config core.hooksPath .githooks
 ```
+
+That last command enables `.githooks/pre-commit`, which automatically
+regenerates the workflow graph diagram (above) in `README.md` whenever
+`src/workflow.py` is part of a commit.
 
 ## Running Tests
 
@@ -67,25 +76,26 @@ Example output:
 
 ```
 ============================= test session starts ==============================
-collected 15 items
+collected 16 items
 
 tests/test_parser.py::test_extract_treaty_sections_handles_minimal_two_page_treaty PASSED [  6%]
-tests/test_parser.py::test_extract_treaty_sections_handles_rich_multi_page_treaty PASSED [ 13%]
-tests/test_parser.py::test_extract_treaty_sections_raises_on_malformed_pdf PASSED [ 20%]
-tests/test_parser.py::test_extract_treaty_sections_raises_on_missing_file PASSED [ 26%]
-tests/test_tools.py::test_query_historical_claims_returns_claims_for_known_cedent PASSED [ 33%]
-tests/test_tools.py::test_query_historical_claims_returns_empty_list_for_unknown_cedent PASSED [ 40%]
-tests/test_tools.py::test_calculate_loss_ratio_known_inputs PASSED       [ 46%]
-tests/test_tools.py::test_calculate_loss_ratio_empty_claims_is_zero PASSED [ 53%]
-tests/test_tools.py::test_calculate_loss_ratio_claim_exceeding_layer_top_is_capped PASSED [ 60%]
-tests/test_workflow.py::test_extractor_node_well_formed_input PASSED     [ 66%]
-tests/test_workflow.py::test_extractor_node_flags_missing_fields PASSED  [ 73%]
-tests/test_workflow.py::test_verifier_node_complete_triggers_historical_claims_lookup PASSED [ 80%]
-tests/test_workflow.py::test_verifier_node_flags_incompleteness_without_calling_tools PASSED [ 86%]
-tests/test_workflow.py::test_analyst_node_no_anomalies PASSED            [ 93%]
-tests/test_workflow.py::test_analyst_node_flags_at_least_one_anomaly PASSED [100%]
+tests/test_parser.py::test_extract_treaty_sections_handles_rich_multi_page_treaty PASSED [ 12%]
+tests/test_parser.py::test_extract_treaty_sections_raises_on_malformed_pdf PASSED [ 18%]
+tests/test_parser.py::test_extract_treaty_sections_raises_on_missing_file PASSED [ 25%]
+tests/test_tools.py::test_query_historical_claims_returns_claims_for_known_cedent PASSED [ 31%]
+tests/test_tools.py::test_query_historical_claims_returns_empty_list_for_unknown_cedent PASSED [ 37%]
+tests/test_tools.py::test_calculate_loss_ratio_known_inputs PASSED       [ 43%]
+tests/test_tools.py::test_calculate_loss_ratio_empty_claims_is_zero PASSED [ 50%]
+tests/test_tools.py::test_calculate_loss_ratio_claim_exceeding_layer_top_is_capped PASSED [ 56%]
+tests/test_workflow.py::test_extractor_node_well_formed_input PASSED     [ 62%]
+tests/test_workflow.py::test_extractor_node_flags_missing_fields PASSED  [ 68%]
+tests/test_workflow.py::test_verifier_node_complete_triggers_historical_claims_lookup PASSED [ 75%]
+tests/test_workflow.py::test_verifier_node_flags_incompleteness_without_calling_tools PASSED [ 81%]
+tests/test_workflow.py::test_analyst_node_no_anomalies PASSED            [ 87%]
+tests/test_workflow.py::test_analyst_node_flags_at_least_one_anomaly PASSED [ 93%]
+tests/test_workflow_graph_docs.py::test_readme_workflow_graph_matches_live_graph PASSED [100%]
 
-============================== 15 passed in 0.11s ===============================
+============================== 16 passed in 0.12s ===============================
 ```
 
 Run a single test file, e.g. just the parser tests:
