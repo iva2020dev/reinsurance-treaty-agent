@@ -192,3 +192,9 @@ This file contains the reasoning transcript of the AI agent for the current sess
   rich_multi_page_treaty" -v`) — 2 passed; re-ran the full suite —
   5 passed, no regressions.
 
+- **2026-09-03 13:16:23 update**: Added that `-k` command, its output,
+  and the fixture/checks comparison table to `README.md`'s Running
+  Tests section, so the "both treaty tests, distinct" example shown in
+  chat is also documented for future readers rather than living only
+  in the conversation.
+

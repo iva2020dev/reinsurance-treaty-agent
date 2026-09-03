@@ -78,6 +78,32 @@ tests/test_parser.py::test_extract_treaty_sections_handles_minimal_two_page_trea
 ============================== 1 passed in 0.06s ===============================
 ```
 
+Run both treaty-fixture tests by keyword, to compare the minimal and
+rich fixtures side by side:
+
+```bash
+python3 -m pytest tests/test_parser.py -k "minimal_two_page_treaty or rich_multi_page_treaty" -v
+```
+
+Example output:
+
+```
+============================= test session starts ==============================
+collected 4 items / 2 deselected / 2 selected
+
+tests/test_parser.py::test_extract_treaty_sections_handles_minimal_two_page_treaty PASSED [ 50%]
+tests/test_parser.py::test_extract_treaty_sections_handles_rich_multi_page_treaty PASSED [100%]
+
+======================= 2 passed, 2 deselected in 0.04s ========================
+```
+
+Now clearly distinct, symmetric names — both pass:
+
+| Test | Fixture | Pages | Checks |
+|---|---|---|---|
+| `test_extract_treaty_sections_handles_minimal_two_page_treaty` | `sample_treaty.pdf` | 2 | page 1 has "Attachment Point", page 2 has "EXCLUSIONS" |
+| `test_extract_treaty_sections_handles_rich_multi_page_treaty` | `sample_rich_treaty.pdf` | 4 | page 1 cedent name, page 2 "Layer 1", page 3 "EXCLUSIONS", page 4 "Arbitration" |
+
 ## Sample Treaty Fixtures
 
 `data/` holds two hand-built mock treaty PDFs used by the parser tests,
