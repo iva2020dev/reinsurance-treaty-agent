@@ -26,18 +26,6 @@ Run with per-test output (`-v`):
 python3 -m pytest tests/ -v
 ```
 
-Run a single test file, e.g. just the parser tests:
-
-```bash
-python3 -m pytest tests/test_parser.py -v
-```
-
-Run a single test by name:
-
-```bash
-python3 -m pytest tests/test_parser.py::test_extract_treaty_sections_returns_one_section_per_page -v
-```
-
 Example output:
 
 ```
@@ -50,4 +38,40 @@ tests/test_parser.py::test_extract_treaty_sections_raises_on_missing_file PASSED
 tests/test_workflow.py::test_module_imports PASSED                       [100%]
 
 ============================== 4 passed in 0.05s ===============================
+```
+
+Run a single test file, e.g. just the parser tests:
+
+```bash
+python3 -m pytest tests/test_parser.py -v
+```
+
+Example output:
+
+```
+============================= test session starts ==============================
+collected 3 items
+
+tests/test_parser.py::test_extract_treaty_sections_returns_one_section_per_page PASSED [ 33%]
+tests/test_parser.py::test_extract_treaty_sections_raises_on_malformed_pdf PASSED [ 66%]
+tests/test_parser.py::test_extract_treaty_sections_raises_on_missing_file PASSED [100%]
+
+============================== 3 passed in 0.05s ===============================
+```
+
+Run a single test by name:
+
+```bash
+python3 -m pytest tests/test_parser.py::test_extract_treaty_sections_returns_one_section_per_page -v
+```
+
+Example output:
+
+```
+============================= test session starts ==============================
+collected 1 item
+
+tests/test_parser.py::test_extract_treaty_sections_returns_one_section_per_page PASSED [100%]
+
+============================== 1 passed in 0.06s ===============================
 ```
