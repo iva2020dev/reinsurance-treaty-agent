@@ -1,6 +1,43 @@
 # reinsurance-treaty-agent
 Reinsurance Treaty Analyzer Agent. Tech Stack: Python 3.11+, Pydantic v2, LangGraph (for deterministic agent orchestration), FastAPI (for API/services), Pytest (testing), Docker &amp; Streamlit (for easy deployment &amp; UI). AI Tooling: Claude Code (CLI) inside PyCharm, interacting with Claude 3.5 Sonnet via Anthropic API.
 
+## Workflow Graph
+
+The agentic workflow in `src/workflow.py` is a LangGraph state machine:
+the Extractor Node reads treaty terms from parsed text, the Verifier
+Node checks completeness and (if complete) looks up historical claims
+for the cedent, and the Analyst Node computes the loss ratio and flags
+anomalies. If extraction is incomplete, the graph ends right after the
+Verifier Node instead of running the Analyst Node.
+
+```mermaid
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	extractor(extractor)
+	verifier(verifier)
+	analyst(analyst)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> extractor;
+	extractor --> verifier;
+	verifier -.-> __end__;
+	verifier -.-> analyst;
+	analyst --> __end__;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc
+```
+
+Regenerate this diagram after changing the graph's structure:
+
+```bash
+python3 -c "from src.workflow import build_workflow_graph; print(build_workflow_graph().get_graph().draw_mermaid())"
+```
+
 ## Setup
 
 ```bash

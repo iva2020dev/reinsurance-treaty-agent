@@ -433,3 +433,13 @@ This file contains the reasoning transcript of the AI agent for the current sess
   passed. Full suite `pytest tests/ -v` — 15 passed, no regressions.
   Acceptance criteria met.
 
+- **2026-09-03 18:16:32 update**: Human asked how the LangGraph could be
+  visualized, then asked to add it to `README.md`. Used
+  `app.get_graph().draw_mermaid()` (no extra dependency needed, unlike
+  `draw_png()` which requires `pygraphviz`/Graphviz) and pasted its
+  exact output — including the `flowchart` config frontmatter block —
+  into a new "Workflow Graph" section at the top of `README.md`, with
+  the one-line command to regenerate it if the graph's structure
+  changes. Verified the pasted diagram is byte-for-byte what that
+  command currently produces.
+
