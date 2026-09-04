@@ -572,3 +572,35 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `create-ui-api`'s `Blocked by` field (now unblocked — no remaining
   blockers).
 
+## 2026-09-04 19:04:51 — New task: Fix Claude Code Review CI Check (fix-claude-review-ci-secret)
+
+- **Goal**: Record a new P2 task for a CI gap discovered while checking
+  the status of PR #14 (`docs/branch-push-discipline`) and PR #15
+  (`task/create-ui-api`) on GitHub.
+- **Analysis**: Both PRs show `mergeable: true` with no manual reviews,
+  but the automated `Claude Code Review` GitHub Actions check
+  (`claude-review`) failed on both, with the identical error in each
+  run's log: `Environment variable validation failed: Either
+  ANTHROPIC_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, or workload identity
+  federation ... is required when using direct Anthropic API.` The
+  workflow fails before ever reaching the actual review step (it fails
+  during Claude Code's own setup), and both PRs hit the exact same
+  error regardless of their very different diffs (2 files vs. 7 files
+  changed) — so this is a repo-level CI configuration gap (a missing
+  `ANTHROPIC_API_KEY`/`CLAUDE_CODE_OAUTH_TOKEN` secret under this
+  repo's GitHub Settings → Secrets and variables → Actions), not
+  something wrong with either PR's actual content.
+- **Decision**: This isn't fixable from a local checkout or by an
+  agent — it requires repo admin access on GitHub to add the secret,
+  so it goes in the backlog as P2 (valuable, not blocking any of the
+  currently open task work) rather than being worked now.
+- **Action**: Added `fix-claude-review-ci-secret` to `TASKS.md`'s P2
+  section, documenting the exact error, that it was confirmed
+  identical on PR #14 and PR #15, and that the acceptance criterion is
+  a real review comment appearing on a subsequent push instead of the
+  env-var failure.
+- **Reasoning**: Following the "Add new tasks discovered during work"
+  policy — this was found incidentally while checking PR status, not
+  part of either open PR's scope, so it's tracked as its own backlog
+  item rather than silently folded into either PR.
+
