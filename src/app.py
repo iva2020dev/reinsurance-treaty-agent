@@ -22,7 +22,7 @@ class _ListLogHandler(logging.Handler):
     def __init__(self, sink: list[str]):
         super().__init__()
         self.sink = sink
-        self.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
+        self.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
 
     def emit(self, record: logging.LogRecord) -> None:
         self.sink.append(self.format(record))

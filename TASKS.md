@@ -54,6 +54,8 @@
     choice each time between appending to the existing file content or
     clearing it and writing only this run's logs. Each saved block is
     prefixed with a header line (run date/time, uploaded file name).
+    Each log line carries its own `%(asctime)s` timestamp, matching the
+    standard Python logging format shown in an IDE console.
   - **Files**: `src/app.py`, `src/workflow.py`, `tests/test_app.py`
   - **Acceptance**: Uploading a sample treaty PDF through the running
     Streamlit app triggers the full workflow and renders the resulting

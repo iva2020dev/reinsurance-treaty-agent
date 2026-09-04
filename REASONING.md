@@ -828,3 +828,20 @@ This file contains the reasoning transcript of the AI agent for the current sess
   line appears in the written file. `pytest tests/test_app.py -v` — 14
   passed; `pytest tests/ -v` — 35 passed, no regressions.
 
+- **2026-09-04 15:47:27 (small fix)**: Human asked to align the saved
+  log line format with what an IDE console shows; clarified via
+  `AskUserQuestion` that this meant a per-line timestamp using the
+  standard Python `logging` convention (`YYYY-MM-DD HH:MM:SS,mmm`), not
+  PyCharm's own internal `idea.log` format. Changed
+  `_ListLogHandler`'s formatter in `src/app.py` from
+  `"%(levelname)s %(name)s: %(message)s"` to `"%(asctime)s %(levelname)s
+  %(name)s: %(message)s"` — a one-line change since `%(asctime)s` is a
+  built-in `logging.Formatter` field, no new plumbing needed. This
+  affects both the debug panel's `st.code` display and the saved
+  `logs/workflow.log` file, since both read from the same `log_lines`
+  list. `pytest tests/ -v` — 35 passed, unaffected (existing assertions
+  are substring checks, not exact-format matches). Manually verified via
+  a standalone `AppTest` run that saved lines now read like
+  `2026-09-04 15:47:59,920 INFO src.workflow: Parsed 4 page(s) from
+  ...`.
+
