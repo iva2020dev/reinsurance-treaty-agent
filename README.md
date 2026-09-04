@@ -67,6 +67,42 @@ project root to `sys.path`, which `src/app.py` needs to resolve its
 `from src... import` statements; the bare `streamlit run src/app.py`
 fails with `ModuleNotFoundError: No module named 'src'`.
 
+Streamlit starts a local web server and prints a URL, typically:
+
+```
+Local URL: http://localhost:8501
+```
+
+Open that URL in a browser (it usually opens automatically). Leave the
+command running in its terminal — the app stays up as long as that
+process does; press `Ctrl+C` there to stop it.
+
+### Using the app
+
+1. **Upload a treaty PDF** via the "Treaty PDF" file uploader. Two mock
+   fixtures ship in `data/` for trying it out: `sample_treaty.pdf`
+   (minimal, 2 pages) and `sample_rich_treaty.pdf` (detailed, 4 pages,
+   two layers — see [Sample Treaty Fixtures](#sample-treaty-fixtures)
+   below).
+2. The app runs the full agent workflow automatically on upload and
+   renders the resulting anomaly report: treaty terms with page
+   citations, the historical loss ratio, and any flagged findings. An
+   unreadable/malformed PDF, or one missing required treaty terms,
+   shows a clear error message instead of crashing.
+3. Expand **"Debug: workflow execution"** below the report to see:
+   - A per-node execution log (Extractor → Verifier → Analyst), each
+     line timestamped.
+   - The raw workflow state as JSON (parsed sections, extracted treaty
+     terms, claims, the final report).
+   - A save control: pick **Append** or **Overwrite**, then click
+     **"Save logs to file"** to write the current run's log lines —
+     prefixed with a header noting the run's date/time and uploaded
+     file name — to `logs/workflow.log`. Append adds to that file's
+     existing content; Overwrite clears it first.
+4. To try another treaty, upload a different PDF — the app reruns
+   automatically and replaces the report and debug panel with the new
+   run's results.
+
 ## Running Tests
 
 Tests live under `tests/` and are run with `pytest` from the project root

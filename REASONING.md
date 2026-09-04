@@ -858,3 +858,14 @@ This file contains the reasoning transcript of the AI agent for the current sess
   14-row table describing each test. `pytest tests/ -v` — 35 passed,
   unaffected (docs-only change).
 
+- **2026-09-04 18:04:34 (README addition)**: Human asked for
+  instructions on running the app in a browser and interacting with it.
+  Extended `README.md`'s "Running the App" section: noted the printed
+  `Local URL` and that the process stays up until `Ctrl+C`, then added
+  a numbered "Using the app" walkthrough — upload a PDF (pointing at
+  both `data/` fixtures), what renders and how failures surface, what's
+  in the debug expander (per-node log, raw JSON state, the Append/
+  Overwrite save control and where it writes), and that uploading a
+  different PDF simply reruns the app. `pytest tests/ -v` — 35 passed,
+  unaffected (docs-only change).
+
