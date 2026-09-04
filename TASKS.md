@@ -86,6 +86,28 @@
     anomaly report, matching local behavior.
   - **Blocked by**: create-ui-api
 
+- [ ] Fix Claude Code Review CI Check (missing API key secret)
+  - **ID**: fix-claude-review-ci-secret
+  - **Tags**: ci, github-actions, maintenance
+  - **Details**: The `claude-review` GitHub Actions workflow
+    (`Claude Code Review`) fails on every PR with: "Environment variable
+    validation failed: Either ANTHROPIC_API_KEY, CLAUDE_CODE_OAUTH_TOKEN,
+    or workload identity federation ... is required when using direct
+    Anthropic API." The workflow needs a valid `ANTHROPIC_API_KEY` (or
+    `CLAUDE_CODE_OAUTH_TOKEN`) configured as a GitHub Actions secret for
+    this repo (Settings → Secrets and variables → Actions) — this
+    requires repo admin access and can't be done by an agent from a
+    local checkout. Confirmed failing on PR #14 and PR #15
+    (2026-09-04), both with the identical error, so this isn't specific
+    to either PR's diff.
+  - **Files**: (none in-repo — GitHub repo Settings, and possibly the
+    `claude-review` workflow file under `.github/workflows/` if it also
+    needs a config change once the secret exists)
+  - **Acceptance**: A new commit pushed to an open PR triggers the
+    `Claude Code Review` check and it completes with a real review
+    comment posted (summary/bugs/security/suggestions), not an
+    environment-variable validation failure.
+
 
 ## P3
 
