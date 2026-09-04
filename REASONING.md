@@ -946,3 +946,86 @@ This file contains the reasoning transcript of the AI agent for the current sess
   with the human, not out of implementation work on an existing task,
   so it's tracked as its own backlog item.
 
+## 2026-09-04 21:03:07
+
+### Task: Deploy to Production / Cloud (deploy-to-production)
+- **Goal**: Get the Streamlit app (`src/app.py`) deployed to a live
+  public URL — Streamlit Community Cloud, Render, or Hugging Face
+  Spaces — per the task's Acceptance criterion, so a sample treaty
+  upload there runs the full workflow and matches local behavior.
+- **Analysis**: Checked for a matching skill (per the new
+  "check for a matching skill first" step added in
+  `docs/branch-push-discipline`) — no skill in this environment covers
+  deploying to Streamlit Community Cloud, Render, or Hugging Face
+  Spaces specifically; the closest ("run") only covers running the app
+  locally. All three named platforms are external hosted services that
+  require an account and, for an automatable path, an API token/secret
+  I don't have and can't create myself:
+  - **Streamlit Community Cloud** has no public deploy API — deploying
+    requires signing in at share.streamlit.io with GitHub OAuth and
+    clicking "Deploy" through the web UI. Not automatable from a local
+    checkout at all.
+  - **Render** and **Hugging Face Spaces** do have APIs/CLIs, but both
+    need an account-scoped API key/token that isn't present in this
+    environment (unlike, say, `ANTHROPIC_API_KEY`, which the earlier
+    `build-agentic-workflow-graph` task found already configured).
+  This is the same category of blocker as `fix-claude-review-ci-secret`
+  from earlier this session — a real external-account/credential step
+  only the human can take, not something to work around by guessing.
+- **Decision**: Before doing anything else, ask the human which
+  platform to target and whether they already have an account/token
+  for it, rather than picking one unilaterally or attempting a path
+  that will just fail partway through for lack of credentials.
+- **Action**: Claimed the task (`(@claude)` in TASKS.md), created
+  `task/deploy-to-production` branch. Asking the human now via
+  `AskUserQuestion` before any further action.
+- **Update**: Human chose Streamlit Community Cloud. Confirmed
+  `iva2020dev/reinsurance-treaty-agent` is a **public** GitHub repo
+  (`gh repo view --json visibility` → `PUBLIC`), so no special
+  permissions are needed for Community Cloud (free tier).
+  While prepping, found a real compatibility risk worth fixing before
+  handing off the manual deploy step: Streamlit Cloud's launcher
+  behaves like a bare `streamlit run src/app.py`, which is the exact
+  invocation this repo's own README already documented as broken
+  (`ModuleNotFoundError: No module named 'src'`, from the earlier
+  `create-ui-api` session) — so the deployed app would likely have
+  hit the same error. Confirmed the root cause precisely by reading
+  the installed `streamlit` package's own source:
+  `streamlit/web/bootstrap.py:73` does
+  `sys.path.insert(0, os.path.dirname(main_script_path))` — i.e. it
+  adds only `src/` (the script's own directory) to `sys.path`, never
+  the repo root, regardless of invocation method (bare `streamlit run`,
+  `python -m streamlit run`, or Streamlit Cloud's own launcher, which
+  uses this same `bootstrap.py`).
+  **Decision**: Fix this at the source in `src/app.py` itself, rather
+  than only documenting a workaround command Streamlit Cloud won't
+  follow — added `sys.path.insert(0, str(_REPO_ROOT))` (computed via
+  `Path(__file__).resolve().parent.parent`) at the top of the file,
+  before the `src.*` imports. This makes the file resolve its own
+  imports correctly no matter how it's launched, which is exactly what
+  a file Streamlit Cloud will `exec()` directly needs.
+  **Verified** by replicating Streamlit's own script-execution
+  mechanism precisely (`sys.path.insert(0, os.path.dirname(...))` then
+  `exec(compile(...))`, run from an unrelated `/tmp` cwd to remove any
+  ambiguity) — import succeeded after the fix; confirmed still true via
+  `pytest tests/ -v` (35 passed) and a live `streamlit run src/app.py`
+  (no `-m`) serving HTTP 200 with no errors in its log. Also confirmed
+  `src/tools.py`'s `HISTORICAL_CLAIMS_CSV` path is already
+  `__file__`-relative (not cwd-dependent), so that data lookup needs no
+  equivalent fix, and that all files the app needs at runtime
+  (`data/historical_claims.csv`, the two sample PDFs) are tracked in
+  git, not just present locally.
+  Updated `README.md`: added a "Deployment" section with the manual
+  Streamlit Community Cloud setup steps (sign in, Create app, repo
+  `iva2020dev/reinsurance-treaty-agent` / branch `main` / main file
+  `src/app.py`, no secrets needed since there are no LLM/API calls) and
+  a note on why it auto-redeploys on push; also updated "Running the
+  App" since bare `streamlit run src/app.py` now works too (the `-m`
+  requirement is gone, though `-m` still works as before).
+  This PR prepares everything that can be done from a local checkout;
+  actually clicking "Deploy" at share.streamlit.io requires GitHub
+  OAuth in a browser, which only the human can do — once merged to
+  `main` and deployed, the human needs to share the resulting public
+  URL back so the Acceptance criterion (upload a sample PDF there,
+  confirm it matches local behavior) can be verified.
+

@@ -1,10 +1,18 @@
 """Streamlit UI / FastAPI endpoints."""
 
 import logging
+import sys
 import tempfile
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
+
+# Streamlit's launcher (including Streamlit Community Cloud) only adds this
+# file's own directory (src/) to sys.path, not the repo root, so the absolute
+# `src.*` imports below can't resolve unless the repo root is added here too.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 import streamlit as st
 
