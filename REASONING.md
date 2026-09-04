@@ -946,3 +946,37 @@ This file contains the reasoning transcript of the AI agent for the current sess
   with the human, not out of implementation work on an existing task,
   so it's tracked as its own backlog item.
 
+## 2026-09-04 21:03:07
+
+### Task: Deploy to Production / Cloud (deploy-to-production)
+- **Goal**: Get the Streamlit app (`src/app.py`) deployed to a live
+  public URL — Streamlit Community Cloud, Render, or Hugging Face
+  Spaces — per the task's Acceptance criterion, so a sample treaty
+  upload there runs the full workflow and matches local behavior.
+- **Analysis**: Checked for a matching skill (per the new
+  "check for a matching skill first" step added in
+  `docs/branch-push-discipline`) — no skill in this environment covers
+  deploying to Streamlit Community Cloud, Render, or Hugging Face
+  Spaces specifically; the closest ("run") only covers running the app
+  locally. All three named platforms are external hosted services that
+  require an account and, for an automatable path, an API token/secret
+  I don't have and can't create myself:
+  - **Streamlit Community Cloud** has no public deploy API — deploying
+    requires signing in at share.streamlit.io with GitHub OAuth and
+    clicking "Deploy" through the web UI. Not automatable from a local
+    checkout at all.
+  - **Render** and **Hugging Face Spaces** do have APIs/CLIs, but both
+    need an account-scoped API key/token that isn't present in this
+    environment (unlike, say, `ANTHROPIC_API_KEY`, which the earlier
+    `build-agentic-workflow-graph` task found already configured).
+  This is the same category of blocker as `fix-claude-review-ci-secret`
+  from earlier this session — a real external-account/credential step
+  only the human can take, not something to work around by guessing.
+- **Decision**: Before doing anything else, ask the human which
+  platform to target and whether they already have an account/token
+  for it, rather than picking one unilaterally or attempting a path
+  that will just fail partway through for lack of credentials.
+- **Action**: Claimed the task (`(@claude)` in TASKS.md), created
+  `task/deploy-to-production` branch. Asking the human now via
+  `AskUserQuestion` before any further action.
+

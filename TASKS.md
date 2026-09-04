@@ -34,7 +34,7 @@
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
-- [ ] Deploy to Production / Cloud
+- [ ] Deploy to Production / Cloud (@claude)
   - **ID**: deploy-to-production
   - **Tags**: deployment, ops
   - **Details**: Deploy the Streamlit app (`src/app.py`) to Streamlit
