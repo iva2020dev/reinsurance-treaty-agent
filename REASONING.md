@@ -901,3 +901,10 @@ This file contains the reasoning transcript of the AI agent for the current sess
   part of either open PR's scope, so it's tracked as its own backlog
   item rather than silently folded into either PR.
 
+- **2026-09-04 16:10:50 — Approved done**: PR #15 merged into `main`
+  (merge commit `67f7135`, 2026-09-04T16:10:50Z). Human explicitly
+  approved the task as done. Removed `create-ui-api` from TASKS.md per
+  the human-approval policy, and dropped it from
+  `deploy-to-production`'s `Blocked by` field (now unblocked — no
+  remaining blockers).
+

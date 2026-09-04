@@ -22,6 +22,7 @@
      ✅ 2026-09-03 17:47:28 Implement Deterministic Tools (implement-deterministic-tools)
      ✅ 2026-09-03 18:44:29 Build the Agentic Workflow Graph (build-agentic-workflow-graph)
      ✅ 2026-09-03 19:18:42 Write Integration Tests for End-to-End Workflow (write-integration-tests)
+     ✅ 2026-09-04 16:10:50 Create User Interface & API (create-ui-api)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -32,42 +33,6 @@
 ## P1
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
-
-- [ ] Create User Interface & API (@claude)
-  - **ID**: create-ui-api
-  - **Tags**: ui, streamlit, api, testing
-  - **Details**: Build a clean Streamlit UI in `src/app.py` where a user
-    can upload a mock treaty PDF, run the agent workflow in real-time,
-    and view the structured anomaly report with page citations. Write
-    unit tests for the app as part of this task (do not defer to a
-    separate testing task), e.g. using `streamlit.testing.v1.AppTest` or
-    by testing any extracted helper functions (e.g. report formatting)
-    directly. Also surface workflow execution visibility: log each
-    node's run (Extractor/Verifier/Analyst) via the standard `logging`
-    module, and show those log lines plus the raw `WorkflowState` in a
-    collapsible debug panel in the UI. (Note: this workflow has no LLM
-    calls — extraction is regex-based per `build-agentic-workflow-graph`
-    — so there is no LLM-usage/cost logging to add; the debug panel
-    should say so rather than imply LLM calls happen.) In that debug
-    panel, also let the user persist the current run's log lines to a
-    default log file on disk (`logs/workflow.log`), with an explicit
-    choice each time between appending to the existing file content or
-    clearing it and writing only this run's logs. Each saved block is
-    prefixed with a header line (run date/time, uploaded file name).
-    Each log line carries its own `%(asctime)s` timestamp, matching the
-    standard Python logging format shown in an IDE console.
-  - **Files**: `src/app.py`, `src/workflow.py`, `tests/test_app.py`
-  - **Acceptance**: Uploading a sample treaty PDF through the running
-    Streamlit app triggers the full workflow and renders the resulting
-    `AnomalyReport` (including page citations) in the UI without errors.
-    A debug panel shows per-node log lines and the raw workflow state
-    for both a successful run and a failed one, plus a save control that
-    lets the user choose append vs. overwrite before writing the
-    current run's logs to `logs/workflow.log`. `pytest tests/test_app.py`
-    passes and covers at least one successful upload-and-render run and
-    one failure case (e.g. uploading a malformed PDF) surfacing a clear
-    error in the UI instead of crashing, plus the append/overwrite save
-    behavior.
 
 
 ## P2
@@ -84,7 +49,6 @@
   - **Acceptance**: A live public URL serves the deployed app; uploading
     a sample treaty PDF there runs the full workflow and renders an
     anomaly report, matching local behavior.
-  - **Blocked by**: create-ui-api
 
 - [ ] Fix Claude Code Review CI Check (missing API key secret)
   - **ID**: fix-claude-review-ci-secret
