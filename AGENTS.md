@@ -34,31 +34,59 @@ This repo is used with both Junie and Claude Code. Both read this file.
 2. **Pick** a task using `pnpm tasks:pick` or manually select from TASKS.md
 3. **Claim** the task by appending `(@your-name)` to the task title before starting work
    - Example: `- [ ] Fix authentication bug (@claude)`
-4. **Document** your reasoning in `REASONING.md` with:
+4. **Branch** — before making any commit for the task, create/checkout
+   its branch: `git checkout -b task/<id>` (e.g.
+   `task/create-ui-api`). **Never commit or push directly to the
+   default branch (`main`/`master`)** — not even for a single
+   small fix or a docs-only change. This is a hard rule, not a
+   judgment call to skip when a change looks trivial; see "Branch and
+   PR Discipline" below.
+5. **Document** your reasoning in `REASONING.md` with:
    - **Goal**: What you're trying to achieve
    - **Analysis**: Your understanding of the problem
    - **Decision**: What approach you're taking
    - **Action**: What you're doing
    - **Reasoning**: Why you made these choices
-5. **Work** on the task following all policies in TASKS.md
-6. **Update** REASONING.md during work with major decisions or discoveries
-7. **Sync** if the human adds or changes actions within an in-progress
+6. **Work** on the task following all policies in TASKS.md
+7. **Update** REASONING.md during work with major decisions or discoveries
+8. **Sync** if the human adds or changes actions within an in-progress
    task (e.g. "also add tests for this"): update that task's entry in
    TASKS.md (Files, Details, Status — whatever changed) to match what
    was actually asked for and done, and log the change in REASONING.md
    as a dated update under that task's entry. Never let TASKS.md drift
    out of sync with the real scope of the work.
-8. **Ask** for human approval before marking a task done — present the
+9. **Ask** for human approval before marking a task done — present the
    verified work (what was built, how it was verified) and wait for an
    explicit go-ahead before removing the task from TASKS.md. Never
    self-approve a task as complete.
-9. **Remove** completed tasks from TASKS.md only after that approval
-   (history is tracked in git), committing the removal on its own
-   branch/PR titled `Closing task as "Done": <task title>` (e.g.
-   `Closing task as "Done": Build the Agentic Workflow Graph`) — every
-   PR whose only purpose is closing an approved task uses this exact
-   naming
-10. **Add** new tasks discovered during work to the appropriate priority section
+10. **Remove** completed tasks from TASKS.md only after that approval
+    (history is tracked in git), committing the removal on its own
+    branch/PR titled `Closing task as "Done": <task title>` (e.g.
+    `Closing task as "Done": Build the Agentic Workflow Graph`) — every
+    PR whose only purpose is closing an approved task uses this exact
+    naming
+11. **Add** new tasks discovered during work to the appropriate priority section
+
+### Branch and PR Discipline
+
+**Never push directly to the default branch (`main`/`master`), even
+when local verification (tests, build) is clean.** This applies to
+every commit made while working a task — implementation commits in
+step 6 above and the closing commit in step 10 — including small or
+documentation-only changes. Always work on a task branch and open a
+PR instead:
+
+```bash
+git checkout -b task/<short-name>
+# ...work, commit...
+git push -u origin task/<short-name>
+```
+
+A PR is what triggers this repo's automated review workflow —
+committing straight to `main` skips that independent check entirely,
+which defeats the purpose of having it. If you find yourself about to
+run `git commit` while `git status`/`git branch` shows you're on
+`main`, stop and create the task branch first, even mid-task.
 
 ### Priority Levels
 
