@@ -1165,3 +1165,67 @@ This file contains the reasoning transcript of the AI agent for the current sess
 - **Outcome**: `pytest tests/ -v` — 35 passed, unaffected (docs-only
   change).
 
+## 2026-09-04 22:32:05 — Rearranged backlog: split explore-hybrid-regex-llm-fallback into a sequenced task set
+
+- **Goal**: Human asked to proceed with
+  `explore-hybrid-regex-llm-fallback` with the specific goal of
+  "creat[ing] a tasks set to implement" the hybrid approach — i.e.
+  split the single restructured task (Description + 6-step Plan) into
+  discrete, individually-pickup-able tasks, rather than starting to
+  write `src/` code directly. Matches the precedent set by the
+  `13:27:28` backlog rearrangement above (splitting `write-unit-tests`
+  into per-task work plus a dedicated `write-integration-tests`): when
+  a single task bundles genuinely separable pieces of work with a
+  natural build order, split it into a chain rather than leaving one
+  oversized entry.
+- **Analysis**: The approved 6-step Plan already has a natural
+  dependency order: the fuzzy fixture (step 1) is needed before the
+  fallback node can be tested against a real "regex fails" case (step
+  2); the node's `extraction_method`/`llm_error` state (folded into
+  step 2, since it's the same code change) must exist before the UI can
+  surface it (step 4); the UI note must exist before a true end-to-end
+  test can assert on it, and deployment config (step 5) naturally pairs
+  with that final end-to-end verification (step 6). That gives four
+  tasks, not six — steps 3 (state/contract) and 2 (fallback node) are
+  the same PR's worth of `src/workflow.py` work, so they're one task,
+  not two; likewise step 5 (config) pairs naturally with step 6's
+  end-to-end test as the final task, since deployment secrets only
+  matter once the whole flow is proven to work.
+- **Decision**: Four tasks, in a straight `Blocked by` chain:
+  1. `build-fuzzy-treaty-fixture` (no blocker) — the fixture plus tests
+     proving it defeats regex, standalone from any LLM code.
+  2. `implement-llm-fallback-node` (blocked by #1) — the actual
+     `llm_fallback_extractor` node, model/structured-output/safety
+     choices, and the additive `WorkflowState` fields, with mocked-
+     client unit tests (no real API calls needed to verify the node's
+     logic in isolation).
+  3. `update-ui-llm-fallback` (blocked by #2) — the on-page fallback
+     note and confirming the debug panel surfaces the new state, via
+     `AppTest`.
+  4. `integration-test-llm-fallback-deploy-config` (blocked by #3) —
+     the one true end-to-end test with a real API call (skipped
+     without a key) plus the Streamlit Cloud secret documentation,
+     since this is the only point where "does the whole thing actually
+     work together, and is it deployable" can be verified.
+  Verified the chain is acyclic and every `Blocked by` ID resolves to
+  a task still present in `TASKS.md` (grep check, matching how the
+  prior split was verified).
+- **Action**: Replaced the single `explore-hybrid-regex-llm-fallback`
+  entry in `TASKS.md` with the four tasks above, each carrying its own
+  ID/Tags/Details/Files/Acceptance derived directly from the relevant
+  slice of the original 6-step Plan — no content was invented beyond
+  what was already decided in the prior restructuring pass.
+- **Reasoning**: Following the same policy as the earlier split: no
+  `src/` code changes in this pass, `TASKS.md` restructuring only. Each
+  task is now independently sized and pickup-able (matching this
+  repo's established task granularity), with tests bundled into their
+  own task per the `create-ui-api`/`implement-deterministic-tools`
+  convention ("write tests as part of this task, don't defer") rather
+  than as a separate trailing testing task.
+- **Outcome**: `pytest tests/ -v` — 35 passed, unaffected (docs-only
+  change). Confirmed via `grep` that all four `**ID**`s are unique and
+  the single `**Blocked by**` chain (`build-fuzzy-treaty-fixture` →
+  `implement-llm-fallback-node` → `update-ui-llm-fallback` →
+  `integration-test-llm-fallback-deploy-config`) is linear with no
+  cycles.
+
