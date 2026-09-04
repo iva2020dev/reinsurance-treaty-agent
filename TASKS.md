@@ -23,6 +23,7 @@
      ✅ 2026-09-03 18:44:29 Build the Agentic Workflow Graph (build-agentic-workflow-graph)
      ✅ 2026-09-03 19:18:42 Write Integration Tests for End-to-End Workflow (write-integration-tests)
      ✅ 2026-09-04 16:10:50 Create User Interface & API (create-ui-api)
+     ✅ 2026-09-04 19:02:30 Deploy to Production / Cloud (deploy-to-production)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -33,17 +34,6 @@
 ## P1
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
-
-- [ ] Deploy to Production / Cloud (@claude)
-  - **ID**: deploy-to-production
-  - **Tags**: deployment, ops
-  - **Details**: Deploy the Streamlit app (`src/app.py`) to Streamlit
-    Community Cloud (free) or Render/Hugging Face Spaces so it has a
-    live public URL for the portfolio.
-  - **Files**: `src/app.py`, `requirements.txt`
-  - **Acceptance**: A live public URL serves the deployed app; uploading
-    a sample treaty PDF there runs the full workflow and renders an
-    anomaly report, matching local behavior.
 
 
 ## P2

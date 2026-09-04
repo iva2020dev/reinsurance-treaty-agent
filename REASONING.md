@@ -1071,3 +1071,8 @@ This file contains the reasoning transcript of the AI agent for the current sess
   anyone following these steps from a private fork. `pytest tests/ -v`
   — 35 passed (docs-only change, unaffected).
 
+- **2026-09-04 19:02:30 — Approved done**: PR #20 merged into `main`
+  (merge commit `46f60ce`, 2026-09-04T19:02:30Z). Human explicitly
+  approved the task as done. Removed `deploy-to-production` from
+  TASKS.md per the human-approval policy.
+
