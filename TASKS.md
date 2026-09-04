@@ -38,32 +38,97 @@
 - [ ] Explore a Hybrid Regex+LLM Extraction Fallback
   - **ID**: explore-hybrid-regex-llm-fallback
   - **Tags**: research, extraction, llm
-  - **Details**: The Extractor Node (`extract_treaty_terms()` in
+  - **Description**: The Extractor Node (`extract_treaty_terms()` in
     `src/workflow.py`) is currently pure regex, matching only the
     `Label: value` convention the two mock fixtures use (see
     `build-agentic-workflow-graph`'s decision in REASONING.md) — it
     extracts nothing from real-world treaty prose, synonyms, or
-    reordered clauses. `anthropic`/`langchain-core` are already pinned
-    in `requirements.txt` but unused in `src/`. Explore a hybrid: try
-    the existing regex extractor first (free, deterministic, fully
-    testable), and fall back to an LLM-based extraction only when
-    regex fails to find one or more required fields — aiming to keep
-    the cost/determinism/auditability benefits of regex for
+    reordered clauses. Add a hybrid fallback: try the existing regex
+    extractor first (free, deterministic, fully testable), and only
+    call an LLM when regex fails to find one or more required fields —
+    keeping the cost/determinism/auditability benefits of regex for
     well-formed documents while gaining real-world robustness for
-    messier ones. This is a research/spike task, not a committed
-    feature: the goal is a written recommendation (approach, cost/
-    latency/reliability tradeoffs observed, a rough sense of accuracy
-    on a few non-`Label: value` sample treaty texts) and, if it looks
-    worthwhile, a proposed design — not necessarily a merged
-    implementation.
-  - **Files**: `src/workflow.py`, `REASONING.md` (findings/
-    recommendation)
-  - **Acceptance**: `REASONING.md` documents what was tried, the
-    observed pros/cons versus pure regex (cost, latency, determinism,
-    auditability, accuracy on non-conforming sample text), and a clear
-    recommendation on whether/how to proceed — with no changes to
-    `extractor_node`'s existing input/output contract required to
-    reach that recommendation.
+    messier ones.
+  - **Plan**:
+    1. **Fuzzy fixture**: hand-roll `data/sample_rich_fuzzy_treaty.pdf`
+       (raw PDF bytes, same technique as the existing two fixtures —
+       no PDF-writing library is installed) — same substantive facts
+       as a real treaty (cedent **Sentinel Mutual Assurance**, already
+       in `data/historical_claims.csv` with one $900,000 claim but
+       unused by either existing fixture; an attachment point/limit/
+       premium; exclusions), but phrased as natural prose across pages
+       instead of `Label: value` lines, so `_FIELD_PATTERNS` matches
+       nothing and `extract_treaty_terms()` reports `missing_fields`
+       for at least one required field. Add a companion
+       `sample_rich_fuzzy_treaty_parsed.json` (matching the existing
+       fixture convention) and a README table row.
+    2. **LLM fallback node**: add a new LangGraph node,
+       `llm_fallback_extractor`, wired in only when the regex
+       extractor's `missing_fields` is non-empty (a conditional edge
+       after `extractor`, mirroring the existing
+       `_route_after_verifier` pattern) — not folded into
+       `extractor_node` itself, so the workflow graph diagram and the
+       debug panel's per-node logs can show plainly whether a run used
+       regex only or needed the fallback.
+       - **Model**: Claude **Haiku 4.5** (`claude-haiku-4-5-20251001`)
+         — the current lightweight/cheap/fast tier, matching "compact,
+         modern, good performance, not expensive." Not Sonnet/Opus
+         (overkill and slower/pricier for a structured short-document
+         extraction task).
+       - **Structured output**: use Anthropic tool-use (forced
+         `tool_choice`) with a tool schema mirroring `TreatyTerms`
+         (including per-field page citations), not free-text parsing —
+         matches the existing `page_citations` dict shape.
+       - **Input**: the same `PageSection` text already extracted by
+         `pypdf` — no OCR/vision needed for *this* failure mode, since
+         the fixture has fully extractable text, just non-conforming
+         phrasing. True scanned/image-only PDFs are a different
+         failure mode (`pypdf` itself raises `ParserError` before
+         extraction) and would need a separate OCR/vision-based path —
+         explicitly out of scope here; a natural follow-on task.
+       - **Safety**: wrap the API call with a timeout and catch
+         auth/rate-limit/network errors — on any failure (including a
+         missing `ANTHROPIC_API_KEY`), log it and fall through to the
+         existing "incomplete" path (`treaty=None`, original regex
+         `missing_fields`) rather than crashing the run.
+    3. **State/contract**: extend `WorkflowState` with
+       `extraction_method: Literal["regex", "llm", "none"]` (and an
+       optional `llm_error: str | None`) so both intermediate (what
+       regex found before falling back) and final results stay
+       visible in the debug panel — `extractor_node`'s own return
+       contract (`TreatyTerms | None` + `missing_fields`) stays
+       unchanged.
+    4. **UI**: in `src/app.py`, show a clear on-page note when
+       `extraction_method == "llm"` (e.g. "Extracted via LLM fallback
+       — this treaty's format didn't match the regex extractor"), and
+       have the new node log through the existing `"src.workflow"`
+       logger so it shows up in the debug panel's log view and JSON
+       state for free — same pattern as the existing three nodes, no
+       new logging plumbing needed.
+    5. **Config**: load `ANTHROPIC_API_KEY` via `python-dotenv`
+       locally (already pinned, unused today); once this ships,
+       document adding it as a Streamlit Community Cloud secret for
+       the deployed app, and confirm the app still works (regex-only,
+       no crash) for anyone without the key configured.
+    6. **Tests**: a unit test for the new node/helper (mock the
+       Anthropic client — no real API calls in CI), plus one true
+       end-to-end integration test using the real
+       `sample_rich_fuzzy_treaty.pdf` fixture and a real API call
+       (skipped/xfail if no API key is present in the environment).
+  - **Files**: `src/workflow.py`, `src/app.py`, `src/models.py`
+    (`WorkflowState`/schema additions only, no `TreatyTerms` contract
+    break), `data/sample_rich_fuzzy_treaty.pdf` (+ `.json` sibling),
+    `tests/test_workflow.py`, `tests/test_integration.py`,
+    `tests/test_app.py`, `README.md`, `requirements.txt`
+    (`python-dotenv` load call).
+  - **Acceptance**: Uploading `sample_rich_fuzzy_treaty.pdf` through
+    the app triggers the LLM fallback (regex alone reports missing
+    fields), the UI clearly indicates the fallback was used, the debug
+    panel shows both the regex attempt and the LLM result, and the
+    final `AnomalyReport` is produced correctly for cedent Sentinel
+    Mutual Assurance. Regex-only behavior on the two existing
+    fixtures is unchanged. The app still runs (regex-only, informative
+    log/UI note) if `ANTHROPIC_API_KEY` is absent.
 
 
 ## P2
