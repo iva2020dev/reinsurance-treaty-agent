@@ -1076,3 +1076,83 @@ This file contains the reasoning transcript of the AI agent for the current sess
   approved the task as done. Removed `deploy-to-production` from
   TASKS.md per the human-approval policy.
 
+## 2026-09-04 22:20:39 — Task: Restructure explore-hybrid-regex-llm-fallback (docs only)
+
+- **Goal**: Human asked to clarify/restructure this task's `TASKS.md`
+  entry into labeled sections (Description, Plan/steps, etc.), rather
+  than the flat `Details`/`Acceptance` it had, and to lock in concrete
+  decisions rather than leave it fully open-ended: a
+  `sample_rich_fuzzy_treaty.pdf` fixture specifically built to defeat
+  the regex extractor, a real LLM fallback flow (compact/modern/cheap/
+  fast model), UI updates to stay informative about which extraction
+  path ran, appropriate logging, and preserving intermediate + final
+  results. Used `EnterPlanMode` given the architectural surface (new
+  graph node, new dependency integration, UI/state changes, model
+  choice) even though this particular PR only touches `TASKS.md`/
+  `REASONING.md` — the plan itself is the thing being delivered here,
+  for whoever picks the task up next.
+- **Analysis**: Grounded the plan in the actual codebase rather than
+  writing an abstract recommendation: `extract_treaty_terms()`'s
+  contract (`TreatyTerms | None` + `missing_fields`) is what any
+  fallback must preserve; `anthropic` 1.3.0 is already installed and
+  `.env` already has a real `ANTHROPIC_API_KEY` (confirmed present,
+  not read/printed) but nothing in `src/` uses it yet; both existing
+  PDF fixtures were hand-rolled raw `%PDF-1.4` bytes (no PDF-writing
+  library installed), so the new fixture must follow suit;
+  `data/historical_claims.csv` has a third cedent, "Sentinel Mutual
+  Assurance" ($900,000 claim, unused by either existing fixture) — a
+  clean choice for a fresh, deterministic end-to-end case; `src/app.py`'s
+  debug panel already renders the full `WorkflowState` as JSON and
+  captures every `"src.workflow"` logger call, so extending state and
+  logging through the existing node pattern gets picked up by the UI
+  for free; the workflow graph diagram is already auto-regenerated and
+  cross-checked by `tests/test_workflow_graph_docs.py`, so adding a
+  graph node is already tooled for; the app is live on Streamlit
+  Community Cloud with no secrets configured today, so a real LLM call
+  will need a production secret added there too, and must degrade
+  gracefully (not crash) if that secret is ever missing.
+- **Decision**: Locked in, in the plan (not yet implemented):
+  - A **dedicated new LangGraph node** (`llm_fallback_extractor`),
+    not folded into `extractor_node` — makes the graph diagram and
+    per-node debug logs show plainly whether a run needed the
+    fallback, and keeps `extractor_node` itself simple/unchanged.
+  - **Claude Haiku 4.5** (`claude-haiku-4-5-20251001`) as the model —
+    the current lightweight/cheap/fast tier, matching the human's
+    "compact, modern, light-weight, good performance, not expensive"
+    ask; Sonnet/Opus would be overkill for a short structured-
+    extraction task.
+  - **Tool-use (forced structured output)**, not free-text parsing,
+    for reliability and to match the existing `page_citations` shape.
+  - **No OCR/vision** for this specific failure mode — the fixture
+    will have fully extractable text, just non-`Label: value` prose;
+    OCR/vision addresses a different failure mode (genuinely scanned
+    PDFs, which `parser.py` already rejects with `ParserError` before
+    extraction) and is called out explicitly as future/out-of-scope
+    rather than silently ignored.
+  - `WorkflowState` gains `extraction_method`/`llm_error` fields
+    (additive only) so intermediate (regex attempt) and final (LLM or
+    regex result) state both stay visible — no change to
+    `extractor_node`'s own contract.
+  - Graceful degradation is explicit in the plan: any LLM-call
+    failure (including a missing key) falls back to today's existing
+    "incomplete" behavior, never a crash.
+- **Action**: Rewrote `explore-hybrid-regex-llm-fallback`'s `TASKS.md`
+  entry: `Details` → `Description` (why) + a 6-step numbered `Plan`
+  (fixture, fallback node + model/structured-output/input/safety
+  choices, state/contract, UI, config, tests), updated `Files` to
+  reflect the fuller surface (`src/app.py`, `src/models.py`,
+  `tests/test_app.py`, `README.md`, `requirements.txt` in addition to
+  `src/workflow.py`), and rewrote `Acceptance` to describe the actual
+  end-to-end behavior expected (fallback triggers on the new fixture,
+  UI indicates it, debug panel shows both intermediate and final
+  state, existing fixtures unaffected, graceful no-key degradation).
+- **Reasoning**: This elevates the task from "write a recommendation"
+  to "here is the concrete implementation plan an engineer would
+  follow" — deliberately, since the human's request was directive
+  (create the fixture, set the flow, update the UI) rather than
+  open-ended research framing. No `src/` code changes were made in
+  this pass; that's the next pickup of this task, now with a plan to
+  follow instead of a blank slate.
+- **Outcome**: `pytest tests/ -v` — 35 passed, unaffected (docs-only
+  change).
+
