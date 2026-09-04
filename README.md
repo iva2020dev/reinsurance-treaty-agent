@@ -55,6 +55,18 @@ That last command enables `.githooks/pre-commit`, which automatically
 regenerates the workflow graph diagram (above) in `README.md` whenever
 `src/workflow.py` is part of a commit.
 
+## Running the App
+
+```bash
+python3 -m streamlit run src/app.py
+```
+
+Run this from the project root with the venv active. Use `python3 -m
+streamlit` rather than the bare `streamlit` command — `-m` adds the
+project root to `sys.path`, which `src/app.py` needs to resolve its
+`from src... import` statements; the bare `streamlit run src/app.py`
+fails with `ModuleNotFoundError: No module named 'src'`.
+
 ## Running Tests
 
 Tests live under `tests/` and are run with `pytest` from the project root

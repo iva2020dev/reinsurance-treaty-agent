@@ -1,5 +1,6 @@
 """LangGraph state machine & agent logic."""
 
+import logging
 import re
 from pathlib import Path
 from typing import TypedDict
@@ -10,6 +11,8 @@ from pydantic import ValidationError
 from src.models import AnomalyFinding, AnomalyReport, ClaimsData, Severity, TreatyTerms
 from src.parser import PageSection, extract_treaty_sections
 from src.tools import calculate_loss_ratio, query_historical_claims
+
+logger = logging.getLogger(__name__)
 
 _REQUIRED_FIELDS = ("cedent_name", "attachment_point", "limit", "reinsurance_premium")
 
@@ -99,6 +102,10 @@ def extract_treaty_terms(sections: list[PageSection]) -> tuple[TreatyTerms | Non
 def extractor_node(state: WorkflowState) -> dict:
     """Extract TreatyTerms from the parsed treaty sections."""
     treaty, missing_fields = extract_treaty_terms(state["sections"])
+    if treaty is None:
+        logger.info("Extractor: missing required fields %s", missing_fields)
+    else:
+        logger.info("Extractor: extracted treaty terms for cedent %r", treaty.cedent_name)
     return {"treaty": treaty, "missing_fields": missing_fields}
 
 
@@ -106,8 +113,11 @@ def verifier_node(state: WorkflowState) -> dict:
     """Validate extraction completeness; if complete, fetch historical claims for the cedent."""
     treaty = state.get("treaty")
     if treaty is None:
+        logger.info("Verifier: extraction incomplete, skipping claims lookup and Analyst node")
         return {"complete": False, "claims": []}
-    return {"complete": True, "claims": query_historical_claims(treaty.cedent_name)}
+    claims = query_historical_claims(treaty.cedent_name)
+    logger.info("Verifier: found %d historical claim(s) for %r", len(claims), treaty.cedent_name)
+    return {"complete": True, "claims": claims}
 
 
 def analyst_node(state: WorkflowState) -> dict:
@@ -149,6 +159,11 @@ def analyst_node(state: WorkflowState) -> dict:
         )
 
     report = AnomalyReport(treaty=treaty, claims=claims, loss_ratio=loss_ratio, findings=findings)
+    logger.info(
+        "Analyst: loss ratio %.2f, %d finding(s)",
+        loss_ratio,
+        len(findings),
+    )
     return {"report": report}
 
 
@@ -184,4 +199,5 @@ def run_workflow_from_pdf(path: str | Path) -> WorkflowState:
     PDF cannot be read or has no extractable text.
     """
     sections = extract_treaty_sections(path)
+    logger.info("Parsed %d page(s) from %s", len(sections), path)
     return run_workflow(sections)
