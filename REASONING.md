@@ -572,6 +572,303 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `create-ui-api`'s `Blocked by` field (now unblocked — no remaining
   blockers).
 
+## 2026-09-04 09:15:58
+
+### Task: Create User Interface & API (create-ui-api)
+- **Goal**: Build a Streamlit UI (`src/app.py`) where uploading a mock
+  treaty PDF runs the full agent workflow and renders the resulting
+  `AnomalyReport` (with page citations), plus unit tests
+  (`tests/test_app.py`).
+- **Analysis**: `src/app.py` currently only holds the module docstring
+  placeholder (`"""Streamlit UI / FastAPI endpoints."""`); `streamlit`
+  is already pinned in `requirements.txt`, so the stack choice was made
+  before this task started. `src/workflow.py` already exposes
+  `run_workflow_from_pdf(path: str | Path) -> WorkflowState`, which
+  parses a PDF (`extract_treaty_sections`, raising `ParserError` on a
+  malformed/unreadable/no-text PDF) and runs the
+  Extractor→Verifier→Analyst graph, returning a `WorkflowState` dict
+  that holds `report: AnomalyReport | None` and `complete: bool`. Two
+  terminal cases matter for the UI: (a) `ParserError` from a bad PDF —
+  must surface as a clear on-page error, not a crash; (b) a structurally
+  valid PDF that's missing required treaty fields — the graph completes
+  but routes to `END` before the Analyst node, so `state["report"]` is
+  absent (not `None` — LangGraph only sets keys a node actually
+  returns; the `write-integration-tests` task hit and documented this
+  exact `KeyError` pitfall above). `AnomalyReport` (in `src/models.py`)
+  holds `treaty` (with `page_citations: dict[str, field] -> page`),
+  `claims`, `loss_ratio`, and `findings: list[AnomalyFinding]`
+  (field/description/severity).
+- **Decision**: Streamlit is not up for reconsideration here — it's
+  already the pinned dependency and the task's own acceptance criteria
+  name it explicitly (`streamlit.testing.v1.AppTest`), and the blocked
+  P2 task `deploy-to-production` assumes a Streamlit app too, so
+  swapping frameworks would be an undiscussed scope change. `run_workflow_from_pdf`
+  needs a real filesystem path, so the uploaded `UploadedFile` will be
+  written to a `tempfile.NamedTemporaryFile` before calling it (no
+  existing helper accepts an in-memory buffer, and adding one to
+  `workflow.py` would be scope creep beyond what this task asks for).
+  Report formatting (turning `AnomalyReport` into the on-page layout)
+  will be extracted into plain helper function(s) in `app.py` so
+  `tests/test_app.py` can test formatting logic directly without
+  needing a running Streamlit server, per the task's own suggested
+  testing approach.
+- **Action**: Implementing `src/app.py` (file uploader → temp file →
+  `run_workflow_from_pdf` → render treaty terms/claims/loss
+  ratio/findings with page citations, catching `ParserError` and the
+  missing-report case into on-page error messages) and
+  `tests/test_app.py` (one successful upload-and-render case, one
+  malformed-PDF failure case, per the task's acceptance criteria).
+- **Reasoning**: Reusing `run_workflow_from_pdf` end-to-end (rather than
+  re-implementing parsing/graph invocation in the UI layer) keeps the UI
+  a thin presentation layer over the already-tested workflow, and
+  matches how `write-integration-tests` already exercises the same
+  function.
+- **Outcome**: Implemented `src/app.py`:
+  `analyze_uploaded_pdf(file_bytes) -> AnomalyReport` (writes the
+  upload to a `NamedTemporaryFile`, calls `run_workflow_from_pdf`,
+  raises `ValueError` with the missing-field names if `state["report"]`
+  is absent — mirroring the `result.get("report")` pattern from
+  `test_integration.py`), `format_report_markdown(report) -> str`
+  (treaty terms with inline page citations, loss ratio, findings with a
+  severity icon), and `main()` wiring `st.file_uploader` to both,
+  catching `ParserError`/`ValueError` into `st.error(...)` instead of
+  letting the app crash. Added `tests/test_app.py` (6 tests): 2 unit
+  tests on `format_report_markdown` against a hand-built `AnomalyReport`
+  (citations, no-findings case), 2 on `analyze_uploaded_pdf` against the
+  real PDF fixtures (success on `sample_rich_treaty.pdf`, `ParserError`
+  on garbage bytes), and 2 using `streamlit.testing.v1.AppTest` driving
+  the actual `file_uploader` widget end-to-end (success on
+  `sample_treaty.pdf` renders the cedent name; malformed bytes produce
+  exactly one `st.error` mentioning "Could not read this PDF" with no
+  uncaught exception) — satisfying the AC's "one successful
+  upload-and-render run and one failure case" both at the helper level
+  and through the real widget. `pytest tests/test_app.py -v` — 6
+  passed; `pytest tests/ -v` — 27 passed, no regressions. Manually
+  started `streamlit run src/app.py` (headless, port 8501) and
+  confirmed it serves HTTP 200 with no startup errors, then stopped it;
+  didn't drive it through an actual browser since the `AppTest` tests
+  already exercise the real upload widget end-to-end against the real
+  fixtures, which is a stronger check than a manual click-through for
+  this app's one interactive control. Have not yet asked for human
+  approval to close the task.
+
+- **2026-09-04 ~09:32:00 (update, exact time not captured live) —
+  `ModuleNotFoundError` running locally**: Human
+  ran `streamlit run src/app.py` from the repo root and hit
+  `ModuleNotFoundError: No module named 'src'` on
+  `from src.models import AnomalyReport`. Root cause: `streamlit run`
+  only adds the script's own directory (`src/`) to `sys.path`, not the
+  repo root, so the absolute `src.*` imports in `app.py` (needed so the
+  same imports also work when `tests/test_app.py` does
+  `from src.app import ...` with pytest's rootdir on the path) can't
+  resolve. This wasn't caught during verification because I tested via
+  `AppTest` (which imports `app.py` as a module, same as pytest) and a
+  bare `streamlit run` invocation that happened not to surface it in
+  that check — I hadn't tried the exact command a user would naturally
+  type. Fix: documented `python3 -m streamlit run src/app.py` (repo
+  root, venv active) as the run command in a new "Running the App"
+  section in `README.md` — `-m` puts the repo root on `sys.path`,
+  resolving the imports — rather than restructuring `app.py`'s imports,
+  since the existing absolute-import style keeps `src/app.py` and
+  `tests/test_app.py` consistent with the rest of the codebase's
+  `src.*` import convention. Verified with
+  `python -m streamlit run src/app.py --server.headless true`: served
+  HTTP 200, no `ModuleNotFoundError`/traceback in the server log.
+
+- **2026-09-04 09:40:05 (scope change)**: Human asked to see "logs
+  regarding workflow running, agent work and LLM usage" and to add that
+  as an extension of this still-open task rather than a new one.
+  Checked `src/`: there are no `logging` calls anywhere in the codebase
+  today, and — per `build-agentic-workflow-graph`'s decision above —
+  the Extractor node is regex-based, not LLM-based, so there is no LLM
+  usage to log; `anthropic`/`langchain-core` are pinned in
+  `requirements.txt` but unused in `src/`. Synced `TASKS.md`'s
+  `create-ui-api` entry (Details/Files/Acceptance) to add: per-node
+  logging via the standard `logging` module in `src/workflow.py`, and a
+  collapsible debug panel in `src/app.py` showing those log lines plus
+  the raw `WorkflowState`, with an explicit note in the panel that no
+  LLM calls occur so there's nothing to show there. Decision: use
+  stdlib `logging` (not a custom event list threaded through
+  `WorkflowState`) so log lines are captured via a module-level
+  `logging.Handler` attached in `app.py` — keeps `workflow.py`
+  framework-agnostic (still just plain functions returning dicts, no UI
+  awareness) while giving the UI everything it needs to display. Also
+  added the human's requested `.gitignore` entries for the
+  environment-specific `developing-with-streamlit` skill symlinks under
+  `.agents/skills/` and `.claude/skills/` (confirmed both were
+  untracked before adding the rule, so this ignores them going forward
+  without removing anything from git history).
+- **Action**: Invoked the `developing-with-streamlit` skill before
+  editing `app.py` (required for Streamlit work) and used its layout
+  guidance to pick `st.expander` for the debug panel ("diagnostic
+  output that should not dominate the main view"). Added
+  `logger = logging.getLogger(__name__)` plus `logger.info(...)` calls
+  to `extractor_node`, `verifier_node`, `analyst_node`, and
+  `run_workflow_from_pdf` in `src/workflow.py`. In `src/app.py`: split
+  `analyze_uploaded_pdf` into `run_workflow_on_bytes` (temp file + run,
+  returns the raw `WorkflowState`) and `extract_report` (pulls
+  `AnomalyReport` out or raises `ValueError`) — `analyze_uploaded_pdf`
+  itself is kept as a thin wrapper of the two so its existing signature/
+  behavior, and the tests already written against it, are unchanged.
+  Added `_ListLogHandler` (a `logging.Handler` appending formatted
+  records to a plain list) and `serialize_state_for_debug` (converts
+  `WorkflowState` — including nested `PageSection` dataclasses and
+  pydantic models — into a JSON-safe dict). `main()` now attaches the
+  handler to the `"src.workflow"` logger for the duration of each run
+  (removed in a `finally`), and renders a "Debug: workflow execution"
+  expander with an explicit note that no LLM calls occur, the captured
+  log lines (`st.code`), and `st.json(serialize_state_for_debug(state))`
+  when a state was produced (i.e. except when a `ParserError` fires
+  before parsing produces any sections).
+- **Outcome**: Added 4 tests to `tests/test_app.py`:
+  `test_serialize_state_for_debug_is_json_safe` (plain pytest, no
+  `AppTest`, per the skill's "test pure logic with plain pytest"
+  guidance), and 2 `AppTest`-based tests confirming the debug expander
+  renders log lines mentioning "Extractor"/"Analyst" and the full
+  serialized state as JSON on a successful run, and that the panel
+  degrades gracefully (no log lines, no JSON block) when a `ParserError`
+  fires before any node runs. `pytest tests/test_app.py -v` — 9 passed;
+  `pytest tests/ -v` — 30 passed, no regressions. Manually confirmed via
+  a Python-level `AppTest` run (outside pytest) that uploading
+  `data/sample_treaty.pdf` populates both the log lines (e.g. "INFO
+  src.workflow: Parsed 2 page(s) from ...") and the JSON debug state
+  with the full `WorkflowState` contents. A Streamlit app the human had
+  running on port 8501 will pick up these changes on next page refresh
+  (hot-reload) — did not need to restart it. Have not yet asked for
+  human approval to close the task.
+
+- **2026-09-04 09:48:57 (scope change)**: Human asked to add a save
+  control inside the debug panel: a button to persist the current run's
+  captured log lines to a default log file, asking each time whether to
+  append to the existing file or clear it and write only this run's
+  lines. Synced `TASKS.md`'s `create-ui-api` entry (Details/Acceptance)
+  to describe this. Decision: default log path `logs/workflow.log`
+  (new `logs/` directory, created on first save) — already covered by
+  the existing blanket `*.log` rule in `.gitignore`, so no gitignore
+  change needed. Chose `st.segmented_control("Append"/"Overwrite",
+  required=True)` for the mode picker over `st.radio` per the
+  `developing-with-streamlit` skill's selection-widgets guidance (2
+  options, single-select, all visible → segmented control, not
+  horizontal radio), paired with a "Save logs to file" button so the
+  write only happens on an explicit click, not on every rerun the mode
+  picker itself triggers. Kept the file-writing logic in a plain
+  `save_logs_to_file(log_lines, mode, path)` helper with no Streamlit
+  imports, so it can be unit-tested directly with `tmp_path` rather than
+  through `AppTest`.
+- **Action**: Added `DEFAULT_LOG_FILE = Path("logs/workflow.log")` and
+  `save_logs_to_file(log_lines, mode, path=DEFAULT_LOG_FILE)` (raises
+  `ValueError` on an unknown mode; creates the parent directory; `"a"`
+  vs `"w"` file mode for append/overwrite) to `src/app.py`. In the debug
+  expander, added `st.segmented_control("Save mode", ["Append",
+  "Overwrite"], default="Append", required=True)` plus a "Save logs to
+  file" button that calls `save_logs_to_file` with the current run's
+  `log_lines` on click (warns instead if there are no lines to save).
+  Confirmed `logs/workflow.log` doesn't need a new `.gitignore` entry —
+  it's already caught by the existing blanket `*.log` rule (verified by
+  creating the file and checking `git status` showed nothing new).
+- **Outcome**: Added 5 tests to `tests/test_app.py`: 3 plain-pytest
+  tests on `save_logs_to_file` (overwrite replaces content, append
+  preserves it, missing parent directory is created), and 2 more using
+  `AppTest` — one confirming the debug panel still degrades gracefully
+  on a `ParserError` (pre-existing test, unaffected), and
+  `test_app_save_button_writes_default_log_file` which `chdir`s into
+  `tmp_path` (via `monkeypatch`), uploads a real PDF fixture, sets the
+  segmented control to "Overwrite", clicks the save button, and asserts
+  `tmp_path/logs/workflow.log` was written with the run's log lines and
+  a success message appeared. `pytest tests/test_app.py -v` — 13 passed;
+  `pytest tests/ -v` — 34 passed, no regressions. Manually verified via
+  a Python-level `AppTest` run (outside pytest, in a temp cwd) that
+  clicking the button after selecting "Overwrite" wrote
+  `logs/workflow.log` with the expected `INFO src.workflow: ...` lines
+  and produced the `st.success` confirmation. Have not yet asked for
+  human approval to close the task.
+
+- **2026-09-04 10:01:35 (bugfix)**: Human reported the browser Network
+  tab showing a new request fire on every click of "Append"/
+  "Overwrite," and separately reported seeing "No log lines to save"
+  even after a successful report render. Root cause of both: the
+  segmented control wasn't inside a form, so selecting a save mode
+  triggered an immediate full script rerun on its own — which
+  re-parses the uploaded PDF and re-runs the whole workflow just to
+  toggle a setting (wasteful, and the extra Network activity the human
+  saw). That doesn't fully explain "No log lines to save" on its own
+  (a fresh rerun should still repopulate `log_lines` identically each
+  time), but killed and had the human restart the Streamlit process
+  first to rule out a stale hot-reloaded copy of `src/workflow.py`
+  (edited many times this session) as a contributing factor before
+  changing more code blind. Fix: wrapped the segmented control and
+  save button in `st.form("save_logs_form")` with
+  `st.form_submit_button(...)`, per the `developing-with-streamlit`
+  skill's best-practice ("Use st.form to batch related inputs and
+  rerun only on submit, especially when intermediate widget changes
+  would trigger expensive work") — now selecting Append/Overwrite
+  causes no rerun at all; only clicking "Save logs to file" does.
+  Verified via a standalone `AppTest` run (matching the existing
+  `test_app_save_button_writes_default_log_file` sequence: select
+  "Overwrite", click submit) that the save still completes correctly
+  inside the form. `pytest tests/test_app.py -v` — 13 passed;
+  `pytest tests/ -v` — 34 passed, no regressions (existing tests still
+  pass unchanged since `AppTest`'s `.run()` forces a rerun regardless of
+  form boundaries, so test behavior around `at.segmented_control`/
+  `at.button` was unaffected by this change).
+
+- **2026-09-04 10:04:16 (scope change)**: Human asked for a header
+  before each saved log block: run date/time, uploaded file name.
+  Synced `TASKS.md`'s `create-ui-api` Details to mention it. Added
+  `format_log_header(filename, when=None) -> str` to `src/app.py`
+  (`"=== Run at YYYY-MM-DD HH:MM:SS | file: <name> ==="`, `when`
+  injectable for deterministic testing) and, on save, wrote
+  `[header, *log_lines, ""]` instead of bare `log_lines` — the trailing
+  `""` gives a blank-line separator between consecutive runs in append
+  mode. Used `uploaded_file.name` (already available in `main()`, no
+  new plumbing needed) for the filename. Added
+  `test_format_log_header_includes_timestamp_and_filename` (plain
+  pytest, fixed `when=` for a deterministic assertion) and extended
+  `test_app_save_button_writes_default_log_file` to assert the header
+  line appears in the written file. `pytest tests/test_app.py -v` — 14
+  passed; `pytest tests/ -v` — 35 passed, no regressions.
+
+- **2026-09-04 15:47:27 (small fix)**: Human asked to align the saved
+  log line format with what an IDE console shows; clarified via
+  `AskUserQuestion` that this meant a per-line timestamp using the
+  standard Python `logging` convention (`YYYY-MM-DD HH:MM:SS,mmm`), not
+  PyCharm's own internal `idea.log` format. Changed
+  `_ListLogHandler`'s formatter in `src/app.py` from
+  `"%(levelname)s %(name)s: %(message)s"` to `"%(asctime)s %(levelname)s
+  %(name)s: %(message)s"` — a one-line change since `%(asctime)s` is a
+  built-in `logging.Formatter` field, no new plumbing needed. This
+  affects both the debug panel's `st.code` display and the saved
+  `logs/workflow.log` file, since both read from the same `log_lines`
+  list. `pytest tests/ -v` — 35 passed, unaffected (existing assertions
+  are substring checks, not exact-format matches). Manually verified via
+  a standalone `AppTest` run that saved lines now read like
+  `2026-09-04 15:47:59,920 INFO src.workflow: Parsed 4 page(s) from
+  ...`.
+
+- **2026-09-04 15:58:23 (README fix)**: Human asked to check
+  `README.md`/`TASKS.md`/`REASONING.md` and confirmed the review
+  finding: every other test file (`test_parser.py`, `test_tools.py`,
+  `test_workflow.py`, `test_integration.py`) has a "Run just X" section
+  in `README.md` with example output and a per-test table, but
+  `tests/test_app.py` (14 tests, added by this task) had none, and the
+  top "Running Tests" full-suite example was stale at "21 passed"
+  (actual: 35). Fixed both: refreshed the full-suite example output to
+  the real 35-item run, and added a matching "Run just the app tests"
+  section for `tests/test_app.py` with real example output and a
+  14-row table describing each test. `pytest tests/ -v` — 35 passed,
+  unaffected (docs-only change).
+
+- **2026-09-04 18:04:34 (README addition)**: Human asked for
+  instructions on running the app in a browser and interacting with it.
+  Extended `README.md`'s "Running the App" section: noted the printed
+  `Local URL` and that the process stays up until `Ctrl+C`, then added
+  a numbered "Using the app" walkthrough — upload a PDF (pointing at
+  both `data/` fixtures), what renders and how failures surface, what's
+  in the debug expander (per-node log, raw JSON state, the Append/
+  Overwrite save control and where it writes), and that uploading a
+  different PDF simply reruns the app. `pytest tests/ -v` — 35 passed,
+  unaffected (docs-only change).
+
 ## 2026-09-04 19:04:51 — New task: Fix Claude Code Review CI Check (fix-claude-review-ci-secret)
 
 - **Goal**: Record a new P2 task for a CI gap discovered while checking
