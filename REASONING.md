@@ -1028,4 +1028,30 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `main` and deployed, the human needs to share the resulting public
   URL back so the Acceptance criterion (upload a sample PDF there,
   confirm it matches local behavior) can be verified.
+- **Outcome**: Human deployed and shared the live URL:
+  https://reinsurance-treaty-agent-extraction.streamlit.app/. Checked
+  the platform's own `/api/v2/app/status` endpoint —
+  `{"status":5,"viewerAuthEnabled":false,"isCpuThrottled":false,
+  "streamlitVersion":"1.63.0",...}` — confirming it's running,
+  publicly viewable, and on the expected Streamlit version (matches
+  local). A plain `curl`/`WebFetch` to the app's root path got
+  redirected to a `/-/login` page; this looked like a viewer-access
+  restriction at first, but the human confirmed the app loads directly
+  with no login prompt in an actual browser, including incognito (no
+  cookies) — and the `viewerAuthEnabled: false` status field agrees.
+  Concluded the redirect is Streamlit Cloud's own anti-automation/edge
+  gate on the root path for non-browser clients, unrelated to the
+  app's real (public) access setting — not an app or access-config
+  bug, just a limit of what an automated HTTP check can observe here.
+  Human then uploaded `sample_rich_treaty.pdf` on the live app and
+  confirmed the rendered report: loss ratio 1.25, one `HIGH` finding
+  ("Historical losses (loss ratio 1.25) would have exceeded this
+  layer's limit.") — matches `test_full_pipeline_success_rich_treaty`
+  exactly, confirming the deployed app's behavior is identical to
+  local. Acceptance criterion met.
+  Added the live URL to `README.md` (a top-level "Live demo" line, and
+  inline in the Deployment section's setup steps) per the human's
+  explicit request, since the task's own stated purpose was "a live
+  public URL for the portfolio" — documenting it in the repo directly
+  serves that goal.
 

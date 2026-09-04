@@ -1,6 +1,8 @@
 # reinsurance-treaty-agent
 Reinsurance Treaty Analyzer Agent. Tech Stack: Python 3.11+, Pydantic v2, LangGraph (for deterministic agent orchestration), FastAPI (for API/services), Pytest (testing), Docker &amp; Streamlit (for easy deployment &amp; UI). AI Tooling: Claude Code (CLI) inside PyCharm, interacting with Claude 3.5 Sonnet via Anthropic API.
 
+**Live demo**: [reinsurance-treaty-agent-extraction.streamlit.app](https://reinsurance-treaty-agent-extraction.streamlit.app/)
+
 ## Workflow Graph
 
 The agentic workflow in `src/workflow.py` is a LangGraph state machine:
@@ -408,7 +410,8 @@ CLI or GitHub Action.
    (extraction is regex-based; see `REASONING.md`'s
    `build-agentic-workflow-graph` entry).
 5. Once deployed, the app gets a permanent public URL
-   (`https://<app-name>.streamlit.app`).
+   (`https://<app-name>.streamlit.app`). This app is live at
+   [reinsurance-treaty-agent-extraction.streamlit.app](https://reinsurance-treaty-agent-extraction.streamlit.app/).
 
 ### Keeping it up to date
 
