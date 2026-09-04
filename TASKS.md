@@ -34,11 +34,6 @@
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
-
-## P2
-
-<!-- policy: P2 tasks are valuable but not blocking. Do after P0 and P1 are clear. -->
-
 - [ ] Deploy to Production / Cloud
   - **ID**: deploy-to-production
   - **Tags**: deployment, ops
@@ -49,6 +44,11 @@
   - **Acceptance**: A live public URL serves the deployed app; uploading
     a sample treaty PDF there runs the full workflow and renders an
     anomaly report, matching local behavior.
+
+
+## P2
+
+<!-- policy: P2 tasks are valuable but not blocking. Do after P0 and P1 are clear. -->
 
 - [ ] Fix Claude Code Review CI Check (missing API key secret)
   - **ID**: fix-claude-review-ci-secret

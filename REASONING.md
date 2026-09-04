@@ -908,3 +908,8 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `deploy-to-production`'s `Blocked by` field (now unblocked — no
   remaining blockers).
 
+- **2026-09-04 19:15:03 (reprioritize)**: Human asked to move
+  `deploy-to-production` from P2 to P1, now that its only blocker
+  (`create-ui-api`) is done. Moved the entry (unchanged otherwise) in
+  `TASKS.md` from the P2 section to the top of P1.
+
