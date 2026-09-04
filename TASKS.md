@@ -35,6 +35,36 @@
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
+- [ ] Explore a Hybrid Regex+LLM Extraction Fallback
+  - **ID**: explore-hybrid-regex-llm-fallback
+  - **Tags**: research, extraction, llm
+  - **Details**: The Extractor Node (`extract_treaty_terms()` in
+    `src/workflow.py`) is currently pure regex, matching only the
+    `Label: value` convention the two mock fixtures use (see
+    `build-agentic-workflow-graph`'s decision in REASONING.md) — it
+    extracts nothing from real-world treaty prose, synonyms, or
+    reordered clauses. `anthropic`/`langchain-core` are already pinned
+    in `requirements.txt` but unused in `src/`. Explore a hybrid: try
+    the existing regex extractor first (free, deterministic, fully
+    testable), and fall back to an LLM-based extraction only when
+    regex fails to find one or more required fields — aiming to keep
+    the cost/determinism/auditability benefits of regex for
+    well-formed documents while gaining real-world robustness for
+    messier ones. This is a research/spike task, not a committed
+    feature: the goal is a written recommendation (approach, cost/
+    latency/reliability tradeoffs observed, a rough sense of accuracy
+    on a few non-`Label: value` sample treaty texts) and, if it looks
+    worthwhile, a proposed design — not necessarily a merged
+    implementation.
+  - **Files**: `src/workflow.py`, `REASONING.md` (findings/
+    recommendation)
+  - **Acceptance**: `REASONING.md` documents what was tried, the
+    observed pros/cons versus pure regex (cost, latency, determinism,
+    auditability, accuracy on non-conforming sample text), and a clear
+    recommendation on whether/how to proceed — with no changes to
+    `extractor_node`'s existing input/output contract required to
+    reach that recommendation.
+
 
 ## P2
 
@@ -66,35 +96,5 @@
 ## P3
 
 <!-- policy: P3 tasks are "someday/maybe". Kept for reference, not actively worked. -->
-
-- [ ] Explore a Hybrid Regex+LLM Extraction Fallback
-  - **ID**: explore-hybrid-regex-llm-fallback
-  - **Tags**: research, extraction, llm
-  - **Details**: The Extractor Node (`extract_treaty_terms()` in
-    `src/workflow.py`) is currently pure regex, matching only the
-    `Label: value` convention the two mock fixtures use (see
-    `build-agentic-workflow-graph`'s decision in REASONING.md) — it
-    extracts nothing from real-world treaty prose, synonyms, or
-    reordered clauses. `anthropic`/`langchain-core` are already pinned
-    in `requirements.txt` but unused in `src/`. Explore a hybrid: try
-    the existing regex extractor first (free, deterministic, fully
-    testable), and fall back to an LLM-based extraction only when
-    regex fails to find one or more required fields — aiming to keep
-    the cost/determinism/auditability benefits of regex for
-    well-formed documents while gaining real-world robustness for
-    messier ones. This is a research/spike task, not a committed
-    feature: the goal is a written recommendation (approach, cost/
-    latency/reliability tradeoffs observed, a rough sense of accuracy
-    on a few non-`Label: value` sample treaty texts) and, if it looks
-    worthwhile, a proposed design — not necessarily a merged
-    implementation.
-  - **Files**: `src/workflow.py`, `REASONING.md` (findings/
-    recommendation)
-  - **Acceptance**: `REASONING.md` documents what was tried, the
-    observed pros/cons versus pure regex (cost, latency, determinism,
-    auditability, accuracy on non-conforming sample text), and a clear
-    recommendation on whether/how to proceed — with no changes to
-    `extractor_node`'s existing input/output contract required to
-    reach that recommendation.
 
 

@@ -1076,3 +1076,12 @@ This file contains the reasoning transcript of the AI agent for the current sess
   approved the task as done. Removed `deploy-to-production` from
   TASKS.md per the human-approval policy.
 
+- **2026-09-04 22:06:22 (reprioritize)**: Human asked to move
+  `explore-hybrid-regex-llm-fallback` from P3 to P1 — no longer
+  "someday/maybe," now core work that should ship next. Moved the
+  entry (unchanged otherwise) from the P3 section to the top of P1 in
+  `TASKS.md`. Left its Details/Acceptance as-is (still framed as a
+  research/spike with a written-recommendation bar, not a required
+  merged implementation) since the human only asked to reprioritize,
+  not to change scope.
+
