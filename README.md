@@ -88,31 +88,45 @@ Example output:
 
 ```
 ============================= test session starts ==============================
-collected 21 items
+collected 35 items
 
-tests/test_integration.py::test_full_pipeline_success_minimal_treaty PASSED [  4%]
-tests/test_integration.py::test_full_pipeline_success_rich_treaty PASSED [  9%]
-tests/test_integration.py::test_full_pipeline_malformed_pdf_raises_parser_error PASSED [ 14%]
-tests/test_integration.py::test_full_pipeline_unknown_cedent_handled_gracefully PASSED [ 19%]
-tests/test_integration.py::test_full_pipeline_missing_required_term_handled_gracefully PASSED [ 23%]
-tests/test_parser.py::test_extract_treaty_sections_handles_minimal_two_page_treaty PASSED [ 28%]
-tests/test_parser.py::test_extract_treaty_sections_handles_rich_multi_page_treaty PASSED [ 33%]
-tests/test_parser.py::test_extract_treaty_sections_raises_on_malformed_pdf PASSED [ 38%]
-tests/test_parser.py::test_extract_treaty_sections_raises_on_missing_file PASSED [ 42%]
-tests/test_tools.py::test_query_historical_claims_returns_claims_for_known_cedent PASSED [ 47%]
-tests/test_tools.py::test_query_historical_claims_returns_empty_list_for_unknown_cedent PASSED [ 52%]
-tests/test_tools.py::test_calculate_loss_ratio_known_inputs PASSED       [ 57%]
-tests/test_tools.py::test_calculate_loss_ratio_empty_claims_is_zero PASSED [ 61%]
-tests/test_tools.py::test_calculate_loss_ratio_claim_exceeding_layer_top_is_capped PASSED [ 66%]
-tests/test_workflow.py::test_extractor_node_well_formed_input PASSED     [ 71%]
-tests/test_workflow.py::test_extractor_node_flags_missing_fields PASSED  [ 76%]
-tests/test_workflow.py::test_verifier_node_complete_triggers_historical_claims_lookup PASSED [ 80%]
-tests/test_workflow.py::test_verifier_node_flags_incompleteness_without_calling_tools PASSED [ 85%]
-tests/test_workflow.py::test_analyst_node_no_anomalies PASSED            [ 90%]
-tests/test_workflow.py::test_analyst_node_flags_at_least_one_anomaly PASSED [ 95%]
+tests/test_app.py::test_format_report_markdown_includes_terms_citations_and_findings PASSED [  2%]
+tests/test_app.py::test_format_report_markdown_no_findings PASSED        [  5%]
+tests/test_app.py::test_analyze_uploaded_pdf_success PASSED              [  8%]
+tests/test_app.py::test_analyze_uploaded_pdf_malformed_raises_parser_error PASSED [ 11%]
+tests/test_app.py::test_app_upload_and_render_success PASSED             [ 14%]
+tests/test_app.py::test_app_upload_malformed_pdf_shows_error_not_crash PASSED [ 17%]
+tests/test_app.py::test_serialize_state_for_debug_is_json_safe PASSED    [ 20%]
+tests/test_app.py::test_app_debug_panel_shows_log_lines_and_state_on_success PASSED [ 22%]
+tests/test_app.py::test_app_debug_panel_shows_log_lines_on_parser_failure PASSED [ 25%]
+tests/test_app.py::test_format_log_header_includes_timestamp_and_filename PASSED [ 28%]
+tests/test_app.py::test_save_logs_to_file_overwrite_replaces_existing_content PASSED [ 31%]
+tests/test_app.py::test_save_logs_to_file_append_keeps_existing_content PASSED [ 34%]
+tests/test_app.py::test_save_logs_to_file_creates_parent_directory PASSED [ 37%]
+tests/test_app.py::test_app_save_button_writes_default_log_file PASSED   [ 40%]
+tests/test_integration.py::test_full_pipeline_success_minimal_treaty PASSED [ 42%]
+tests/test_integration.py::test_full_pipeline_success_rich_treaty PASSED [ 45%]
+tests/test_integration.py::test_full_pipeline_malformed_pdf_raises_parser_error PASSED [ 48%]
+tests/test_integration.py::test_full_pipeline_unknown_cedent_handled_gracefully PASSED [ 51%]
+tests/test_integration.py::test_full_pipeline_missing_required_term_handled_gracefully PASSED [ 54%]
+tests/test_parser.py::test_extract_treaty_sections_handles_minimal_two_page_treaty PASSED [ 57%]
+tests/test_parser.py::test_extract_treaty_sections_handles_rich_multi_page_treaty PASSED [ 60%]
+tests/test_parser.py::test_extract_treaty_sections_raises_on_malformed_pdf PASSED [ 62%]
+tests/test_parser.py::test_extract_treaty_sections_raises_on_missing_file PASSED [ 65%]
+tests/test_tools.py::test_query_historical_claims_returns_claims_for_known_cedent PASSED [ 68%]
+tests/test_tools.py::test_query_historical_claims_returns_empty_list_for_unknown_cedent PASSED [ 71%]
+tests/test_tools.py::test_calculate_loss_ratio_known_inputs PASSED       [ 74%]
+tests/test_tools.py::test_calculate_loss_ratio_empty_claims_is_zero PASSED [ 77%]
+tests/test_tools.py::test_calculate_loss_ratio_claim_exceeding_layer_top_is_capped PASSED [ 80%]
+tests/test_workflow.py::test_extractor_node_well_formed_input PASSED     [ 82%]
+tests/test_workflow.py::test_extractor_node_flags_missing_fields PASSED  [ 85%]
+tests/test_workflow.py::test_verifier_node_complete_triggers_historical_claims_lookup PASSED [ 88%]
+tests/test_workflow.py::test_verifier_node_flags_incompleteness_without_calling_tools PASSED [ 91%]
+tests/test_workflow.py::test_analyst_node_no_anomalies PASSED            [ 94%]
+tests/test_workflow.py::test_analyst_node_flags_at_least_one_anomaly PASSED [ 97%]
 tests/test_workflow_graph_docs.py::test_readme_workflow_graph_matches_live_graph PASSED [100%]
 
-============================== 21 passed in 0.16s ===============================
+============================== 35 passed in 0.63s ===============================
 ```
 
 Run a single test file, e.g. just the parser tests:
@@ -270,6 +284,55 @@ tests/test_integration.py::test_full_pipeline_missing_required_term_handled_grac
 | `test_full_pipeline_malformed_pdf_raises_parser_error` | A malformed PDF raises `ParserError`, not an unhandled exception |
 | `test_full_pipeline_unknown_cedent_handled_gracefully` | A cedent with no historical claims produces a valid report with a `LOW` finding, not a crash |
 | `test_full_pipeline_missing_required_term_handled_gracefully` | Treaty text missing required fields ends the run with `complete: False`, not a crash |
+
+Run just the app tests — `src/app.py`'s Streamlit UI, its report
+formatting/debug helpers, and the running app itself (via
+`streamlit.testing.v1.AppTest`):
+
+```bash
+python3 -m pytest tests/test_app.py -v
+```
+
+Example output:
+
+```
+============================= test session starts ==============================
+collected 14 items
+
+tests/test_app.py::test_format_report_markdown_includes_terms_citations_and_findings PASSED [  7%]
+tests/test_app.py::test_format_report_markdown_no_findings PASSED        [ 14%]
+tests/test_app.py::test_analyze_uploaded_pdf_success PASSED              [ 21%]
+tests/test_app.py::test_analyze_uploaded_pdf_malformed_raises_parser_error PASSED [ 28%]
+tests/test_app.py::test_app_upload_and_render_success PASSED             [ 35%]
+tests/test_app.py::test_app_upload_malformed_pdf_shows_error_not_crash PASSED [ 42%]
+tests/test_app.py::test_serialize_state_for_debug_is_json_safe PASSED    [ 50%]
+tests/test_app.py::test_app_debug_panel_shows_log_lines_and_state_on_success PASSED [ 57%]
+tests/test_app.py::test_app_debug_panel_shows_log_lines_on_parser_failure PASSED [ 64%]
+tests/test_app.py::test_format_log_header_includes_timestamp_and_filename PASSED [ 71%]
+tests/test_app.py::test_save_logs_to_file_overwrite_replaces_existing_content PASSED [ 78%]
+tests/test_app.py::test_save_logs_to_file_append_keeps_existing_content PASSED [ 85%]
+tests/test_app.py::test_save_logs_to_file_creates_parent_directory PASSED [ 92%]
+tests/test_app.py::test_app_save_button_writes_default_log_file PASSED   [100%]
+
+============================== 14 passed in 0.67s ===============================
+```
+
+| Test | Checks |
+|---|---|
+| `test_format_report_markdown_includes_terms_citations_and_findings` | The rendered Markdown includes treaty terms, page citations, loss ratio, and a `[HIGH]` finding |
+| `test_format_report_markdown_no_findings` | An empty findings list renders "No anomalies found." |
+| `test_analyze_uploaded_pdf_success` | A real PDF fixture's bytes produce the correct `AnomalyReport` |
+| `test_analyze_uploaded_pdf_malformed_raises_parser_error` | Garbage bytes raise `ParserError`, not a crash |
+| `test_app_upload_and_render_success` | Uploading a real PDF fixture through the running app renders the cedent name, no exception |
+| `test_app_upload_malformed_pdf_shows_error_not_crash` | Uploading a malformed PDF shows exactly one `st.error`, no exception |
+| `test_serialize_state_for_debug_is_json_safe` | The debug `WorkflowState` dict (nested pydantic models included) round-trips through `json.dumps` |
+| `test_app_debug_panel_shows_log_lines_and_state_on_success` | The debug expander shows per-node log lines and the full state as JSON on a successful run |
+| `test_app_debug_panel_shows_log_lines_on_parser_failure` | The debug panel shows no log lines/state when a `ParserError` fires before any node runs |
+| `test_format_log_header_includes_timestamp_and_filename` | The saved-log header string matches `"=== Run at <timestamp> \| file: <name> ==="` |
+| `test_save_logs_to_file_overwrite_replaces_existing_content` | `mode="overwrite"` clears a log file's prior content |
+| `test_save_logs_to_file_append_keeps_existing_content` | `mode="append"` preserves a log file's prior content |
+| `test_save_logs_to_file_creates_parent_directory` | Saving to a log path whose parent directory doesn't exist yet creates it |
+| `test_app_save_button_writes_default_log_file` | Clicking "Save logs to file" in the running app writes the header and log lines to `logs/workflow.log` |
 
 ## Sample Treaty Fixtures
 

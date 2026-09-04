@@ -845,3 +845,16 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `2026-09-04 15:47:59,920 INFO src.workflow: Parsed 4 page(s) from
   ...`.
 
+- **2026-09-04 15:58:23 (README fix)**: Human asked to check
+  `README.md`/`TASKS.md`/`REASONING.md` and confirmed the review
+  finding: every other test file (`test_parser.py`, `test_tools.py`,
+  `test_workflow.py`, `test_integration.py`) has a "Run just X" section
+  in `README.md` with example output and a per-test table, but
+  `tests/test_app.py` (14 tests, added by this task) had none, and the
+  top "Running Tests" full-suite example was stale at "21 passed"
+  (actual: 35). Fixed both: refreshed the full-suite example output to
+  the real 35-item run, and added a matching "Run just the app tests"
+  section for `tests/test_app.py` with real example output and a
+  14-row table describing each test. `pytest tests/ -v` — 35 passed,
+  unaffected (docs-only change).
+
