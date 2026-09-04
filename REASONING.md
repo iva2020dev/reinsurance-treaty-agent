@@ -913,3 +913,36 @@ This file contains the reasoning transcript of the AI agent for the current sess
   (`create-ui-api`) is done. Moved the entry (unchanged otherwise) in
   `TASKS.md` from the P2 section to the top of P1.
 
+## 2026-09-04 20:55:54 — New task: Explore a Hybrid Regex+LLM Extraction Fallback (explore-hybrid-regex-llm-fallback)
+
+- **Goal**: Record a new backlog item after walking the human through
+  why the Extractor Node is regex-based rather than LLM-based (see
+  `build-agentic-workflow-graph`'s original decision above) and the
+  pros/cons of each approach — the human asked to track a hybrid
+  regex-first, LLM-fallback approach as something to actually explore.
+- **Analysis**: Regex-only extraction only works on the `Label: value`
+  convention the two mock fixtures use; it extracts nothing from prose,
+  synonyms, or reordered clauses, which is exactly the shape real-world
+  treaty PDFs would take. `anthropic`/`langchain-core` are already
+  pinned in `requirements.txt` but unused — so the dependency cost of
+  trying an LLM path is already paid, just not exercised.
+  `extractor_node`'s contract (`PageSection` list in → `TreatyTerms` or
+  `None` + missing-fields list out) was deliberately kept
+  implementation-agnostic when it was built, so a fallback doesn't
+  require changing anything upstream/downstream of the node.
+- **Decision**: Filed as P3 ("someday/maybe"), not P1/P2 — this is
+  explicitly framed as a research/spike task (a written recommendation
+  with observed tradeoffs), not a committed feature with a hard
+  acceptance bar requiring a merged implementation. That distinction is
+  written directly into the task's Details/Acceptance so whoever picks
+  it up next doesn't over-scope it into a full LLM integration before
+  the tradeoffs are actually validated.
+- **Action**: Added `explore-hybrid-regex-llm-fallback` to `TASKS.md`'s
+  P3 section, referencing `build-agentic-workflow-graph`'s original
+  decision and pointing at `extractor_node`'s existing contract as the
+  reason a fallback wouldn't need to change anything else.
+- **Reasoning**: Following the "Add new tasks discovered during work"
+  policy — this came directly out of a design-rationale discussion
+  with the human, not out of implementation work on an existing task,
+  so it's tracked as its own backlog item.
+
