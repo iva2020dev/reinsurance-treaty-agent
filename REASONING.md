@@ -1054,4 +1054,20 @@ This file contains the reasoning transcript of the AI agent for the current sess
   explicit request, since the task's own stated purpose was "a live
   public URL for the portfolio" — documenting it in the repo directly
   serves that goal.
+- **2026-09-04 22:00:46 update**: Human asked for a "separate section
+  Deployment" and to check its content. It already existed (added in
+  this same task's earlier commit) but sat at the very end of the
+  file, after "Sample Treaty Fixtures" — likely why it read as
+  missing. Asked the human where it should live; they chose right
+  after "Running the App" (before "Running Tests"), grouping the two
+  action-oriented sections (run locally, then how it's deployed)
+  ahead of the more reference-y test/fixture sections. Moved the whole
+  `## Deployment` block (setup steps, keeping-up-to-date note,
+  compatibility note) there unchanged except for one real content gap
+  found while reviewing: added that Streamlit Community Cloud's free
+  tier requires the GitHub repo to be **public** (verified true for
+  this repo via `gh repo view` earlier in this task) — a real
+  prerequisite the section never stated, which would silently block
+  anyone following these steps from a private fork. `pytest tests/ -v`
+  — 35 passed (docs-only change, unaffected).
 

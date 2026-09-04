@@ -110,6 +110,50 @@ process does; press `Ctrl+C` there to stop it.
    automatically and replaces the report and debug panel with the new
    run's results.
 
+## Deployment
+
+The app is deployed on [Streamlit Community Cloud](https://share.streamlit.io/),
+which is free and purpose-built for Streamlit apps, but has no public
+deploy API — the app is created and updated through its web UI, not a
+CLI or GitHub Action. It requires the GitHub repo to be **public**
+(this repo is) — Community Cloud's free tier doesn't deploy from
+private repos.
+
+### First-time setup (manual, one-time)
+
+1. Sign in at [share.streamlit.io](https://share.streamlit.io/) with
+   GitHub.
+2. Click **"Create app"** → **"Deploy a public app from GitHub"**.
+3. Fill in:
+   - **Repository**: `iva2020dev/reinsurance-treaty-agent`
+   - **Branch**: `main`
+   - **Main file path**: `src/app.py`
+4. Click **Deploy**. The platform installs `requirements.txt` and runs
+   `streamlit run src/app.py` from the repo root — no `.streamlit/secrets.toml`
+   or other secrets are needed, since this app makes no LLM/API calls
+   (extraction is regex-based; see `REASONING.md`'s
+   `build-agentic-workflow-graph` entry).
+5. Once deployed, the app gets a permanent public URL
+   (`https://<app-name>.streamlit.app`). This app is live at
+   [reinsurance-treaty-agent-extraction.streamlit.app](https://reinsurance-treaty-agent-extraction.streamlit.app/).
+
+### Keeping it up to date
+
+Streamlit Community Cloud auto-redeploys on every push to `main` — no
+separate deploy step is needed after the first setup. A push that adds
+a new dependency to `requirements.txt` triggers a full reinstall on the
+next redeploy.
+
+### Compatibility note
+
+Streamlit Cloud's launcher behaves like a bare `streamlit run src/app.py`
+(not `python -m streamlit run`), which only adds `src/`'s own directory
+to `sys.path`, not the repo root. `src/app.py` accounts for this itself
+— it inserts the repo root into `sys.path` at the top of the file
+before its `src.*` imports — so it resolves correctly under Streamlit
+Cloud's launcher without needing the `-m` flag documented above for
+local runs.
+
 ## Running Tests
 
 Tests live under `tests/` and are run with `pytest` from the project root
@@ -387,45 +431,3 @@ without running any code:
 |---|---|---|---|
 | `sample_treaty.pdf` | `sample_treaty_parsed.json` | 2 | Minimal: attachment point, limit, premium, exclusions |
 | `sample_rich_treaty.pdf` | `sample_rich_treaty_parsed.json` | 4 | Detailed: parties/period/territory, two layers with reinstatements and brokerage, a 10-item exclusions list, and claims/arbitration/governing-law provisions |
-
-## Deployment
-
-The app is deployed on [Streamlit Community Cloud](https://share.streamlit.io/),
-which is free and purpose-built for Streamlit apps, but has no public
-deploy API — the app is created and updated through its web UI, not a
-CLI or GitHub Action.
-
-### First-time setup (manual, one-time)
-
-1. Sign in at [share.streamlit.io](https://share.streamlit.io/) with
-   GitHub.
-2. Click **"Create app"** → **"Deploy a public app from GitHub"**.
-3. Fill in:
-   - **Repository**: `iva2020dev/reinsurance-treaty-agent`
-   - **Branch**: `main`
-   - **Main file path**: `src/app.py`
-4. Click **Deploy**. The platform installs `requirements.txt` and runs
-   `streamlit run src/app.py` from the repo root — no `.streamlit/secrets.toml`
-   or other secrets are needed, since this app makes no LLM/API calls
-   (extraction is regex-based; see `REASONING.md`'s
-   `build-agentic-workflow-graph` entry).
-5. Once deployed, the app gets a permanent public URL
-   (`https://<app-name>.streamlit.app`). This app is live at
-   [reinsurance-treaty-agent-extraction.streamlit.app](https://reinsurance-treaty-agent-extraction.streamlit.app/).
-
-### Keeping it up to date
-
-Streamlit Community Cloud auto-redeploys on every push to `main` — no
-separate deploy step is needed after the first setup. A push that adds
-a new dependency to `requirements.txt` triggers a full reinstall on the
-next redeploy.
-
-### Compatibility note
-
-Streamlit Cloud's launcher behaves like a bare `streamlit run src/app.py`
-(not `python -m streamlit run`), which only adds `src/`'s own directory
-to `sys.path`, not the repo root. `src/app.py` accounts for this itself
-— it inserts the repo root into `sys.path` at the top of the file
-before its `src.*` imports — so it resolves correctly under Streamlit
-Cloud's launcher without needing the `-m` flag documented above for
-local runs.
