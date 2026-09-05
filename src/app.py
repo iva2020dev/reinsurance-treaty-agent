@@ -192,7 +192,7 @@ def main() -> None:
                     st.error(message)
                 else:
                     if state.get("extraction_method") == "llm":
-                        st.info(
+                        st.warning(
                             "Extracted via **LLM Extraction Fallback** — this "
                             "treaty's format didn't match the regex extractor."
                         )
