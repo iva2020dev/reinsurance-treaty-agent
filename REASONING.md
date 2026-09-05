@@ -1278,10 +1278,16 @@ This file contains the reasoning transcript of the AI agent for the current sess
      matching the rich fixture's page 4 flavor.
   Expected numbers, for later tasks to assert against:
   attachment_point=2,500,000, limit=5,000,000 (layer top 7,500,000),
-  reinsurance_premium=400,000, cedent="Sentinel Mutual Assurance"
-  (one $900,000 historical claim → loss ratio 0.18 if/when the LLM
-  fallback successfully extracts these and the graph runs to
-  completion).
+  reinsurance_premium=400,000, cedent="Sentinel Mutual Assurance" (one
+  $900,000 historical claim, which — since it falls entirely below the
+  2,500,000 attachment point — cedes $0 into this layer once
+  `calculate_loss_ratio` is applied, i.e. loss ratio 0.00, zero
+  findings). [Corrected 2026-09-05: originally written here as
+  "loss ratio 0.18," which was my own arithmetic error at the time
+  (dividing claim/limit directly, ignoring the attachment-point
+  subtraction `calculate_loss_ratio` actually performs) — see that
+  date's entry below for why the fixture's numbers were later revised
+  anyway, to produce a real non-zero finding.]
 - **Action**: Building `data/sample_rich_fuzzy_treaty.pdf` +
   `data/sample_rich_fuzzy_treaty_parsed.json`, adding
   `test_extract_treaty_sections_handles_fuzzy_rich_treaty` (or
@@ -1516,4 +1522,98 @@ This file contains the reasoning transcript of the AI agent for the current sess
   and that its absence degrades gracefully rather than crashing.
 - **Outcome**: `pytest tests/ -v` — 41 passed (docs-only change,
   unaffected).
+
+## 2026-09-05 20:30:53 — Redesign fuzzy fixture, rename LLM Extraction Fallback, clarify Regex logging
+
+- **Goal**: Human, after confirming the LLM fallback worked correctly
+  end-to-end on the live deployed app (real Claude Haiku 4.5 call,
+  correct extraction, `loss_ratio=0.00`), asked for four things: (1)
+  fix the stale "0.18" prediction noted above (done, see that entry's
+  correction), (2) redesign `sample_rich_fuzzy_treaty.pdf` so the
+  historical claim actually produces a non-zero loss ratio and a
+  non-empty findings list — "to be more presented" — rather than the
+  correct-but-unexciting 0.00/no-findings result, (3) have the
+  Extractor's log lines explicitly say "Regex" so log output reads
+  unambiguously next to the LLM step, (4) rename "LLM fallback"
+  (function `llm_fallback_extractor`, node key, log-message prefix)
+  to "LLM Extraction Fallback" everywhere.
+- **Analysis**: The live result was correct given the fixture's
+  original numbers (attachment 2,500,000/limit 5,000,000 vs. a single
+  900,000 claim) — the claim falls entirely below attachment, so
+  `calculate_loss_ratio` correctly cedes $0. To get a real finding
+  without touching `data/historical_claims.csv` (shared fixture data;
+  changing Sentinel Mutual Assurance's claim row risked nothing else
+  in this repo since it's unused elsewhere, confirmed via grep, but
+  changing the *treaty's* own numbers in the PDF prose is the more
+  targeted, lower-risk lever and keeps the CSV fixture untouched) or
+  adding a second claims row (which would have mirrored the rich
+  fixture's multi-claim HIGH-finding approach but adds more moving
+  parts than necessary), the simplest fix is lowering the fuzzy
+  treaty's own attachment point/limit so the existing $900,000 claim
+  actually falls inside the layer.
+- **Decision**: New numbers: attachment_point=200,000,
+  limit=1,000,000 (unchanged premium=400,000). Ceded = min(900,000,
+  1,200,000) − 200,000 = 700,000; loss_ratio = 700,000/1,000,000 =
+  **0.70** → one `MEDIUM` finding ("would have consumed a majority of
+  this layer") — clean, comfortably inside the `[0.5, 1.0)` MEDIUM
+  band, not an ambiguous boundary value. Verified this arithmetic
+  directly (`calculate_loss_ratio(200_000, 1_000_000, claims)`) before
+  touching the PDF, and separately re-verified that regex still fails
+  on all four required fields with the new prose (same
+  `_FIELD_PATTERNS` avoidance as before, just different dollar
+  figures) — both by direct computation, not by re-running a real LLM
+  call (this environment's own `.env` key is still invalid; the
+  arithmetic and regex-failure checks don't need a real call to
+  verify, only the graph's LLM step does, which is already covered by
+  mocked tests plus the human's own live confirmation on the deployed
+  app).
+  For the rename: renamed the actual Python identifier
+  (`llm_fallback_extractor` → `llm_extraction_fallback`, the function,
+  the graph node key, the routing dict, and the monkeypatch target
+  strings in tests) rather than only changing display strings, so the
+  workflow graph diagram's node label changes too, not just log text.
+  Also updated the two still-open `TASKS.md` entries
+  (`implement-llm-fallback-node`, `update-ui-llm-fallback`,
+  `integration-test-llm-fallback-deploy-config`) that referenced the
+  old name/wording, keeping their **ID**s unchanged (renaming slugs
+  that other entries reference via `Blocked by` adds risk
+  disproportionate to a cosmetic rename) but updating titles/Details
+  text for consistency with the new terminology.
+  For Extractor logging: added "(Regex)" directly into
+  `extractor_node`'s two existing log lines rather than inventing a
+  new log format, so a log tail reads unambiguously (e.g. "Extractor
+  (Regex): missing required fields [...]" immediately followed by "LLM
+  Extraction Fallback: extracted treaty terms for cedent ...").
+- **Action**: Regenerated `data/sample_rich_fuzzy_treaty.pdf` (updated
+  the scratchpad generator script's page 2 prose to the new dollar
+  figures, re-ran it, verified via direct computation before copying
+  into the repo) and `data/sample_rich_fuzzy_treaty_parsed.json`.
+  Updated `tests/test_parser.py`'s dollar-figure assertion
+  (`"$2,500,000"` → `"$200,000"`). Renamed
+  `llm_fallback_extractor`/`_route_after_extractor`'s target string/
+  graph node key to `llm_extraction_fallback` throughout
+  `src/workflow.py`; changed both its log lines' prefix to "LLM
+  Extraction Fallback:"; added "(Regex)" to `extractor_node`'s two log
+  lines. In `tests/test_workflow.py`: renamed the import and all
+  monkeypatch target strings; renamed the four affected test functions
+  (`test_llm_fallback_*` → `test_llm_extraction_fallback_*`); updated
+  the mocked tool-use numbers in the existing success test to the new
+  200,000/1,000,000 figures; added a new end-to-end test,
+  `test_run_workflow_via_llm_extraction_fallback_flags_medium_finding`,
+  that mocks a successful LLM response and asserts the *full*
+  `run_workflow` result — `loss_ratio == pytest.approx(0.7)`, exactly
+  one finding, `Severity.MEDIUM` — directly proving the redesigned
+  fixture's intended non-trivial result, not just that extraction
+  succeeded. Regenerated the workflow graph diagram and PNG (node
+  label changed). Updated `README.md`: the Workflow Graph prose ("LLM
+  Fallback Extractor Node" → "LLM Extraction Fallback Node"), the
+  parser-fixture-table dollar figure, the full-suite and
+  `test_workflow.py` example outputs/descriptions (renamed tests, new
+  test added, counts 41→42 / 11→12).
+- **Outcome**: `pytest tests/ -v` — 42 passed, no regressions. Grepped
+  the whole repo (`src/`, `tests/`, `README.md`, `TASKS.md`) for any
+  remaining `llm_fallback_extractor`/"LLM Fallback" references after
+  all edits — none left outside this historical entry and the
+  superseded-numbers correction above it (both intentionally kept as
+  an accurate record of what changed and why, not scrubbed).
 

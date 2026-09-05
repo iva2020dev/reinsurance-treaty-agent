@@ -8,8 +8,8 @@ Reinsurance Treaty Analyzer Agent. Tech Stack: Python 3.11+, Pydantic v2, LangGr
 The agentic workflow in `src/workflow.py` is a LangGraph state machine:
 the Extractor Node reads treaty terms from parsed text via regex; if
 it can't find one or more required fields (e.g. a treaty phrased as
-prose instead of the `Label: value` convention), the LLM Fallback
-Extractor Node retries the extraction using Claude Haiku 4.5 with
+prose instead of the `Label: value` convention), the LLM Extraction
+Fallback Node retries the extraction using Claude Haiku 4.5 with
 structured tool-use output before continuing. The Verifier Node then
 checks completeness and (if complete) looks up historical claims for
 the cedent, and the Analyst Node computes the loss ratio and flags
@@ -27,14 +27,14 @@ config:
 graph TD;
 	__start__([<p>__start__</p>]):::first
 	extractor(extractor)
-	llm_fallback_extractor(llm_fallback_extractor)
+	llm_extraction_fallback(llm_extraction_fallback)
 	verifier(verifier)
 	analyst(analyst)
 	__end__([<p>__end__</p>]):::last
 	__start__ --> extractor;
-	extractor -.-> llm_fallback_extractor;
+	extractor -.-> llm_extraction_fallback;
 	extractor -.-> verifier;
-	llm_fallback_extractor --> verifier;
+	llm_extraction_fallback --> verifier;
 	verifier -.-> __end__;
 	verifier -.-> analyst;
 	analyst --> __end__;
@@ -142,10 +142,11 @@ private repos.
    **Settings → Secrets** and add
    `ANTHROPIC_API_KEY = "sk-ant-..."`. Extraction is regex-first (see
    `REASONING.md`'s `build-agentic-workflow-graph` entry) and needs no
-   secret on its own, but the LLM fallback (`llm_fallback_extractor`,
-   used when regex can't find required fields — see
-   `implement-llm-fallback-node`) makes a real Anthropic API call and
-   needs this key to work. Without it, the app still runs fine on
+   secret on its own, but the LLM Extraction Fallback
+   (`llm_extraction_fallback`, used when regex can't find required
+   fields — see `implement-llm-fallback-node`) makes a real Anthropic
+   API call and needs this key to work. Without it, the app still runs
+   fine on
    well-formed treaties; on ones that need the fallback, the run
    degrades gracefully (an incomplete-extraction message) rather than
    crashing — it just can't actually recover via the LLM.
@@ -191,51 +192,52 @@ Example output:
 
 ```
 ============================= test session starts ==============================
-collected 41 items
+collected 42 items
 
 tests/test_app.py::test_format_report_markdown_includes_terms_citations_and_findings PASSED [  2%]
 tests/test_app.py::test_format_report_markdown_no_findings PASSED        [  4%]
 tests/test_app.py::test_analyze_uploaded_pdf_success PASSED              [  7%]
 tests/test_app.py::test_analyze_uploaded_pdf_malformed_raises_parser_error PASSED [  9%]
-tests/test_app.py::test_app_upload_and_render_success PASSED             [ 12%]
+tests/test_app.py::test_app_upload_and_render_success PASSED             [ 11%]
 tests/test_app.py::test_app_upload_malformed_pdf_shows_error_not_crash PASSED [ 14%]
-tests/test_app.py::test_serialize_state_for_debug_is_json_safe PASSED    [ 17%]
+tests/test_app.py::test_serialize_state_for_debug_is_json_safe PASSED    [ 16%]
 tests/test_app.py::test_app_debug_panel_shows_log_lines_and_state_on_success PASSED [ 19%]
 tests/test_app.py::test_app_debug_panel_shows_log_lines_on_parser_failure PASSED [ 21%]
-tests/test_app.py::test_format_log_header_includes_timestamp_and_filename PASSED [ 24%]
+tests/test_app.py::test_format_log_header_includes_timestamp_and_filename PASSED [ 23%]
 tests/test_app.py::test_save_logs_to_file_overwrite_replaces_existing_content PASSED [ 26%]
-tests/test_app.py::test_save_logs_to_file_append_keeps_existing_content PASSED [ 29%]
-tests/test_app.py::test_save_logs_to_file_creates_parent_directory PASSED [ 31%]
-tests/test_app.py::test_app_save_button_writes_default_log_file PASSED   [ 34%]
-tests/test_integration.py::test_full_pipeline_success_minimal_treaty PASSED [ 36%]
-tests/test_integration.py::test_full_pipeline_success_rich_treaty PASSED [ 39%]
-tests/test_integration.py::test_full_pipeline_malformed_pdf_raises_parser_error PASSED [ 41%]
-tests/test_integration.py::test_full_pipeline_unknown_cedent_handled_gracefully PASSED [ 43%]
-tests/test_integration.py::test_full_pipeline_missing_required_term_handled_gracefully PASSED [ 46%]
-tests/test_parser.py::test_extract_treaty_sections_handles_minimal_two_page_treaty PASSED [ 48%]
-tests/test_parser.py::test_extract_treaty_sections_handles_rich_multi_page_treaty PASSED [ 51%]
-tests/test_parser.py::test_extract_treaty_sections_handles_fuzzy_rich_treaty PASSED [ 53%]
-tests/test_parser.py::test_extract_treaty_sections_raises_on_malformed_pdf PASSED [ 56%]
-tests/test_parser.py::test_extract_treaty_sections_raises_on_missing_file PASSED [ 58%]
-tests/test_tools.py::test_query_historical_claims_returns_claims_for_known_cedent PASSED [ 60%]
-tests/test_tools.py::test_query_historical_claims_returns_empty_list_for_unknown_cedent PASSED [ 63%]
-tests/test_tools.py::test_calculate_loss_ratio_known_inputs PASSED       [ 65%]
-tests/test_tools.py::test_calculate_loss_ratio_empty_claims_is_zero PASSED [ 68%]
-tests/test_tools.py::test_calculate_loss_ratio_claim_exceeding_layer_top_is_capped PASSED [ 70%]
-tests/test_workflow.py::test_extractor_node_well_formed_input PASSED     [ 73%]
-tests/test_workflow.py::test_extractor_node_flags_missing_fields PASSED  [ 75%]
-tests/test_workflow.py::test_extract_treaty_terms_fails_on_fuzzy_prose_treaty PASSED [ 78%]
-tests/test_workflow.py::test_llm_fallback_not_invoked_when_regex_succeeds PASSED [ 80%]
-tests/test_workflow.py::test_llm_fallback_extractor_succeeds_on_fuzzy_treaty PASSED [ 82%]
-tests/test_workflow.py::test_llm_fallback_extractor_degrades_gracefully_on_failure PASSED [ 85%]
-tests/test_workflow.py::test_run_workflow_stays_incomplete_when_llm_fallback_also_fails PASSED [ 87%]
+tests/test_app.py::test_save_logs_to_file_append_keeps_existing_content PASSED [ 28%]
+tests/test_app.py::test_save_logs_to_file_creates_parent_directory PASSED [ 30%]
+tests/test_app.py::test_app_save_button_writes_default_log_file PASSED   [ 33%]
+tests/test_integration.py::test_full_pipeline_success_minimal_treaty PASSED [ 35%]
+tests/test_integration.py::test_full_pipeline_success_rich_treaty PASSED [ 38%]
+tests/test_integration.py::test_full_pipeline_malformed_pdf_raises_parser_error PASSED [ 40%]
+tests/test_integration.py::test_full_pipeline_unknown_cedent_handled_gracefully PASSED [ 42%]
+tests/test_integration.py::test_full_pipeline_missing_required_term_handled_gracefully PASSED [ 45%]
+tests/test_parser.py::test_extract_treaty_sections_handles_minimal_two_page_treaty PASSED [ 47%]
+tests/test_parser.py::test_extract_treaty_sections_handles_rich_multi_page_treaty PASSED [ 50%]
+tests/test_parser.py::test_extract_treaty_sections_handles_fuzzy_rich_treaty PASSED [ 52%]
+tests/test_parser.py::test_extract_treaty_sections_raises_on_malformed_pdf PASSED [ 54%]
+tests/test_parser.py::test_extract_treaty_sections_raises_on_missing_file PASSED [ 57%]
+tests/test_tools.py::test_query_historical_claims_returns_claims_for_known_cedent PASSED [ 59%]
+tests/test_tools.py::test_query_historical_claims_returns_empty_list_for_unknown_cedent PASSED [ 61%]
+tests/test_tools.py::test_calculate_loss_ratio_known_inputs PASSED       [ 64%]
+tests/test_tools.py::test_calculate_loss_ratio_empty_claims_is_zero PASSED [ 66%]
+tests/test_tools.py::test_calculate_loss_ratio_claim_exceeding_layer_top_is_capped PASSED [ 69%]
+tests/test_workflow.py::test_extractor_node_well_formed_input PASSED     [ 71%]
+tests/test_workflow.py::test_extractor_node_flags_missing_fields PASSED  [ 73%]
+tests/test_workflow.py::test_extract_treaty_terms_fails_on_fuzzy_prose_treaty PASSED [ 76%]
+tests/test_workflow.py::test_llm_extraction_fallback_not_invoked_when_regex_succeeds PASSED [ 78%]
+tests/test_workflow.py::test_llm_extraction_fallback_succeeds_on_fuzzy_treaty PASSED [ 80%]
+tests/test_workflow.py::test_run_workflow_via_llm_extraction_fallback_flags_medium_finding PASSED [ 83%]
+tests/test_workflow.py::test_llm_extraction_fallback_degrades_gracefully_on_failure PASSED [ 85%]
+tests/test_workflow.py::test_run_workflow_stays_incomplete_when_llm_extraction_fallback_also_fails PASSED [ 88%]
 tests/test_workflow.py::test_verifier_node_complete_triggers_historical_claims_lookup PASSED [ 90%]
 tests/test_workflow.py::test_verifier_node_flags_incompleteness_without_calling_tools PASSED [ 92%]
 tests/test_workflow.py::test_analyst_node_no_anomalies PASSED            [ 95%]
 tests/test_workflow.py::test_analyst_node_flags_at_least_one_anomaly PASSED [ 97%]
 tests/test_workflow_graph_docs.py::test_readme_workflow_graph_matches_live_graph PASSED [100%]
 
-============================== 41 passed in 1.94s ===============================
+============================== 42 passed in 2.20s ===============================
 ```
 
 Run a single test file, e.g. just the parser tests:
@@ -301,7 +303,7 @@ Now clearly distinct, symmetric names — both pass:
 |---|---|---|---|
 | `test_extract_treaty_sections_handles_minimal_two_page_treaty` | `sample_treaty.pdf` | 2 | page 1 has "Attachment Point", page 2 has "EXCLUSIONS" |
 | `test_extract_treaty_sections_handles_rich_multi_page_treaty` | `sample_rich_treaty.pdf` | 4 | page 1 cedent name, page 2 "Layer 1", page 3 "EXCLUSIONS", page 4 "Arbitration" |
-| `test_extract_treaty_sections_handles_fuzzy_rich_treaty` | `sample_rich_fuzzy_treaty.pdf` | 4 | page 1 has "Sentinel Mutual", page 2 has "$2,500,000", page 3 "EXCLUSIONS", page 4 "Arbitration" |
+| `test_extract_treaty_sections_handles_fuzzy_rich_treaty` | `sample_rich_fuzzy_treaty.pdf` | 4 | page 1 has "Sentinel Mutual", page 2 has "$200,000", page 3 "EXCLUSIONS", page 4 "Arbitration" |
 
 Run just the tools tests (`query_historical_claims` and
 `calculate_loss_ratio`, from `src/tools.py`):
@@ -344,21 +346,22 @@ Example output:
 
 ```
 ============================= test session starts ==============================
-collected 11 items
+collected 12 items
 
-tests/test_workflow.py::test_extractor_node_well_formed_input PASSED     [  9%]
-tests/test_workflow.py::test_extractor_node_flags_missing_fields PASSED  [ 18%]
-tests/test_workflow.py::test_extract_treaty_terms_fails_on_fuzzy_prose_treaty PASSED [ 27%]
-tests/test_workflow.py::test_llm_fallback_not_invoked_when_regex_succeeds PASSED [ 36%]
-tests/test_workflow.py::test_llm_fallback_extractor_succeeds_on_fuzzy_treaty PASSED [ 45%]
-tests/test_workflow.py::test_llm_fallback_extractor_degrades_gracefully_on_failure PASSED [ 54%]
-tests/test_workflow.py::test_run_workflow_stays_incomplete_when_llm_fallback_also_fails PASSED [ 63%]
-tests/test_workflow.py::test_verifier_node_complete_triggers_historical_claims_lookup PASSED [ 72%]
-tests/test_workflow.py::test_verifier_node_flags_incompleteness_without_calling_tools PASSED [ 81%]
-tests/test_workflow.py::test_analyst_node_no_anomalies PASSED            [ 90%]
+tests/test_workflow.py::test_extractor_node_well_formed_input PASSED     [  8%]
+tests/test_workflow.py::test_extractor_node_flags_missing_fields PASSED  [ 16%]
+tests/test_workflow.py::test_extract_treaty_terms_fails_on_fuzzy_prose_treaty PASSED [ 25%]
+tests/test_workflow.py::test_llm_extraction_fallback_not_invoked_when_regex_succeeds PASSED [ 33%]
+tests/test_workflow.py::test_llm_extraction_fallback_succeeds_on_fuzzy_treaty PASSED [ 41%]
+tests/test_workflow.py::test_run_workflow_via_llm_extraction_fallback_flags_medium_finding PASSED [ 50%]
+tests/test_workflow.py::test_llm_extraction_fallback_degrades_gracefully_on_failure PASSED [ 58%]
+tests/test_workflow.py::test_run_workflow_stays_incomplete_when_llm_extraction_fallback_also_fails PASSED [ 66%]
+tests/test_workflow.py::test_verifier_node_complete_triggers_historical_claims_lookup PASSED [ 75%]
+tests/test_workflow.py::test_verifier_node_flags_incompleteness_without_calling_tools PASSED [ 83%]
+tests/test_workflow.py::test_analyst_node_no_anomalies PASSED            [ 91%]
 tests/test_workflow.py::test_analyst_node_flags_at_least_one_anomaly PASSED [100%]
 
-============================== 11 passed in 0.32s ===============================
+============================== 12 passed in 0.38s ===============================
 ```
 
 | Test | Checks |
@@ -366,10 +369,11 @@ tests/test_workflow.py::test_analyst_node_flags_at_least_one_anomaly PASSED [100
 | `test_extractor_node_well_formed_input` | Regex extraction reads cedent/attachment point/limit/premium/exclusions and their page citations from clean `Label: value` text |
 | `test_extractor_node_flags_missing_fields` | Sections missing numeric fields return `treaty=None` plus the list of missing field names, instead of raising |
 | `test_extract_treaty_terms_fails_on_fuzzy_prose_treaty` | The prose-phrased fuzzy fixture (same facts as the rich fixture) returns `treaty=None` and all four required fields as missing, since regex can't match `Label: value` patterns in natural prose |
-| `test_llm_fallback_not_invoked_when_regex_succeeds` | Patching `llm_fallback_extractor` to raise if called confirms it never runs on a well-formed treaty |
-| `test_llm_fallback_extractor_succeeds_on_fuzzy_treaty` | Given the fuzzy fixture's sections and a mocked successful Claude tool-use response, produces a valid `TreatyTerms` with `extraction_method="llm"` |
-| `test_llm_fallback_extractor_degrades_gracefully_on_failure` | A simulated API failure returns `extraction_method="none"` and a populated `llm_error`, without raising |
-| `test_run_workflow_stays_incomplete_when_llm_fallback_also_fails` | End-to-end: regex fails, the LLM fallback also fails (mocked), and the run ends with `complete=False`, not a crash |
+| `test_llm_extraction_fallback_not_invoked_when_regex_succeeds` | Patching `llm_extraction_fallback` to raise if called confirms it never runs on a well-formed treaty |
+| `test_llm_extraction_fallback_succeeds_on_fuzzy_treaty` | Given the fuzzy fixture's sections and a mocked successful Claude tool-use response, produces a valid `TreatyTerms` with `extraction_method="llm"` |
+| `test_run_workflow_via_llm_extraction_fallback_flags_medium_finding` | End-to-end: regex fails, the (mocked) LLM extraction fallback succeeds, and the real $900,000 historical claim against the extracted layer produces a non-zero loss ratio (0.70) and one `MEDIUM` finding |
+| `test_llm_extraction_fallback_degrades_gracefully_on_failure` | A simulated API failure returns `extraction_method="none"` and a populated `llm_error`, without raising |
+| `test_run_workflow_stays_incomplete_when_llm_extraction_fallback_also_fails` | End-to-end: regex fails, the LLM extraction fallback also fails (mocked), and the run ends with `complete=False`, not a crash |
 | `test_verifier_node_complete_triggers_historical_claims_lookup` | A valid treaty triggers a real `query_historical_claims` call and returns the cedent's claims |
 | `test_verifier_node_flags_incompleteness_without_calling_tools` | `treaty=None` marks the run incomplete and skips the tool call entirely (empty claims) |
 | `test_analyst_node_no_anomalies` | A moderate loss ratio with claims data present produces `findings == []` |

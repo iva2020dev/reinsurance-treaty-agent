@@ -36,10 +36,10 @@
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
-- [ ] Implement the LLM Fallback Extraction Node (@claude)
+- [ ] Implement the LLM Extraction Fallback Node (@claude)
   - **ID**: implement-llm-fallback-node
   - **Tags**: extraction, llm, workflow
-  - **Details**: Add a new LangGraph node, `llm_fallback_extractor`, to
+  - **Details**: Add a new LangGraph node, `llm_extraction_fallback`, to
     `src/workflow.py`, wired in via a conditional edge after
     `extractor` (mirroring the existing `_route_after_verifier`
     pattern) triggered only when the regex extractor's `missing_fields`
@@ -76,25 +76,25 @@
     and `llm_error`, and does not crash. `pytest tests/` passes;
     `README.md`'s workflow graph diagram reflects the new node.
 
-- [ ] Surface LLM Fallback Status in the UI
+- [ ] Surface LLM Extraction Fallback Status in the UI
   - **ID**: update-ui-llm-fallback
   - **Tags**: ui, extraction, llm
   - **Blocked by**: implement-llm-fallback-node
   - **Details**: In `src/app.py`, show a clear on-page note when
-    `extraction_method == "llm"` (e.g. "Extracted via LLM fallback —
-    this treaty's format didn't match the regex extractor"), and a
-    distinct note when `extraction_method == "none"` with `llm_error`
-    set, explaining the fallback also failed and why (not a crash).
-    `llm_fallback_extractor` already logs through the existing
-    `"src.workflow"` logger, so it's captured by the existing debug-
-    panel log view with no new plumbing; confirm
+    `extraction_method == "llm"` (e.g. "Extracted via LLM Extraction
+    Fallback — this treaty's format didn't match the regex
+    extractor"), and a distinct note when `extraction_method == "none"`
+    with `llm_error` set, explaining the fallback also failed and why
+    (not a crash). `llm_extraction_fallback` already logs through the
+    existing `"src.workflow"` logger, so it's captured by the existing
+    debug-panel log view with no new plumbing; confirm
     `serialize_state_for_debug()` surfaces the new `WorkflowState`
     fields in the JSON view (it should, being dict-based — add
     explicit handling only if it doesn't).
   - **Files**: `src/app.py`, `tests/test_app.py`
   - **Acceptance**: Uploading the fuzzy fixture through the running app
-    (via `streamlit.testing.v1.AppTest`) shows the "LLM fallback" note,
-    and the debug panel's JSON state includes
+    (via `streamlit.testing.v1.AppTest`) shows the "LLM Extraction
+    Fallback" note, and the debug panel's JSON state includes
     `"extraction_method": "llm"`. A simulated total-failure case shows
     the `llm_error` explanation instead of crashing. `pytest tests/`
     passes.
@@ -112,9 +112,9 @@
     Sentinel Mutual Assurance is correct end-to-end. Update
     `README.md`'s Deployment section to note that the deployed
     Streamlit Community Cloud app needs `ANTHROPIC_API_KEY` added as a
-    Cloud secret for the LLM fallback to work in production (regex-only
-    behavior continues to work without it, per the graceful degradation
-    already built).
+    Cloud secret for the LLM Extraction Fallback to work in production
+    (regex-only behavior continues to work without it, per the graceful
+    degradation already built).
   - **Files**: `tests/test_integration.py`, `README.md`
   - **Acceptance**: The new integration test passes when
     `ANTHROPIC_API_KEY` is present locally (skips cleanly otherwise);
