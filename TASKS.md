@@ -24,6 +24,7 @@
      ✅ 2026-09-03 19:18:42 Write Integration Tests for End-to-End Workflow (write-integration-tests)
      ✅ 2026-09-04 16:10:50 Create User Interface & API (create-ui-api)
      ✅ 2026-09-04 19:02:30 Deploy to Production / Cloud (deploy-to-production)
+     ✅ 2026-09-05 15:37:13 Build the Fuzzy Treaty Fixture (build-fuzzy-treaty-fixture)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -35,37 +36,9 @@
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
-- [ ] Build the Fuzzy Treaty Fixture (@claude)
-  - **ID**: build-fuzzy-treaty-fixture
-  - **Tags**: extraction, llm, fixtures, testing
-  - **Details**: Hand-roll `data/sample_rich_fuzzy_treaty.pdf` (raw PDF
-    bytes, same technique as the existing two fixtures — no
-    PDF-writing library is installed). Same substantive facts as a real
-    treaty (cedent **Sentinel Mutual Assurance** — already in
-    `data/historical_claims.csv` with one $900,000 claim but unused by
-    either existing fixture; an attachment point/limit/premium;
-    exclusions), but phrased as natural prose across pages instead of
-    `Label: value` lines, so `src/workflow.py`'s `_FIELD_PATTERNS`
-    matches nothing and `extract_treaty_terms()` reports
-    `missing_fields` for at least one required field — this is what
-    the later LLM-fallback tasks need to actually exercise. Add a
-    companion `sample_rich_fuzzy_treaty_parsed.json` (matching the
-    existing fixture convention) and a `README.md` Sample Treaty
-    Fixtures table row.
-  - **Files**: `data/sample_rich_fuzzy_treaty.pdf`,
-    `data/sample_rich_fuzzy_treaty_parsed.json`, `README.md`,
-    `tests/test_parser.py`, `tests/test_workflow.py`
-  - **Acceptance**: `pypdf` extracts non-empty text from the new
-    fixture (it's not a `ParserError` case) — add a parser test proving
-    this. `extract_treaty_terms()` on its parsed sections returns a
-    non-empty `missing_fields` list — add a workflow test proving regex
-    genuinely fails on it. `README.md`'s Sample Treaty Fixtures table
-    includes the new fixture. `pytest tests/` passes.
-
 - [ ] Implement the LLM Fallback Extraction Node
   - **ID**: implement-llm-fallback-node
   - **Tags**: extraction, llm, workflow
-  - **Blocked by**: build-fuzzy-treaty-fixture
   - **Details**: Add a new LangGraph node, `llm_fallback_extractor`, to
     `src/workflow.py`, wired in via a conditional edge after
     `extractor` (mirroring the existing `_route_after_verifier`
