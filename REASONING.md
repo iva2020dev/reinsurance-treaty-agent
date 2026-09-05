@@ -1331,3 +1331,150 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `implement-llm-fallback-node`'s `Blocked by` field (now unblocked —
   no remaining blockers).
 
+## 2026-09-05 18:43:49 — Task: Implement the LLM Fallback Extraction Node (implement-llm-fallback-node)
+
+- **Goal**: Add a new `llm_fallback_extractor` LangGraph node to
+  `src/workflow.py`, invoked only when the regex extractor's
+  `missing_fields` is non-empty, using Claude Haiku 4.5 with forced
+  tool-use structured output, additive `WorkflowState` fields
+  (`extraction_method`, `llm_error`), and graceful degradation on any
+  failure — per the plan already locked into `TASKS.md`.
+- **Analysis**: Investigated the installed `anthropic` SDK (1.3.0)
+  directly rather than assuming its API shape: `Anthropic(api_key=...,
+  timeout=...)` accepts a per-client timeout; `messages.create` takes
+  `tools`/`tool_choice`; forcing a specific tool is
+  `tool_choice={"type": "tool", "name": "..."}` (confirmed via
+  `anthropic.types.ToolChoiceToolParam`'s source). Constructing
+  `anthropic.Anthropic()` with **no** API key at all does *not* raise
+  — the error only surfaces on the actual request, and as a plain
+  **`TypeError`** ("Could not resolve authentication method..."), not
+  an `anthropic.AnthropicError` subclass. Separately, tried a real
+  call against this environment's `.env` key and got
+  `anthropic.AuthenticationError: ... API key is invalid` (401) — so
+  this environment's key is present but not usable, confirming (a)
+  the task's own scoping to mocked-client tests only for this task
+  (a real successful call can't be verified here) and (b) that a
+  bare `except anthropic.AnthropicError` would miss the
+  missing-key `TypeError` case entirely — two structurally different
+  exceptions for what's conceptually the same "no working
+  credentials" failure. `python-dotenv` is pinned but unused; nothing
+  in `src/` loads `.env` today.
+- **Decision**: Catch a broad `except Exception` around the whole
+  API-call-and-parse block (not an enumerated list of SDK exception
+  types) — justified concretely by the finding above, not just
+  defensive habit; every failure path (missing key, invalid key,
+  network/timeout, malformed tool response, a `ValidationError`
+  building `TreatyTerms` from the model's output) must degrade to the
+  same graceful "extraction_method=none, llm_error=<message>" result
+  rather than crashing the run, and no single exception hierarchy
+  covers all of them. Call `load_dotenv()` once at module import in
+  `src/workflow.py` (harmless if `.env` doesn't exist, e.g. in
+  production where the key comes from a real environment variable /
+  Streamlit secret instead). Tool schema's `limit` field description
+  explicitly states it's the *width* above the attachment point, not
+  the absolute top — matching the same semantic the regex path and
+  `calculate_loss_ratio` already use, so the model can't reasonably
+  extract an ambiguous value. `extractor_node` gains
+  `extraction_method: "regex"` on its own success path (so the debug
+  panel always shows which path produced a report, even when the LLM
+  node never runs); the LLM node sets `"llm"` on success or leaves
+  `"none"` (the state's default, set in `run_workflow`'s initial
+  invoke dict) plus `llm_error` on failure.
+- **Action**: Implemented in `src/workflow.py`: `load_dotenv()` at
+  import time; `_TREATY_EXTRACTION_TOOL` (forced tool-use schema
+  mirroring `TreatyTerms`, `limit`'s description spelling out the
+  width-not-top semantic); `llm_fallback_extractor(state)` (builds a
+  page-tagged prompt via a new `_format_sections_for_llm` helper,
+  calls Claude Haiku 4.5 with `tool_choice` forcing the one tool,
+  constructs `TreatyTerms` from the tool-use block's `input`, and
+  catches any exception broadly per the Analysis above); a new
+  `_route_after_extractor` conditional edge (`missing_fields` non-empty
+  → `llm_fallback_extractor`, else straight to `verifier`); wired the
+  new node into `build_workflow_graph()` and updated
+  `run_workflow()`'s initial state to default `extraction_method` to
+  `"none"`. `extractor_node` now also returns `extraction_method:
+  "regex"` on its own success path. Regenerated the workflow graph
+  diagram via `scripts/regenerate_workflow_graph.py` (as
+  `tests/test_workflow_graph_docs.py` requires) and updated the prose
+  description above it in `README.md`.
+- **Outcome**: Manually verified both routing branches end-to-end
+  before writing tests: `run_workflow_from_pdf("data/sample_treaty.pdf")`
+  (regex succeeds) stays `extraction_method="regex"`, `llm_error=None`,
+  never touching the new node; `run_workflow_from_pdf(
+  "data/sample_rich_fuzzy_treaty.pdf")` against this environment's
+  actually-invalid `.env` key genuinely exercises the fallback path
+  and degrades to `extraction_method="none"` with a real
+  `AuthenticationError` message in `llm_error`, `complete=False`, no
+  crash — confirming the graceful-degradation design against a real
+  (if unusable) API key, not just a mock. Added 4 tests to
+  `tests/test_workflow.py`, all mocking `src.workflow.anthropic.Anthropic`
+  (or patching `llm_fallback_extractor` itself) per the task's own "no
+  real API calls" scoping: the fallback node is never invoked when
+  regex succeeds; given the fuzzy fixture's sections and a mocked
+  successful tool-use response, produces a valid `TreatyTerms` with
+  `extraction_method="llm"`; a simulated failure returns exactly
+  `{"extraction_method": "none", "llm_error": "..."}` with no crash;
+  and an end-to-end `run_workflow` case where both regex and the
+  (mocked-failing) LLM fallback fail, ending with `complete=False`.
+  `pytest tests/ -v` — 41 passed, no regressions. Refreshed every
+  README test-count example the 4 new tests shifted (full suite
+  37→41, `test_workflow.py` 7→11) and added rows for the new tests to
+  its description table. Acceptance criteria met; have not asked for
+  human approval to close the task yet.
+
+- **2026-09-05 (update)**: Human asked why `data/workflow_graph.png`
+  wasn't updated alongside the new node. Checked
+  `scripts/regenerate_workflow_graph.py`: the PNG is deliberately
+  opt-in via a `--png` flag, not part of the default run (which only
+  updates `README.md`'s mermaid text) or the pre-commit hook — its own
+  docstring explains why: `draw_mermaid_png()` calls the public
+  mermaid.ink rendering service over the network, which the hook must
+  avoid to keep working offline. Confirmed via `git log` that the PNG
+  hadn't been touched since the original `build-agentic-workflow-graph`
+  commit (2026-09-03), so it was genuinely stale, showing the old
+  3-node graph — not embedded in `README.md` (verified via grep, no
+  reference), so low-impact, but still a tracked file that would
+  mislead anyone opening it directly. Ran
+  `python3 scripts/regenerate_workflow_graph.py --png`; visually
+  confirmed the regenerated PNG now shows all 4 nodes and the new
+  conditional routing.
+
+- **2026-09-05 (update)**: Human asked to make the PNG update
+  automatic too, overriding the prior deliberate design (PNG was
+  opt-in specifically to keep the pre-commit hook network-free).
+  Decision: honor it, but make the network call itself non-fatal
+  rather than blindly wiring `--png` into a hook that has `set -e` —
+  `update_png()` in `scripts/regenerate_workflow_graph.py` now catches
+  any exception from `draw_mermaid_png()` (offline, mermaid.ink down,
+  etc.), prints a warning, and returns instead of raising, so a
+  network hiccup can't hard-fail an unrelated commit that merely
+  touches `src/workflow.py`. Only `README.md`'s diagram stays
+  *guaranteed* in sync (still enforced by
+  `tests/test_workflow_graph_docs.py`); the PNG is now best-effort
+  automatic. Updated `.githooks/pre-commit` to pass `--png` and stage
+  `data/workflow_graph.png` alongside `README.md`. Verified end-to-end
+  by staging a trivial change to `src/workflow.py` and running
+  `bash .githooks/pre-commit` directly: exit code 0, README reported
+  "already up to date," PNG regenerated and staged correctly. Reverted
+  the trivial test change afterward (`git restore --staged --worktree
+  src/workflow.py`) so nothing spurious made it into the diff.
+  `pytest tests/ -v` — 41 passed, no regressions.
+
+- **2026-09-05 (update)**: Human asked to check the LLM run and add
+  richer logs (duration, tokens, etc.). Wrapped
+  `llm_fallback_extractor`'s API call with `time.perf_counter()` on
+  both the success and failure paths, and added the model name plus
+  `response.usage.input_tokens`/`output_tokens` (confirmed the
+  `Usage` type exposes these directly, no extra parsing needed) to the
+  success log line. Updated the mocked success test's fake response
+  to include a `usage` object (the real success-path code now reads
+  it, so the mock needed it too). Verified real log output two ways:
+  a live run against `sample_rich_fuzzy_treaty.pdf` with this
+  environment's actually-invalid key produced `LLM fallback:
+  extraction failed after 0.98s (model=claude-haiku-4-5-20251001,
+  AuthenticationError: ...)`; a mocked-success run produced `LLM
+  fallback: extracted treaty terms for cedent 'Sentinel Mutual
+  Assurance' in 0.00s (model=claude-haiku-4-5-20251001,
+  input_tokens=743, output_tokens=58)`. `pytest tests/ -v` — 41
+  passed, no regressions.
+

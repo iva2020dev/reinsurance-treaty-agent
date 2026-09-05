@@ -2,9 +2,12 @@
 
 import logging
 import re
+import time
 from pathlib import Path
-from typing import TypedDict
+from typing import Literal, TypedDict
 
+import anthropic
+from dotenv import load_dotenv
 from langgraph.graph import END, StateGraph
 from pydantic import ValidationError
 
@@ -12,9 +15,63 @@ from src.models import AnomalyFinding, AnomalyReport, ClaimsData, Severity, Trea
 from src.parser import PageSection, extract_treaty_sections
 from src.tools import calculate_loss_ratio, query_historical_claims
 
+load_dotenv()  # no-op in production, where ANTHROPIC_API_KEY comes from a real env var/secret
+
 logger = logging.getLogger(__name__)
 
 _REQUIRED_FIELDS = ("cedent_name", "attachment_point", "limit", "reinsurance_premium")
+
+_LLM_MODEL = "claude-haiku-4-5-20251001"
+_LLM_TIMEOUT_SECONDS = 30.0
+
+_TREATY_EXTRACTION_TOOL = {
+    "name": "extract_treaty_terms",
+    "description": (
+        "Extract reinsurance treaty terms from the given page text. "
+        "'limit' is the width of the reinsurance layer above the attachment "
+        "point, not the absolute top of the layer -- e.g. an attachment "
+        "point of 2,500,000 with a limit of 5,000,000 means coverage runs "
+        "from 2,500,000 up to 7,500,000 of loss."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "cedent_name": {
+                "type": "string",
+                "description": "The ceding insurer party to this treaty",
+            },
+            "attachment_point": {
+                "type": "number",
+                "description": "Loss level at which reinsurance coverage begins",
+            },
+            "limit": {
+                "type": "number",
+                "description": "Width of reinsurance coverage above the attachment point",
+            },
+            "reinsurance_premium": {
+                "type": "number",
+                "description": "Premium ceded to the reinsurer",
+            },
+            "exclusions": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Exclusion clauses",
+            },
+            "page_citations": {
+                "type": "object",
+                "description": "Maps each extracted field name to the 1-indexed page it was found on",
+                "properties": {
+                    "cedent_name": {"type": "integer"},
+                    "attachment_point": {"type": "integer"},
+                    "limit": {"type": "integer"},
+                    "reinsurance_premium": {"type": "integer"},
+                    "exclusions": {"type": "integer"},
+                },
+            },
+        },
+        "required": ["cedent_name", "attachment_point", "limit", "reinsurance_premium", "page_citations"],
+    },
+}
 
 _FIELD_PATTERNS = {
     "cedent_name": re.compile(r"Cedent:\s*(.+)"),
@@ -36,6 +93,8 @@ class WorkflowState(TypedDict, total=False):
     sections: list[PageSection]
     treaty: TreatyTerms | None
     missing_fields: list[str]
+    extraction_method: Literal["regex", "llm", "none"]
+    llm_error: str | None
     claims: list[ClaimsData]
     complete: bool
     report: AnomalyReport | None
@@ -104,9 +163,73 @@ def extractor_node(state: WorkflowState) -> dict:
     treaty, missing_fields = extract_treaty_terms(state["sections"])
     if treaty is None:
         logger.info("Extractor: missing required fields %s", missing_fields)
-    else:
-        logger.info("Extractor: extracted treaty terms for cedent %r", treaty.cedent_name)
-    return {"treaty": treaty, "missing_fields": missing_fields}
+        return {"treaty": treaty, "missing_fields": missing_fields}
+    logger.info("Extractor: extracted treaty terms for cedent %r", treaty.cedent_name)
+    return {"treaty": treaty, "missing_fields": missing_fields, "extraction_method": "regex"}
+
+
+def _format_sections_for_llm(sections: list[PageSection]) -> str:
+    return "\n\n".join(f"--- Page {s.page_number} ---\n{s.text}" for s in sections)
+
+
+def llm_fallback_extractor(state: WorkflowState) -> dict:
+    """Fall back to an LLM to extract TreatyTerms when regex found no required fields.
+
+    Only called when the Extractor Node's missing_fields is non-empty (see
+    _route_after_extractor). On any failure -- a missing/invalid API key,
+    a network/timeout error, a malformed tool response, or a TreatyTerms
+    validation error -- logs it and leaves the run in the same
+    "incomplete" state the regex-only path already produces
+    (treaty=None, missing_fields unchanged), rather than crashing.
+    """
+    started_at = time.perf_counter()
+    try:
+        client = anthropic.Anthropic(timeout=_LLM_TIMEOUT_SECONDS)
+        response = client.messages.create(
+            model=_LLM_MODEL,
+            max_tokens=1024,
+            tools=[_TREATY_EXTRACTION_TOOL],
+            tool_choice={"type": "tool", "name": "extract_treaty_terms"},
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        "Extract the treaty terms from this reinsurance treaty "
+                        f"document:\n\n{_format_sections_for_llm(state['sections'])}"
+                    ),
+                }
+            ],
+        )
+        tool_use = next(block for block in response.content if block.type == "tool_use")
+        treaty = TreatyTerms(**tool_use.input)
+    except Exception as exc:  # noqa: BLE001 -- any failure must degrade gracefully, not crash
+        duration = time.perf_counter() - started_at
+        logger.info(
+            "LLM fallback: extraction failed after %.2fs (model=%s, %s: %s)",
+            duration,
+            _LLM_MODEL,
+            type(exc).__name__,
+            exc,
+        )
+        return {"extraction_method": "none", "llm_error": f"{type(exc).__name__}: {exc}"}
+
+    duration = time.perf_counter() - started_at
+    usage = response.usage
+    logger.info(
+        "LLM fallback: extracted treaty terms for cedent %r in %.2fs "
+        "(model=%s, input_tokens=%d, output_tokens=%d)",
+        treaty.cedent_name,
+        duration,
+        _LLM_MODEL,
+        usage.input_tokens,
+        usage.output_tokens,
+    )
+    return {
+        "treaty": treaty,
+        "missing_fields": [],
+        "extraction_method": "llm",
+        "llm_error": None,
+    }
 
 
 def verifier_node(state: WorkflowState) -> dict:
@@ -167,19 +290,29 @@ def analyst_node(state: WorkflowState) -> dict:
     return {"report": report}
 
 
+def _route_after_extractor(state: WorkflowState) -> str:
+    return "llm_fallback_extractor" if state.get("missing_fields") else "verifier"
+
+
 def _route_after_verifier(state: WorkflowState) -> str:
     return "analyst" if state.get("complete") else END
 
 
 def build_workflow_graph():
-    """Build and compile the Extractor -> Verifier -> Analyst LangGraph state machine."""
+    """Build and compile the Extractor -> [LLM Fallback] -> Verifier -> Analyst LangGraph state machine."""
     graph = StateGraph(WorkflowState)
     graph.add_node("extractor", extractor_node)
+    graph.add_node("llm_fallback_extractor", llm_fallback_extractor)
     graph.add_node("verifier", verifier_node)
     graph.add_node("analyst", analyst_node)
 
     graph.set_entry_point("extractor")
-    graph.add_edge("extractor", "verifier")
+    graph.add_conditional_edges(
+        "extractor",
+        _route_after_extractor,
+        {"llm_fallback_extractor": "llm_fallback_extractor", "verifier": "verifier"},
+    )
+    graph.add_edge("llm_fallback_extractor", "verifier")
     graph.add_conditional_edges("verifier", _route_after_verifier, {"analyst": "analyst", END: END})
     graph.add_edge("analyst", END)
 
@@ -189,7 +322,7 @@ def build_workflow_graph():
 def run_workflow(sections: list[PageSection]) -> WorkflowState:
     """Run the full workflow graph on parsed treaty sections."""
     app = build_workflow_graph()
-    return app.invoke({"sections": sections})
+    return app.invoke({"sections": sections, "extraction_method": "none"})
 
 
 def run_workflow_from_pdf(path: str | Path) -> WorkflowState:
