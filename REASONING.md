@@ -1484,6 +1484,45 @@ This file contains the reasoning transcript of the AI agent for the current sess
   input_tokens=743, output_tokens=58)`. `pytest tests/ -v` — 41
   passed, no regressions.
 
+## 2026-09-05 19:37:47 — Fix stale "no secrets needed" deployment claim (docs only)
+
+- **Goal**: Human reported the live deployed app showing "Could not
+  extract required treaty terms: cedent_name, attachment_point,
+  limit, reinsurance_premium." when uploading the fuzzy fixture, and
+  asked what it means.
+- **Analysis**: Traced the exact chain: regex fails on the fuzzy
+  fixture by design → `llm_fallback_extractor` fires → without a
+  configured `ANTHROPIC_API_KEY` on the live Streamlit Cloud
+  deployment (never added — this repo's README still claimed "no
+  secrets needed" from before `implement-llm-fallback-node`), the API
+  call fails immediately → the failure path (by design, from that
+  task) leaves `treaty=None` and the original `missing_fields`
+  untouched, setting `extraction_method="none"`/`llm_error=<real
+  error>` → `src/app.py`'s `extract_report()` only reads
+  `missing_fields` today (doesn't know `extraction_method`/`llm_error`
+  exist yet, since that's `update-ui-llm-fallback`'s job), so it shows
+  the same generic message regardless of whether an LLM attempt even
+  happened. Conclusion: not a graph/logic bug — the graceful
+  degradation is working exactly as designed — but a real,
+  now-stale doc claim (`README.md`'s Deployment section said "no
+  `.streamlit/secrets.toml` or other secrets are needed, since this
+  app makes no LLM/API calls," which was true when written but
+  `implement-llm-fallback-node` invalidated it) that I missed
+  updating when that task merged.
+- **Decision**: Fix the doc now, on its own branch, separate from
+  `update-ui-llm-fallback` (which will make failures like this
+  visible in the UI itself, but is a bigger, separate change). Also
+  confirmed with the human that they still want `ANTHROPIC_API_KEY`
+  added as an actual Streamlit Cloud secret on the live app (a manual
+  step only they can do, same as every prior secrets-configuration
+  gap this session).
+- **Action**: Updated `README.md`'s Deployment first-time-setup steps:
+  added a step 5 explaining the `ANTHROPIC_API_KEY` secret is needed
+  for the LLM fallback specifically (not for regex-only extraction),
+  and that its absence degrades gracefully rather than crashing.
+- **Outcome**: `pytest tests/ -v` — 41 passed (docs-only change,
+  unaffected).
+
 ## 2026-09-05 20:30:53 — Redesign fuzzy fixture, rename LLM Extraction Fallback, clarify Regex logging
 
 - **Goal**: Human, after confirming the LLM fallback worked correctly

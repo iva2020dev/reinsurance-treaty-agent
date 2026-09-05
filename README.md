@@ -137,11 +137,20 @@ private repos.
    - **Branch**: `main`
    - **Main file path**: `src/app.py`
 4. Click **Deploy**. The platform installs `requirements.txt` and runs
-   `streamlit run src/app.py` from the repo root — no `.streamlit/secrets.toml`
-   or other secrets are needed, since this app makes no LLM/API calls
-   (extraction is regex-based; see `REASONING.md`'s
-   `build-agentic-workflow-graph` entry).
-5. Once deployed, the app gets a permanent public URL
+   `streamlit run src/app.py` from the repo root.
+5. Add the **`ANTHROPIC_API_KEY`** secret: on the app's page, open
+   **Settings → Secrets** and add
+   `ANTHROPIC_API_KEY = "sk-ant-..."`. Extraction is regex-first (see
+   `REASONING.md`'s `build-agentic-workflow-graph` entry) and needs no
+   secret on its own, but the LLM Extraction Fallback
+   (`llm_extraction_fallback`, used when regex can't find required
+   fields — see `implement-llm-fallback-node`) makes a real Anthropic
+   API call and needs this key to work. Without it, the app still runs
+   fine on
+   well-formed treaties; on ones that need the fallback, the run
+   degrades gracefully (an incomplete-extraction message) rather than
+   crashing — it just can't actually recover via the LLM.
+6. Once deployed, the app gets a permanent public URL
    (`https://<app-name>.streamlit.app`). This app is live at
    [reinsurance-treaty-agent-extraction.streamlit.app](https://reinsurance-treaty-agent-extraction.streamlit.app/).
 
