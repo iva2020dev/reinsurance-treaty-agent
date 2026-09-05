@@ -1422,3 +1422,20 @@ This file contains the reasoning transcript of the AI agent for the current sess
   its description table. Acceptance criteria met; have not asked for
   human approval to close the task yet.
 
+- **2026-09-05 (update)**: Human asked why `data/workflow_graph.png`
+  wasn't updated alongside the new node. Checked
+  `scripts/regenerate_workflow_graph.py`: the PNG is deliberately
+  opt-in via a `--png` flag, not part of the default run (which only
+  updates `README.md`'s mermaid text) or the pre-commit hook — its own
+  docstring explains why: `draw_mermaid_png()` calls the public
+  mermaid.ink rendering service over the network, which the hook must
+  avoid to keep working offline. Confirmed via `git log` that the PNG
+  hadn't been touched since the original `build-agentic-workflow-graph`
+  commit (2026-09-03), so it was genuinely stale, showing the old
+  3-node graph — not embedded in `README.md` (verified via grep, no
+  reference), so low-impact, but still a tracked file that would
+  mislead anyone opening it directly. Ran
+  `python3 scripts/regenerate_workflow_graph.py --png`; visually
+  confirmed the regenerated PNG now shows all 4 nodes and the new
+  conditional routing.
+
