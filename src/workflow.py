@@ -2,6 +2,7 @@
 
 import logging
 import re
+import time
 from pathlib import Path
 from typing import Literal, TypedDict
 
@@ -181,6 +182,7 @@ def llm_fallback_extractor(state: WorkflowState) -> dict:
     "incomplete" state the regex-only path already produces
     (treaty=None, missing_fields unchanged), rather than crashing.
     """
+    started_at = time.perf_counter()
     try:
         client = anthropic.Anthropic(timeout=_LLM_TIMEOUT_SECONDS)
         response = client.messages.create(
@@ -201,10 +203,27 @@ def llm_fallback_extractor(state: WorkflowState) -> dict:
         tool_use = next(block for block in response.content if block.type == "tool_use")
         treaty = TreatyTerms(**tool_use.input)
     except Exception as exc:  # noqa: BLE001 -- any failure must degrade gracefully, not crash
-        logger.info("LLM fallback: extraction failed (%s: %s)", type(exc).__name__, exc)
+        duration = time.perf_counter() - started_at
+        logger.info(
+            "LLM fallback: extraction failed after %.2fs (model=%s, %s: %s)",
+            duration,
+            _LLM_MODEL,
+            type(exc).__name__,
+            exc,
+        )
         return {"extraction_method": "none", "llm_error": f"{type(exc).__name__}: {exc}"}
 
-    logger.info("LLM fallback: extracted treaty terms for cedent %r", treaty.cedent_name)
+    duration = time.perf_counter() - started_at
+    usage = response.usage
+    logger.info(
+        "LLM fallback: extracted treaty terms for cedent %r in %.2fs "
+        "(model=%s, input_tokens=%d, output_tokens=%d)",
+        treaty.cedent_name,
+        duration,
+        _LLM_MODEL,
+        usage.input_tokens,
+        usage.output_tokens,
+    )
     return {
         "treaty": treaty,
         "missing_fields": [],

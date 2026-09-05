@@ -110,7 +110,10 @@ def test_llm_fallback_extractor_succeeds_on_fuzzy_treaty(monkeypatch):
         },
     )
     mock_client = MagicMock()
-    mock_client.messages.create.return_value = SimpleNamespace(content=[tool_use_block])
+    mock_usage = SimpleNamespace(input_tokens=512, output_tokens=64)
+    mock_client.messages.create.return_value = SimpleNamespace(
+        content=[tool_use_block], usage=mock_usage
+    )
     monkeypatch.setattr("src.workflow.anthropic.Anthropic", lambda **kwargs: mock_client)
 
     sections = extract_treaty_sections(SAMPLE_RICH_FUZZY_TREATY_PATH)

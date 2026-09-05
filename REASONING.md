@@ -1460,3 +1460,21 @@ This file contains the reasoning transcript of the AI agent for the current sess
   src/workflow.py`) so nothing spurious made it into the diff.
   `pytest tests/ -v` — 41 passed, no regressions.
 
+- **2026-09-05 (update)**: Human asked to check the LLM run and add
+  richer logs (duration, tokens, etc.). Wrapped
+  `llm_fallback_extractor`'s API call with `time.perf_counter()` on
+  both the success and failure paths, and added the model name plus
+  `response.usage.input_tokens`/`output_tokens` (confirmed the
+  `Usage` type exposes these directly, no extra parsing needed) to the
+  success log line. Updated the mocked success test's fake response
+  to include a `usage` object (the real success-path code now reads
+  it, so the mock needed it too). Verified real log output two ways:
+  a live run against `sample_rich_fuzzy_treaty.pdf` with this
+  environment's actually-invalid key produced `LLM fallback:
+  extraction failed after 0.98s (model=claude-haiku-4-5-20251001,
+  AuthenticationError: ...)`; a mocked-success run produced `LLM
+  fallback: extracted treaty terms for cedent 'Sentinel Mutual
+  Assurance' in 0.00s (model=claude-haiku-4-5-20251001,
+  input_tokens=743, output_tokens=58)`. `pytest tests/ -v` — 41
+  passed, no regressions.
+
