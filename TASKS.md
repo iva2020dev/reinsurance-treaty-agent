@@ -36,7 +36,7 @@
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
-- [ ] Implement the LLM Fallback Extraction Node
+- [ ] Implement the LLM Fallback Extraction Node (@claude)
   - **ID**: implement-llm-fallback-node
   - **Tags**: extraction, llm, workflow
   - **Details**: Add a new LangGraph node, `llm_fallback_extractor`, to
