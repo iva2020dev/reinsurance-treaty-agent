@@ -1,15 +1,18 @@
-"""Regenerate the workflow graph diagram in README.md (and optionally its PNG copy).
+"""Regenerate the workflow graph diagram in README.md and its PNG copy.
 
 Run manually:
-    python3 scripts/regenerate_workflow_graph.py         # updates README.md's mermaid block
+    python3 scripts/regenerate_workflow_graph.py         # updates README.md's mermaid block only
     python3 scripts/regenerate_workflow_graph.py --png    # also regenerates data/workflow_graph.png
 
-The README update is invoked automatically by the pre-commit hook in
+Both steps are invoked automatically by the pre-commit hook in
 .githooks/pre-commit whenever src/workflow.py is staged for commit. The
-PNG is not regenerated automatically, since draw_mermaid_png() calls the
-public mermaid.ink rendering service over the network - unsuitable for
-a hook that must work offline and not add a network dependency to every
-commit.
+PNG step calls the public mermaid.ink rendering service over the
+network via draw_mermaid_png(); if that call fails (offline, service
+down), update_png() prints a warning and returns instead of raising, so
+an unrelated commit touching src/workflow.py doesn't hard-fail just
+because the network/service is unavailable -- only README.md's diagram
+is guaranteed to stay in sync (enforced by
+tests/test_workflow_graph_docs.py).
 """
 
 import argparse
@@ -45,8 +48,16 @@ def update_readme(mermaid_text: str) -> bool:
 
 
 def update_png() -> None:
-    png_bytes = build_workflow_graph().get_graph().draw_mermaid_png()
+    """Best-effort: prints a warning and returns instead of raising on failure
+    (e.g. no network access to the mermaid.ink rendering service), so callers
+    like the pre-commit hook don't hard-fail an unrelated commit over this."""
+    try:
+        png_bytes = build_workflow_graph().get_graph().draw_mermaid_png()
+    except Exception as exc:  # noqa: BLE001 -- any failure here is non-fatal by design
+        print(f"Warning: could not regenerate {PNG_PATH} ({type(exc).__name__}: {exc})")
+        return
     PNG_PATH.write_bytes(png_bytes)
+    print(f"Regenerated {PNG_PATH}")
 
 
 def main() -> None:
@@ -62,7 +73,6 @@ def main() -> None:
 
     if args.png:
         update_png()
-        print(f"Regenerated {PNG_PATH}")
 
 
 if __name__ == "__main__":

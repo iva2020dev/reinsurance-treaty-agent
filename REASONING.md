@@ -1439,3 +1439,24 @@ This file contains the reasoning transcript of the AI agent for the current sess
   confirmed the regenerated PNG now shows all 4 nodes and the new
   conditional routing.
 
+- **2026-09-05 (update)**: Human asked to make the PNG update
+  automatic too, overriding the prior deliberate design (PNG was
+  opt-in specifically to keep the pre-commit hook network-free).
+  Decision: honor it, but make the network call itself non-fatal
+  rather than blindly wiring `--png` into a hook that has `set -e` —
+  `update_png()` in `scripts/regenerate_workflow_graph.py` now catches
+  any exception from `draw_mermaid_png()` (offline, mermaid.ink down,
+  etc.), prints a warning, and returns instead of raising, so a
+  network hiccup can't hard-fail an unrelated commit that merely
+  touches `src/workflow.py`. Only `README.md`'s diagram stays
+  *guaranteed* in sync (still enforced by
+  `tests/test_workflow_graph_docs.py`); the PNG is now best-effort
+  automatic. Updated `.githooks/pre-commit` to pass `--png` and stage
+  `data/workflow_graph.png` alongside `README.md`. Verified end-to-end
+  by staging a trivial change to `src/workflow.py` and running
+  `bash .githooks/pre-commit` directly: exit code 0, README reported
+  "already up to date," PNG regenerated and staged correctly. Reverted
+  the trivial test change afterward (`git restore --staged --worktree
+  src/workflow.py`) so nothing spurious made it into the diff.
+  `pytest tests/ -v` — 41 passed, no regressions.
+

@@ -1,9 +1,11 @@
 #!/bin/sh
-# Auto-regenerates the workflow graph diagram in README.md whenever
-# src/workflow.py is part of this commit. Does NOT touch
-# data/workflow_graph.png (that requires a network call to mermaid.ink -
-# regenerate it manually with `python3 scripts/regenerate_workflow_graph.py --png`
-# when you want an updated PNG).
+# Auto-regenerates the workflow graph diagram in README.md, and the
+# data/workflow_graph.png copy, whenever src/workflow.py is part of
+# this commit. The PNG step calls the public mermaid.ink rendering
+# service over the network -- if that call fails (offline, service
+# down), the hook still succeeds and just leaves the PNG as-is; only
+# README.md's diagram is guaranteed to stay in sync (and is enforced
+# by tests/test_workflow_graph_docs.py).
 #
 # Enable with: git config core.hooksPath .githooks
 
@@ -20,7 +22,7 @@ if [ ! -x "$PYTHON" ]; then
 fi
 
 if git diff --cached --name-only | grep -q '^src/workflow\.py$'; then
-    echo "src/workflow.py changed - regenerating workflow graph diagram in README.md..."
+    echo "src/workflow.py changed - regenerating workflow graph diagram (README.md + PNG)..."
     # On macOS, git itself may run under Rosetta (an x86_64-only git
     # binary), and a child process's architecture preference follows its
     # parent by default - `arch -arm64` overrides that so a
@@ -30,9 +32,9 @@ if git diff --cached --name-only | grep -q '^src/workflow\.py$'; then
     # reports true hardware capability regardless of the calling
     # process's own translation state, unlike `uname -m`.
     if [ "$(uname -s)" = "Darwin" ] && [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = "1" ]; then
-        arch -arm64 "$PYTHON" "$REPO_ROOT/scripts/regenerate_workflow_graph.py"
+        arch -arm64 "$PYTHON" "$REPO_ROOT/scripts/regenerate_workflow_graph.py" --png
     else
-        "$PYTHON" "$REPO_ROOT/scripts/regenerate_workflow_graph.py"
+        "$PYTHON" "$REPO_ROOT/scripts/regenerate_workflow_graph.py" --png
     fi
-    git add "$REPO_ROOT/README.md"
+    git add "$REPO_ROOT/README.md" "$REPO_ROOT/data/workflow_graph.png"
 fi
