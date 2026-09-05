@@ -1324,3 +1324,10 @@ This file contains the reasoning transcript of the AI agent for the current sess
   regressions. Acceptance criteria met; have not asked for human
   approval to close the task yet.
 
+- **2026-09-05 15:37:13 — Approved done**: PR #25 merged into `main`
+  (merge commit `60b385c`, 2026-09-05T15:37:13Z). Human explicitly
+  approved the task as done. Removed `build-fuzzy-treaty-fixture` from
+  TASKS.md per the human-approval policy, and dropped it from
+  `implement-llm-fallback-node`'s `Blocked by` field (now unblocked —
+  no remaining blockers).
+
