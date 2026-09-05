@@ -1617,3 +1617,10 @@ This file contains the reasoning transcript of the AI agent for the current sess
   superseded-numbers correction above it (both intentionally kept as
   an accurate record of what changed and why, not scrubbed).
 
+- **2026-09-05 16:30:02 — Approved done**: PR #27 merged into `main`
+  (merge commit `1887010`, 2026-09-05T16:30:02Z). Human explicitly
+  approved the task as done. Removed `implement-llm-fallback-node`
+  from TASKS.md per the human-approval policy, and dropped it from
+  `update-ui-llm-fallback`'s `Blocked by` field (now unblocked — no
+  remaining blockers).
+
