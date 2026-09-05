@@ -35,7 +35,7 @@
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
-- [ ] Build the Fuzzy Treaty Fixture
+- [ ] Build the Fuzzy Treaty Fixture (@claude)
   - **ID**: build-fuzzy-treaty-fixture
   - **Tags**: extraction, llm, fixtures, testing
   - **Details**: Hand-roll `data/sample_rich_fuzzy_treaty.pdf` (raw PDF
