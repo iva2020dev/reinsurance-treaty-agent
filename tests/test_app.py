@@ -3,12 +3,15 @@
 import json
 from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 from streamlit.testing.v1 import AppTest
 
 from src.app import (
     analyze_uploaded_pdf,
+    format_extraction_status,
     format_log_header,
     format_report_markdown,
     save_logs_to_file,
@@ -19,6 +22,36 @@ from src.parser import ParserError
 
 RICH_TREATY_PATH = "data/sample_rich_treaty.pdf"
 MINIMAL_TREATY_PATH = "data/sample_treaty.pdf"
+FUZZY_TREATY_PATH = "data/sample_rich_fuzzy_treaty.pdf"
+
+
+def _mock_llm_client(*, input_data: dict | None = None, error: Exception | None = None) -> MagicMock:
+    """A mock anthropic.Anthropic() client for patching src.workflow.anthropic.Anthropic."""
+    mock_client = MagicMock()
+    if error is not None:
+        mock_client.messages.create.side_effect = error
+        return mock_client
+    tool_use_block = SimpleNamespace(type="tool_use", input=input_data)
+    mock_client.messages.create.return_value = SimpleNamespace(
+        content=[tool_use_block],
+        usage=SimpleNamespace(input_tokens=500, output_tokens=60),
+    )
+    return mock_client
+
+
+FUZZY_TREATY_LLM_RESPONSE = {
+    "cedent_name": "Sentinel Mutual Assurance",
+    "attachment_point": 200_000,
+    "limit": 1_000_000,
+    "reinsurance_premium": 400_000,
+    "exclusions": [],
+    "page_citations": {
+        "cedent_name": 1,
+        "attachment_point": 2,
+        "limit": 2,
+        "reinsurance_premium": 2,
+    },
+}
 
 
 def _sample_report() -> AnomalyReport:
@@ -145,6 +178,57 @@ def test_app_debug_panel_shows_log_lines_on_parser_failure():
     log_text = "\n".join(c.value for c in at.code)
     assert log_text == ""  # ParserError raised before any node logs anything
     assert len(at.json) == 0  # no state was produced to show
+
+
+def test_format_extraction_status_for_each_extraction_method():
+    assert "no LLM call was needed" in format_extraction_status({"extraction_method": "regex"})
+    assert "LLM Extraction Fallback" in format_extraction_status({"extraction_method": "llm"})
+    assert "also could not recover them: boom" in format_extraction_status(
+        {"extraction_method": "none", "llm_error": "boom"}
+    )
+    assert "was not run" in format_extraction_status({"extraction_method": "none"})
+
+
+def test_app_shows_llm_extraction_fallback_note_and_state_on_success(monkeypatch):
+    mock_client = _mock_llm_client(input_data=FUZZY_TREATY_LLM_RESPONSE)
+    monkeypatch.setattr("src.workflow.anthropic.Anthropic", lambda **kwargs: mock_client)
+
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+    with open(FUZZY_TREATY_PATH, "rb") as f:
+        at.file_uploader[0].set_value([("sample_rich_fuzzy_treaty.pdf", f.read(), "application/pdf")])
+    at.run()
+
+    assert not at.exception
+    assert any("LLM Extraction Fallback" in i.value for i in at.info)
+    markdown_text = "\n".join(m.value for m in at.markdown)
+    assert "Sentinel Mutual Assurance" in markdown_text
+    assert "0.70" in markdown_text
+
+    debug_state = json.loads(at.json[0].value)
+    assert debug_state["extraction_method"] == "llm"
+    assert debug_state["llm_error"] is None
+    assert any("LLM Extraction Fallback" in c.value for c in at.caption)
+
+
+def test_app_shows_llm_error_when_both_extraction_paths_fail(monkeypatch):
+    mock_client = _mock_llm_client(error=RuntimeError("simulated network failure"))
+    monkeypatch.setattr("src.workflow.anthropic.Anthropic", lambda **kwargs: mock_client)
+
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+    with open(FUZZY_TREATY_PATH, "rb") as f:
+        at.file_uploader[0].set_value([("sample_rich_fuzzy_treaty.pdf", f.read(), "application/pdf")])
+    at.run()
+
+    assert not at.exception
+    assert len(at.error) == 1
+    assert "LLM Extraction Fallback also failed" in at.error[0].value
+    assert "simulated network failure" in at.error[0].value
+
+    debug_state = json.loads(at.json[0].value)
+    assert debug_state["extraction_method"] == "none"
+    assert "simulated network failure" in debug_state["llm_error"]
 
 
 def test_format_log_header_includes_timestamp_and_filename():

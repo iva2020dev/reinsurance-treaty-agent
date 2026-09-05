@@ -1624,3 +1624,71 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `update-ui-llm-fallback`'s `Blocked by` field (now unblocked — no
   remaining blockers).
 
+## 2026-09-05 20:43:03 — Task: Surface LLM Extraction Fallback Status in the UI (update-ui-llm-fallback)
+
+- **Goal**: In `src/app.py`, show a clear on-page note when
+  `extraction_method == "llm"`, a distinct note when both extraction
+  paths failed (explaining why, via `llm_error`), and make sure the
+  debug panel's JSON/caption reflect which path a run actually took —
+  replacing the now-stale static "this workflow has no LLM calls"
+  caption left over from before `implement-llm-fallback-node`.
+- **Analysis**: `src/app.py` hadn't been touched since `create-ui-api`
+  — confirmed via a fresh read, not memory, since several unrelated
+  tasks had landed since. `serialize_state_for_debug()` only
+  whitelisted the pre-fallback `WorkflowState` keys (`sections`,
+  `treaty`, `missing_fields`, `claims`, `complete`, `report`) — missing
+  `extraction_method`/`llm_error` entirely, exactly the gap the human
+  hit live on the deployed app a few tasks ago. `extract_report()`'s
+  `ValueError` message (`"Could not extract required treaty terms:
+  ..."`) is the same for "regex never tried an LLM" and "LLM tried and
+  failed" — needs `llm_error` folded in to distinguish them. The
+  `implement-llm-fallback-node`/`build-fuzzy-treaty-fixture` tasks
+  already work end-to-end (confirmed via `AppTest` with a mocked
+  Anthropic client before writing any test assertions): a successful
+  mocked run through the real `sample_rich_fuzzy_treaty.pdf` produces
+  `extraction_method="llm"`, the correct treaty terms, and
+  `loss_ratio=0.70`; a simulated total failure produces
+  `extraction_method="none"` with a populated `llm_error`, no crash.
+- **Decision**: Added `format_extraction_status(state) -> str` (a pure
+  function, unit-testable directly per the "test pure logic with plain
+  pytest" convention) producing one of four messages: regex-only
+  success, LLM-fallback success, both-failed-with-reason, or a
+  defensive "was not run" fallback for a combination that shouldn't
+  actually occur given the graph's routing (no `extraction_method` set
+  and no `llm_error`) — kept as a safety net rather than assuming the
+  state shape, not because that branch is reachable in practice. Used
+  `st.info` for the success-path LLM note (distinct from `st.error`/
+  `st.warning`, matching Streamlit's own semantic convention for
+  "worth knowing, not a problem") placed directly above the rendered
+  report, only when `extraction_method == "llm"` — not shown for the
+  regex-only path, to avoid noise on every normal upload. Extended the
+  existing `ValueError` message with the `llm_error` detail (in
+  parens) rather than inventing a second `st.error` call, since both
+  errors describe the same single failed run.
+- **Action**: Added `extraction_method`/`llm_error` to
+  `serialize_state_for_debug()`; added `format_extraction_status()`;
+  in `main()`, added the `st.info` success note, folded `llm_error`
+  into the failure message, and replaced the static debug-panel
+  caption with `format_extraction_status(state)` (or a distinct "no
+  workflow state was produced" caption when `state is None`, i.e. a
+  `ParserError` before any node ran). Added 4 tests to
+  `tests/test_app.py`: a plain-pytest test of
+  `format_extraction_status()`'s four branches; an `AppTest`-based
+  test uploading the real fuzzy fixture with a mocked successful
+  Claude response, asserting the `st.info` note, the rendered report
+  (including `loss_ratio` 0.70), and `extraction_method="llm"` in the
+  debug JSON; an `AppTest`-based test with a mocked failing client,
+  asserting the combined error message and `llm_error` in the debug
+  JSON. Manually verified both new `AppTest` scenarios by hand before
+  writing formal assertions (same pattern as prior tasks). Updated
+  `README.md`: the "Using the app" walkthrough (mentions the fuzzy
+  fixture and the new note/error behavior), the full-suite and
+  `test_app.py` example outputs/description table (counts 42→45 /
+  14→17).
+- **Outcome**: `pytest tests/ -v` — 45 passed, no regressions.
+  Acceptance criteria met: the fuzzy fixture (mocked) shows the "LLM
+  Extraction Fallback" note and `extraction_method="llm"` in the debug
+  JSON; a simulated total failure shows the `llm_error` explanation
+  instead of crashing. Have not yet asked for human approval to close
+  the task.
+

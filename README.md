@@ -94,21 +94,30 @@ process does; press `Ctrl+C` there to stop it.
 
 ### Using the app
 
-1. **Upload a treaty PDF** via the "Treaty PDF" file uploader. Two mock
-   fixtures ship in `data/` for trying it out: `sample_treaty.pdf`
-   (minimal, 2 pages) and `sample_rich_treaty.pdf` (detailed, 4 pages,
-   two layers — see [Sample Treaty Fixtures](#sample-treaty-fixtures)
+1. **Upload a treaty PDF** via the "Treaty PDF" file uploader. Three
+   mock fixtures ship in `data/` for trying it out: `sample_treaty.pdf`
+   (minimal, 2 pages), `sample_rich_treaty.pdf` (detailed, 4 pages, two
+   layers), and `sample_rich_fuzzy_treaty.pdf` (same facts as the rich
+   fixture but phrased as prose, so it needs the LLM Extraction
+   Fallback — see [Sample Treaty Fixtures](#sample-treaty-fixtures)
    below).
 2. The app runs the full agent workflow automatically on upload and
    renders the resulting anomaly report: treaty terms with page
-   citations, the historical loss ratio, and any flagged findings. An
-   unreadable/malformed PDF, or one missing required treaty terms,
-   shows a clear error message instead of crashing.
+   citations, the historical loss ratio, and any flagged findings. If a
+   treaty needed the LLM Extraction Fallback (regex alone couldn't find
+   required fields), a note above the report says so. An unreadable/
+   malformed PDF, or one where both regex and the LLM fallback fail to
+   find required treaty terms, shows a clear error message instead of
+   crashing — including the LLM failure reason, if that's what
+   happened.
 3. Expand **"Debug: workflow execution"** below the report to see:
-   - A per-node execution log (Extractor → Verifier → Analyst), each
-     line timestamped.
+   - A caption naming which extraction path this run took (Regex only,
+     LLM Extraction Fallback, or both attempts failed and why).
+   - A per-node execution log (Extractor (Regex) → [LLM Extraction
+     Fallback] → Verifier → Analyst), each line timestamped.
    - The raw workflow state as JSON (parsed sections, extracted treaty
-     terms, claims, the final report).
+     terms, `extraction_method`, `llm_error`, claims, the final
+     report).
    - A save control: pick **Append** or **Overwrite**, then click
      **"Save logs to file"** to write the current run's log lines —
      prefixed with a header noting the run's date/time and uploaded
@@ -192,52 +201,55 @@ Example output:
 
 ```
 ============================= test session starts ==============================
-collected 42 items
+collected 45 items
 
 tests/test_app.py::test_format_report_markdown_includes_terms_citations_and_findings PASSED [  2%]
 tests/test_app.py::test_format_report_markdown_no_findings PASSED        [  4%]
-tests/test_app.py::test_analyze_uploaded_pdf_success PASSED              [  7%]
-tests/test_app.py::test_analyze_uploaded_pdf_malformed_raises_parser_error PASSED [  9%]
+tests/test_app.py::test_analyze_uploaded_pdf_success PASSED              [  6%]
+tests/test_app.py::test_analyze_uploaded_pdf_malformed_raises_parser_error PASSED [  8%]
 tests/test_app.py::test_app_upload_and_render_success PASSED             [ 11%]
-tests/test_app.py::test_app_upload_malformed_pdf_shows_error_not_crash PASSED [ 14%]
-tests/test_app.py::test_serialize_state_for_debug_is_json_safe PASSED    [ 16%]
-tests/test_app.py::test_app_debug_panel_shows_log_lines_and_state_on_success PASSED [ 19%]
-tests/test_app.py::test_app_debug_panel_shows_log_lines_on_parser_failure PASSED [ 21%]
-tests/test_app.py::test_format_log_header_includes_timestamp_and_filename PASSED [ 23%]
-tests/test_app.py::test_save_logs_to_file_overwrite_replaces_existing_content PASSED [ 26%]
-tests/test_app.py::test_save_logs_to_file_append_keeps_existing_content PASSED [ 28%]
-tests/test_app.py::test_save_logs_to_file_creates_parent_directory PASSED [ 30%]
-tests/test_app.py::test_app_save_button_writes_default_log_file PASSED   [ 33%]
-tests/test_integration.py::test_full_pipeline_success_minimal_treaty PASSED [ 35%]
-tests/test_integration.py::test_full_pipeline_success_rich_treaty PASSED [ 38%]
-tests/test_integration.py::test_full_pipeline_malformed_pdf_raises_parser_error PASSED [ 40%]
-tests/test_integration.py::test_full_pipeline_unknown_cedent_handled_gracefully PASSED [ 42%]
-tests/test_integration.py::test_full_pipeline_missing_required_term_handled_gracefully PASSED [ 45%]
-tests/test_parser.py::test_extract_treaty_sections_handles_minimal_two_page_treaty PASSED [ 47%]
-tests/test_parser.py::test_extract_treaty_sections_handles_rich_multi_page_treaty PASSED [ 50%]
-tests/test_parser.py::test_extract_treaty_sections_handles_fuzzy_rich_treaty PASSED [ 52%]
-tests/test_parser.py::test_extract_treaty_sections_raises_on_malformed_pdf PASSED [ 54%]
-tests/test_parser.py::test_extract_treaty_sections_raises_on_missing_file PASSED [ 57%]
-tests/test_tools.py::test_query_historical_claims_returns_claims_for_known_cedent PASSED [ 59%]
-tests/test_tools.py::test_query_historical_claims_returns_empty_list_for_unknown_cedent PASSED [ 61%]
-tests/test_tools.py::test_calculate_loss_ratio_known_inputs PASSED       [ 64%]
-tests/test_tools.py::test_calculate_loss_ratio_empty_claims_is_zero PASSED [ 66%]
-tests/test_tools.py::test_calculate_loss_ratio_claim_exceeding_layer_top_is_capped PASSED [ 69%]
-tests/test_workflow.py::test_extractor_node_well_formed_input PASSED     [ 71%]
-tests/test_workflow.py::test_extractor_node_flags_missing_fields PASSED  [ 73%]
-tests/test_workflow.py::test_extract_treaty_terms_fails_on_fuzzy_prose_treaty PASSED [ 76%]
-tests/test_workflow.py::test_llm_extraction_fallback_not_invoked_when_regex_succeeds PASSED [ 78%]
-tests/test_workflow.py::test_llm_extraction_fallback_succeeds_on_fuzzy_treaty PASSED [ 80%]
-tests/test_workflow.py::test_run_workflow_via_llm_extraction_fallback_flags_medium_finding PASSED [ 83%]
-tests/test_workflow.py::test_llm_extraction_fallback_degrades_gracefully_on_failure PASSED [ 85%]
+tests/test_app.py::test_app_upload_malformed_pdf_shows_error_not_crash PASSED [ 13%]
+tests/test_app.py::test_serialize_state_for_debug_is_json_safe PASSED    [ 15%]
+tests/test_app.py::test_app_debug_panel_shows_log_lines_and_state_on_success PASSED [ 17%]
+tests/test_app.py::test_app_debug_panel_shows_log_lines_on_parser_failure PASSED [ 20%]
+tests/test_app.py::test_format_extraction_status_for_each_extraction_method PASSED [ 22%]
+tests/test_app.py::test_app_shows_llm_extraction_fallback_note_and_state_on_success PASSED [ 24%]
+tests/test_app.py::test_app_shows_llm_error_when_both_extraction_paths_fail PASSED [ 26%]
+tests/test_app.py::test_format_log_header_includes_timestamp_and_filename PASSED [ 28%]
+tests/test_app.py::test_save_logs_to_file_overwrite_replaces_existing_content PASSED [ 31%]
+tests/test_app.py::test_save_logs_to_file_append_keeps_existing_content PASSED [ 33%]
+tests/test_app.py::test_save_logs_to_file_creates_parent_directory PASSED [ 35%]
+tests/test_app.py::test_app_save_button_writes_default_log_file PASSED   [ 37%]
+tests/test_integration.py::test_full_pipeline_success_minimal_treaty PASSED [ 40%]
+tests/test_integration.py::test_full_pipeline_success_rich_treaty PASSED [ 42%]
+tests/test_integration.py::test_full_pipeline_malformed_pdf_raises_parser_error PASSED [ 44%]
+tests/test_integration.py::test_full_pipeline_unknown_cedent_handled_gracefully PASSED [ 46%]
+tests/test_integration.py::test_full_pipeline_missing_required_term_handled_gracefully PASSED [ 48%]
+tests/test_parser.py::test_extract_treaty_sections_handles_minimal_two_page_treaty PASSED [ 51%]
+tests/test_parser.py::test_extract_treaty_sections_handles_rich_multi_page_treaty PASSED [ 53%]
+tests/test_parser.py::test_extract_treaty_sections_handles_fuzzy_rich_treaty PASSED [ 55%]
+tests/test_parser.py::test_extract_treaty_sections_raises_on_malformed_pdf PASSED [ 57%]
+tests/test_parser.py::test_extract_treaty_sections_raises_on_missing_file PASSED [ 60%]
+tests/test_tools.py::test_query_historical_claims_returns_claims_for_known_cedent PASSED [ 62%]
+tests/test_tools.py::test_query_historical_claims_returns_empty_list_for_unknown_cedent PASSED [ 64%]
+tests/test_tools.py::test_calculate_loss_ratio_known_inputs PASSED       [ 66%]
+tests/test_tools.py::test_calculate_loss_ratio_empty_claims_is_zero PASSED [ 68%]
+tests/test_tools.py::test_calculate_loss_ratio_claim_exceeding_layer_top_is_capped PASSED [ 71%]
+tests/test_workflow.py::test_extractor_node_well_formed_input PASSED     [ 73%]
+tests/test_workflow.py::test_extractor_node_flags_missing_fields PASSED  [ 75%]
+tests/test_workflow.py::test_extract_treaty_terms_fails_on_fuzzy_prose_treaty PASSED [ 77%]
+tests/test_workflow.py::test_llm_extraction_fallback_not_invoked_when_regex_succeeds PASSED [ 80%]
+tests/test_workflow.py::test_llm_extraction_fallback_succeeds_on_fuzzy_treaty PASSED [ 82%]
+tests/test_workflow.py::test_run_workflow_via_llm_extraction_fallback_flags_medium_finding PASSED [ 84%]
+tests/test_workflow.py::test_llm_extraction_fallback_degrades_gracefully_on_failure PASSED [ 86%]
 tests/test_workflow.py::test_run_workflow_stays_incomplete_when_llm_extraction_fallback_also_fails PASSED [ 88%]
-tests/test_workflow.py::test_verifier_node_complete_triggers_historical_claims_lookup PASSED [ 90%]
-tests/test_workflow.py::test_verifier_node_flags_incompleteness_without_calling_tools PASSED [ 92%]
+tests/test_workflow.py::test_verifier_node_complete_triggers_historical_claims_lookup PASSED [ 91%]
+tests/test_workflow.py::test_verifier_node_flags_incompleteness_without_calling_tools PASSED [ 93%]
 tests/test_workflow.py::test_analyst_node_no_anomalies PASSED            [ 95%]
 tests/test_workflow.py::test_analyst_node_flags_at_least_one_anomaly PASSED [ 97%]
 tests/test_workflow_graph_docs.py::test_readme_workflow_graph_matches_live_graph PASSED [100%]
 
-============================== 42 passed in 2.20s ===============================
+============================== 45 passed in 2.01s ===============================
 ```
 
 Run a single test file, e.g. just the parser tests:
@@ -422,24 +434,27 @@ Example output:
 
 ```
 ============================= test session starts ==============================
-collected 14 items
+collected 17 items
 
-tests/test_app.py::test_format_report_markdown_includes_terms_citations_and_findings PASSED [  7%]
-tests/test_app.py::test_format_report_markdown_no_findings PASSED        [ 14%]
-tests/test_app.py::test_analyze_uploaded_pdf_success PASSED              [ 21%]
-tests/test_app.py::test_analyze_uploaded_pdf_malformed_raises_parser_error PASSED [ 28%]
-tests/test_app.py::test_app_upload_and_render_success PASSED             [ 35%]
-tests/test_app.py::test_app_upload_malformed_pdf_shows_error_not_crash PASSED [ 42%]
-tests/test_app.py::test_serialize_state_for_debug_is_json_safe PASSED    [ 50%]
-tests/test_app.py::test_app_debug_panel_shows_log_lines_and_state_on_success PASSED [ 57%]
-tests/test_app.py::test_app_debug_panel_shows_log_lines_on_parser_failure PASSED [ 64%]
-tests/test_app.py::test_format_log_header_includes_timestamp_and_filename PASSED [ 71%]
-tests/test_app.py::test_save_logs_to_file_overwrite_replaces_existing_content PASSED [ 78%]
-tests/test_app.py::test_save_logs_to_file_append_keeps_existing_content PASSED [ 85%]
-tests/test_app.py::test_save_logs_to_file_creates_parent_directory PASSED [ 92%]
+tests/test_app.py::test_format_report_markdown_includes_terms_citations_and_findings PASSED [  5%]
+tests/test_app.py::test_format_report_markdown_no_findings PASSED        [ 11%]
+tests/test_app.py::test_analyze_uploaded_pdf_success PASSED              [ 17%]
+tests/test_app.py::test_analyze_uploaded_pdf_malformed_raises_parser_error PASSED [ 23%]
+tests/test_app.py::test_app_upload_and_render_success PASSED             [ 29%]
+tests/test_app.py::test_app_upload_malformed_pdf_shows_error_not_crash PASSED [ 35%]
+tests/test_app.py::test_serialize_state_for_debug_is_json_safe PASSED    [ 41%]
+tests/test_app.py::test_app_debug_panel_shows_log_lines_and_state_on_success PASSED [ 47%]
+tests/test_app.py::test_app_debug_panel_shows_log_lines_on_parser_failure PASSED [ 52%]
+tests/test_app.py::test_format_extraction_status_for_each_extraction_method PASSED [ 58%]
+tests/test_app.py::test_app_shows_llm_extraction_fallback_note_and_state_on_success PASSED [ 64%]
+tests/test_app.py::test_app_shows_llm_error_when_both_extraction_paths_fail PASSED [ 70%]
+tests/test_app.py::test_format_log_header_includes_timestamp_and_filename PASSED [ 76%]
+tests/test_app.py::test_save_logs_to_file_overwrite_replaces_existing_content PASSED [ 82%]
+tests/test_app.py::test_save_logs_to_file_append_keeps_existing_content PASSED [ 88%]
+tests/test_app.py::test_save_logs_to_file_creates_parent_directory PASSED [ 94%]
 tests/test_app.py::test_app_save_button_writes_default_log_file PASSED   [100%]
 
-============================== 14 passed in 0.67s ===============================
+============================== 17 passed in 1.17s ===============================
 ```
 
 | Test | Checks |
@@ -453,6 +468,9 @@ tests/test_app.py::test_app_save_button_writes_default_log_file PASSED   [100%]
 | `test_serialize_state_for_debug_is_json_safe` | The debug `WorkflowState` dict (nested pydantic models included) round-trips through `json.dumps` |
 | `test_app_debug_panel_shows_log_lines_and_state_on_success` | The debug expander shows per-node log lines and the full state as JSON on a successful run |
 | `test_app_debug_panel_shows_log_lines_on_parser_failure` | The debug panel shows no log lines/state when a `ParserError` fires before any node runs |
+| `test_format_extraction_status_for_each_extraction_method` | `format_extraction_status()` produces the right message for the `regex`, `llm`, and failed (`none` with/without `llm_error`) cases |
+| `test_app_shows_llm_extraction_fallback_note_and_state_on_success` | Uploading the fuzzy fixture (with a mocked successful Claude response) shows an "LLM Extraction Fallback" `st.info` note, renders the report, and the debug JSON's `extraction_method` is `"llm"` |
+| `test_app_shows_llm_error_when_both_extraction_paths_fail` | A simulated total failure (regex fails, mocked LLM call also fails) shows one `st.error` naming the LLM failure, not a crash, and the debug JSON's `llm_error` is populated |
 | `test_format_log_header_includes_timestamp_and_filename` | The saved-log header string matches `"=== Run at <timestamp> \| file: <name> ==="` |
 | `test_save_logs_to_file_overwrite_replaces_existing_content` | `mode="overwrite"` clears a log file's prior content |
 | `test_save_logs_to_file_append_keeps_existing_content` | `mode="append"` preserves a log file's prior content |
