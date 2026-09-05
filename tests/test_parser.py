@@ -6,6 +6,7 @@ from src.parser import ParserError, extract_treaty_sections
 
 SAMPLE_TREATY_PATH = "data/sample_treaty.pdf"
 SAMPLE_RICH_TREATY_PATH = "data/sample_rich_treaty.pdf"
+SAMPLE_RICH_FUZZY_TREATY_PATH = "data/sample_rich_fuzzy_treaty.pdf"
 
 
 def test_extract_treaty_sections_handles_minimal_two_page_treaty():
@@ -24,6 +25,19 @@ def test_extract_treaty_sections_handles_rich_multi_page_treaty():
     assert [s.page_number for s in sections] == [1, 2, 3, 4]
     assert "Cedent: Meridian Insurance Group" in sections[0].text
     assert "Layer 1" in sections[1].text
+    assert "EXCLUSIONS" in sections[2].text
+    assert "Arbitration" in sections[3].text
+
+
+def test_extract_treaty_sections_handles_fuzzy_rich_treaty():
+    """Same substantive facts as the rich fixture, phrased as prose (not
+    Label: value) so the Extractor Node's regex fails on it later."""
+    sections = extract_treaty_sections(SAMPLE_RICH_FUZZY_TREATY_PATH)
+
+    assert len(sections) == 4
+    assert [s.page_number for s in sections] == [1, 2, 3, 4]
+    assert "Sentinel Mutual" in sections[0].text
+    assert "$2,500,000" in sections[1].text
     assert "EXCLUSIONS" in sections[2].text
     assert "Arbitration" in sections[3].text
 

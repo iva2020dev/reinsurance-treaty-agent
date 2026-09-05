@@ -175,45 +175,47 @@ Example output:
 
 ```
 ============================= test session starts ==============================
-collected 35 items
+collected 37 items
 
 tests/test_app.py::test_format_report_markdown_includes_terms_citations_and_findings PASSED [  2%]
 tests/test_app.py::test_format_report_markdown_no_findings PASSED        [  5%]
 tests/test_app.py::test_analyze_uploaded_pdf_success PASSED              [  8%]
-tests/test_app.py::test_analyze_uploaded_pdf_malformed_raises_parser_error PASSED [ 11%]
-tests/test_app.py::test_app_upload_and_render_success PASSED             [ 14%]
-tests/test_app.py::test_app_upload_malformed_pdf_shows_error_not_crash PASSED [ 17%]
-tests/test_app.py::test_serialize_state_for_debug_is_json_safe PASSED    [ 20%]
-tests/test_app.py::test_app_debug_panel_shows_log_lines_and_state_on_success PASSED [ 22%]
-tests/test_app.py::test_app_debug_panel_shows_log_lines_on_parser_failure PASSED [ 25%]
-tests/test_app.py::test_format_log_header_includes_timestamp_and_filename PASSED [ 28%]
-tests/test_app.py::test_save_logs_to_file_overwrite_replaces_existing_content PASSED [ 31%]
-tests/test_app.py::test_save_logs_to_file_append_keeps_existing_content PASSED [ 34%]
-tests/test_app.py::test_save_logs_to_file_creates_parent_directory PASSED [ 37%]
-tests/test_app.py::test_app_save_button_writes_default_log_file PASSED   [ 40%]
-tests/test_integration.py::test_full_pipeline_success_minimal_treaty PASSED [ 42%]
-tests/test_integration.py::test_full_pipeline_success_rich_treaty PASSED [ 45%]
-tests/test_integration.py::test_full_pipeline_malformed_pdf_raises_parser_error PASSED [ 48%]
-tests/test_integration.py::test_full_pipeline_unknown_cedent_handled_gracefully PASSED [ 51%]
-tests/test_integration.py::test_full_pipeline_missing_required_term_handled_gracefully PASSED [ 54%]
-tests/test_parser.py::test_extract_treaty_sections_handles_minimal_two_page_treaty PASSED [ 57%]
-tests/test_parser.py::test_extract_treaty_sections_handles_rich_multi_page_treaty PASSED [ 60%]
+tests/test_app.py::test_analyze_uploaded_pdf_malformed_raises_parser_error PASSED [ 10%]
+tests/test_app.py::test_app_upload_and_render_success PASSED             [ 13%]
+tests/test_app.py::test_app_upload_malformed_pdf_shows_error_not_crash PASSED [ 16%]
+tests/test_app.py::test_serialize_state_for_debug_is_json_safe PASSED    [ 18%]
+tests/test_app.py::test_app_debug_panel_shows_log_lines_and_state_on_success PASSED [ 21%]
+tests/test_app.py::test_app_debug_panel_shows_log_lines_on_parser_failure PASSED [ 24%]
+tests/test_app.py::test_format_log_header_includes_timestamp_and_filename PASSED [ 27%]
+tests/test_app.py::test_save_logs_to_file_overwrite_replaces_existing_content PASSED [ 29%]
+tests/test_app.py::test_save_logs_to_file_append_keeps_existing_content PASSED [ 32%]
+tests/test_app.py::test_save_logs_to_file_creates_parent_directory PASSED [ 35%]
+tests/test_app.py::test_app_save_button_writes_default_log_file PASSED   [ 37%]
+tests/test_integration.py::test_full_pipeline_success_minimal_treaty PASSED [ 40%]
+tests/test_integration.py::test_full_pipeline_success_rich_treaty PASSED [ 43%]
+tests/test_integration.py::test_full_pipeline_malformed_pdf_raises_parser_error PASSED [ 45%]
+tests/test_integration.py::test_full_pipeline_unknown_cedent_handled_gracefully PASSED [ 48%]
+tests/test_integration.py::test_full_pipeline_missing_required_term_handled_gracefully PASSED [ 51%]
+tests/test_parser.py::test_extract_treaty_sections_handles_minimal_two_page_treaty PASSED [ 54%]
+tests/test_parser.py::test_extract_treaty_sections_handles_rich_multi_page_treaty PASSED [ 56%]
+tests/test_parser.py::test_extract_treaty_sections_handles_fuzzy_rich_treaty PASSED [ 59%]
 tests/test_parser.py::test_extract_treaty_sections_raises_on_malformed_pdf PASSED [ 62%]
-tests/test_parser.py::test_extract_treaty_sections_raises_on_missing_file PASSED [ 65%]
-tests/test_tools.py::test_query_historical_claims_returns_claims_for_known_cedent PASSED [ 68%]
-tests/test_tools.py::test_query_historical_claims_returns_empty_list_for_unknown_cedent PASSED [ 71%]
-tests/test_tools.py::test_calculate_loss_ratio_known_inputs PASSED       [ 74%]
-tests/test_tools.py::test_calculate_loss_ratio_empty_claims_is_zero PASSED [ 77%]
-tests/test_tools.py::test_calculate_loss_ratio_claim_exceeding_layer_top_is_capped PASSED [ 80%]
-tests/test_workflow.py::test_extractor_node_well_formed_input PASSED     [ 82%]
-tests/test_workflow.py::test_extractor_node_flags_missing_fields PASSED  [ 85%]
-tests/test_workflow.py::test_verifier_node_complete_triggers_historical_claims_lookup PASSED [ 88%]
+tests/test_parser.py::test_extract_treaty_sections_raises_on_missing_file PASSED [ 64%]
+tests/test_tools.py::test_query_historical_claims_returns_claims_for_known_cedent PASSED [ 67%]
+tests/test_tools.py::test_query_historical_claims_returns_empty_list_for_unknown_cedent PASSED [ 70%]
+tests/test_tools.py::test_calculate_loss_ratio_known_inputs PASSED       [ 72%]
+tests/test_tools.py::test_calculate_loss_ratio_empty_claims_is_zero PASSED [ 75%]
+tests/test_tools.py::test_calculate_loss_ratio_claim_exceeding_layer_top_is_capped PASSED [ 78%]
+tests/test_workflow.py::test_extractor_node_well_formed_input PASSED     [ 81%]
+tests/test_workflow.py::test_extractor_node_flags_missing_fields PASSED  [ 83%]
+tests/test_workflow.py::test_extract_treaty_terms_fails_on_fuzzy_prose_treaty PASSED [ 86%]
+tests/test_workflow.py::test_verifier_node_complete_triggers_historical_claims_lookup PASSED [ 89%]
 tests/test_workflow.py::test_verifier_node_flags_incompleteness_without_calling_tools PASSED [ 91%]
 tests/test_workflow.py::test_analyst_node_no_anomalies PASSED            [ 94%]
 tests/test_workflow.py::test_analyst_node_flags_at_least_one_anomaly PASSED [ 97%]
 tests/test_workflow_graph_docs.py::test_readme_workflow_graph_matches_live_graph PASSED [100%]
 
-============================== 35 passed in 0.63s ===============================
+============================== 37 passed in 0.60s ===============================
 ```
 
 Run a single test file, e.g. just the parser tests:
@@ -226,14 +228,15 @@ Example output:
 
 ```
 ============================= test session starts ==============================
-collected 4 items
+collected 5 items
 
-tests/test_parser.py::test_extract_treaty_sections_handles_minimal_two_page_treaty PASSED [ 25%]
-tests/test_parser.py::test_extract_treaty_sections_handles_rich_multi_page_treaty PASSED [ 50%]
-tests/test_parser.py::test_extract_treaty_sections_raises_on_malformed_pdf PASSED [ 75%]
+tests/test_parser.py::test_extract_treaty_sections_handles_minimal_two_page_treaty PASSED [ 20%]
+tests/test_parser.py::test_extract_treaty_sections_handles_rich_multi_page_treaty PASSED [ 40%]
+tests/test_parser.py::test_extract_treaty_sections_handles_fuzzy_rich_treaty PASSED [ 60%]
+tests/test_parser.py::test_extract_treaty_sections_raises_on_malformed_pdf PASSED [ 80%]
 tests/test_parser.py::test_extract_treaty_sections_raises_on_missing_file PASSED [100%]
 
-============================== 4 passed in 0.06s ===============================
+============================== 5 passed in 0.04s ===============================
 ```
 
 Run a single test by name:
@@ -264,12 +267,12 @@ Example output:
 
 ```
 ============================= test session starts ==============================
-collected 4 items / 2 deselected / 2 selected
+collected 5 items / 3 deselected / 2 selected
 
 tests/test_parser.py::test_extract_treaty_sections_handles_minimal_two_page_treaty PASSED [ 50%]
 tests/test_parser.py::test_extract_treaty_sections_handles_rich_multi_page_treaty PASSED [100%]
 
-======================= 2 passed, 2 deselected in 0.04s ========================
+======================= 2 passed, 3 deselected in 0.03s ========================
 ```
 
 Now clearly distinct, symmetric names — both pass:
@@ -278,6 +281,7 @@ Now clearly distinct, symmetric names — both pass:
 |---|---|---|---|
 | `test_extract_treaty_sections_handles_minimal_two_page_treaty` | `sample_treaty.pdf` | 2 | page 1 has "Attachment Point", page 2 has "EXCLUSIONS" |
 | `test_extract_treaty_sections_handles_rich_multi_page_treaty` | `sample_rich_treaty.pdf` | 4 | page 1 cedent name, page 2 "Layer 1", page 3 "EXCLUSIONS", page 4 "Arbitration" |
+| `test_extract_treaty_sections_handles_fuzzy_rich_treaty` | `sample_rich_fuzzy_treaty.pdf` | 4 | page 1 has "Sentinel Mutual", page 2 has "$2,500,000", page 3 "EXCLUSIONS", page 4 "Arbitration" |
 
 Run just the tools tests (`query_historical_claims` and
 `calculate_loss_ratio`, from `src/tools.py`):
@@ -320,22 +324,24 @@ Example output:
 
 ```
 ============================= test session starts ==============================
-collected 6 items
+collected 7 items
 
-tests/test_workflow.py::test_extractor_node_well_formed_input PASSED     [ 16%]
-tests/test_workflow.py::test_extractor_node_flags_missing_fields PASSED  [ 33%]
-tests/test_workflow.py::test_verifier_node_complete_triggers_historical_claims_lookup PASSED [ 50%]
-tests/test_workflow.py::test_verifier_node_flags_incompleteness_without_calling_tools PASSED [ 66%]
-tests/test_workflow.py::test_analyst_node_no_anomalies PASSED            [ 83%]
+tests/test_workflow.py::test_extractor_node_well_formed_input PASSED     [ 14%]
+tests/test_workflow.py::test_extractor_node_flags_missing_fields PASSED  [ 28%]
+tests/test_workflow.py::test_extract_treaty_terms_fails_on_fuzzy_prose_treaty PASSED [ 42%]
+tests/test_workflow.py::test_verifier_node_complete_triggers_historical_claims_lookup PASSED [ 57%]
+tests/test_workflow.py::test_verifier_node_flags_incompleteness_without_calling_tools PASSED [ 71%]
+tests/test_workflow.py::test_analyst_node_no_anomalies PASSED            [ 85%]
 tests/test_workflow.py::test_analyst_node_flags_at_least_one_anomaly PASSED [100%]
 
-============================== 6 passed in 0.16s ===============================
+============================== 7 passed in 0.11s ===============================
 ```
 
 | Test | Checks |
 |---|---|
 | `test_extractor_node_well_formed_input` | Regex extraction reads cedent/attachment point/limit/premium/exclusions and their page citations from clean `Label: value` text |
 | `test_extractor_node_flags_missing_fields` | Sections missing numeric fields return `treaty=None` plus the list of missing field names, instead of raising |
+| `test_extract_treaty_terms_fails_on_fuzzy_prose_treaty` | The prose-phrased fuzzy fixture (same facts as the rich fixture) returns `treaty=None` and all four required fields as missing, since regex can't match `Label: value` patterns in natural prose |
 | `test_verifier_node_complete_triggers_historical_claims_lookup` | A valid treaty triggers a real `query_historical_claims` call and returns the cedent's claims |
 | `test_verifier_node_flags_incompleteness_without_calling_tools` | `treaty=None` marks the run incomplete and skips the tool call entirely (empty claims) |
 | `test_analyst_node_no_anomalies` | A moderate loss ratio with claims data present produces `findings == []` |
@@ -423,7 +429,7 @@ tests/test_app.py::test_app_save_button_writes_default_log_file PASSED   [100%]
 
 ## Sample Treaty Fixtures
 
-`data/` holds two hand-built mock treaty PDFs used by the parser tests,
+`data/` holds hand-built mock treaty PDFs used by the parser tests,
 each with its parsed output saved alongside it as JSON for inspection
 without running any code:
 
@@ -431,3 +437,4 @@ without running any code:
 |---|---|---|---|
 | `sample_treaty.pdf` | `sample_treaty_parsed.json` | 2 | Minimal: attachment point, limit, premium, exclusions |
 | `sample_rich_treaty.pdf` | `sample_rich_treaty_parsed.json` | 4 | Detailed: parties/period/territory, two layers with reinstatements and brokerage, a 10-item exclusions list, and claims/arbitration/governing-law provisions |
+| `sample_rich_fuzzy_treaty.pdf` | `sample_rich_fuzzy_treaty_parsed.json` | 4 | Same substantive facts as a real treaty (cedent Sentinel Mutual Assurance, attachment point/limit/premium, exclusions), but phrased as prose instead of the `Label: value` convention, so the regex Extractor Node genuinely fails to find any required field — used to exercise the LLM extraction fallback |

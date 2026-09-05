@@ -3,8 +3,10 @@
 from datetime import date
 
 from src.models import ClaimsData, Severity, TreatyTerms
-from src.parser import PageSection
-from src.workflow import analyst_node, extractor_node, verifier_node
+from src.parser import PageSection, extract_treaty_sections
+from src.workflow import analyst_node, extract_treaty_terms, extractor_node, verifier_node
+
+SAMPLE_RICH_FUZZY_TREATY_PATH = "data/sample_rich_fuzzy_treaty.pdf"
 
 WELL_FORMED_SECTIONS = [
     PageSection(
@@ -50,6 +52,23 @@ def test_extractor_node_flags_missing_fields():
     assert "attachment_point" in result["missing_fields"]
     assert "limit" in result["missing_fields"]
     assert "reinsurance_premium" in result["missing_fields"]
+
+
+def test_extract_treaty_terms_fails_on_fuzzy_prose_treaty():
+    """Same substantive facts as the rich fixture, phrased as prose so
+    regex genuinely can't find any required field -- the case the LLM
+    fallback (a later task) needs to actually exercise."""
+    sections = extract_treaty_sections(SAMPLE_RICH_FUZZY_TREATY_PATH)
+
+    treaty, missing_fields = extract_treaty_terms(sections)
+
+    assert treaty is None
+    assert set(missing_fields) == {
+        "cedent_name",
+        "attachment_point",
+        "limit",
+        "reinsurance_premium",
+    }
 
 
 def test_verifier_node_complete_triggers_historical_claims_lookup():

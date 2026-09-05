@@ -1229,3 +1229,98 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `integration-test-llm-fallback-deploy-config`) is linear with no
   cycles.
 
+## 2026-09-05 18:20:21 — Task: Build the Fuzzy Treaty Fixture (build-fuzzy-treaty-fixture)
+
+- **Goal**: Hand-roll `data/sample_rich_fuzzy_treaty.pdf` — same
+  substantive treaty facts as a real document, but phrased as prose
+  instead of the `Label: value` convention — so `extract_treaty_terms()`
+  genuinely fails to find required fields via regex, giving the later
+  `implement-llm-fallback-node` task something real to fall back on.
+- **Analysis**: `_FIELD_PATTERNS` in `src/workflow.py` requires the
+  exact literal strings `"Cedent:"`, `"Attachment Point:"`, `"Limit:"`,
+  `"Reinsurance Premium:"` immediately followed by a value — so prose
+  simply needs to avoid those four literal substrings to defeat every
+  required field, not just one (stronger than the task's minimum bar
+  of "at least one"). `data/historical_claims.csv` already has
+  "Sentinel Mutual Assurance" (exact string, no comma so no CSV
+  quoting needed) with one $900,000 claim, unused by either existing
+  fixture — using it here means a later end-to-end test gets a real,
+  non-empty `query_historical_claims` result. Both existing fixtures
+  were hand-rolled as raw `%PDF-1.4` objects with manually-computed
+  xref byte offsets (no PDF-writing library installed, confirmed
+  still true — `pip list` shows no `reportlab`/`fpdf`); computing
+  those offsets by hand is exactly the kind of thing worth automating
+  instead of repeating error-prone arithmetic, so this fixture is
+  built by a small script (not committed, per the same convention
+  `build-pdf-ingestion-parsing` used) that constructs the objects and
+  computes real xref offsets from the actual serialized bytes, rather
+  than hand-typing them. `TreatyTerms.limit` (per
+  `calculate_loss_ratio`) is the *width* of the layer above the
+  attachment point, not the absolute top — worth being explicit about
+  in the prose so the wording is unambiguous for whoever implements
+  the LLM extractor next, not just defeat-the-regex noise.
+- **Decision**: 4 pages, deliberately avoiding all four
+  `_FIELD_PATTERNS` literals anywhere in the text (not just one), so
+  regex fails completely rather than partially — a cleaner, more
+  useful test case for the LLM fallback than a fixture that trips up
+  regex on only one field:
+  1. Parties/intro — names "Sentinel Mutual Assurance" as the ceding
+     company in a sentence, never as `Cedent: ...`.
+  2. Financial terms — states the attachment point ($2,500,000), the
+     layer width ("a further five million dollars ($5,000,000) of
+     loss in excess of the attachment point," to keep the same
+     attachment+width semantics as the real fixtures, not the
+     absolute layer top) and premium ($400,000) in full sentences.
+  3. Exclusions — a prose paragraph (not a numbered list) naming the
+     same categories the real fixtures use; not required to parse
+     correctly since `exclusions` isn't in `_REQUIRED_FIELDS`.
+  4. Claims/reporting/arbitration/governing law — realism only,
+     matching the rich fixture's page 4 flavor.
+  Expected numbers, for later tasks to assert against:
+  attachment_point=2,500,000, limit=5,000,000 (layer top 7,500,000),
+  reinsurance_premium=400,000, cedent="Sentinel Mutual Assurance"
+  (one $900,000 historical claim → loss ratio 0.18 if/when the LLM
+  fallback successfully extracts these and the graph runs to
+  completion).
+- **Action**: Building `data/sample_rich_fuzzy_treaty.pdf` +
+  `data/sample_rich_fuzzy_treaty_parsed.json`, adding
+  `test_extract_treaty_sections_handles_fuzzy_rich_treaty` (or
+  similar) to `tests/test_parser.py` (proves `pypdf` gets real
+  non-empty text, not a `ParserError`), a workflow-level test in
+  `tests/test_workflow.py` proving `extract_treaty_terms()` returns a
+  non-empty `missing_fields` list on it, and a `README.md` Sample
+  Treaty Fixtures table row.
+- **Outcome**: Reused the existing `make_sample_pdf.py` helper (found
+  in an earlier session's scratchpad — it already computes xref
+  offsets from the actual serialized bytes via `len(buf)` tracking,
+  not hand-typed arithmetic) and wrote a `make_fuzzy_treaty.py` script
+  driving it with the four prose pages described above. Verified the
+  generated PDF against the real code before committing it: `pypdf`
+  extracts real, non-empty text per page (confirmed no `ParserError`),
+  and `extract_treaty_terms()` returns `treaty=None` with
+  `missing_fields == ["cedent_name", "attachment_point", "limit",
+  "reinsurance_premium"]` — regex fails on *all four* required fields,
+  not just the task's minimum bar of one. Noticed the extracted text
+  contains "quoteright" (U+2019) in place of every ASCII apostrophe
+  (e.g. "Reinsurer's" → "Reinsurer's") — traced this to Helvetica's
+  default `StandardEncoding` mapping code 0x27 to that glyph, not
+  plain apostrophe; confirmed the *existing* `sample_rich_treaty_parsed.json`
+  has the identical artifact ("Cedent’s employees"), so this is
+  pre-existing, consistent hand-rolled-PDF behavior, not a new bug —
+  left as-is rather than over-engineering a fix for a test fixture.
+  Copied the verified PDF into `data/sample_rich_fuzzy_treaty.pdf`,
+  generated `data/sample_rich_fuzzy_treaty_parsed.json` via the real
+  `extract_treaty_sections()` (same convention as the other two
+  fixtures). Added `test_extract_treaty_sections_handles_fuzzy_rich_treaty`
+  to `tests/test_parser.py` and `test_extract_treaty_terms_fails_on_fuzzy_prose_treaty`
+  to `tests/test_workflow.py` (the latter asserting the exact
+  4-field `missing_fields` set via the real fixture, not synthetic
+  sections — matching the task's "regex genuinely fails on it"
+  acceptance bar). Added the fixture to `README.md`'s Sample Treaty
+  Fixtures table and refreshed every stale test-count example output
+  in `README.md` that the two new tests shifted (full suite 35→37,
+  `test_parser.py` 4→5 including its keyword-filter example, and
+  `test_workflow.py` 6→7). `pytest tests/ -v` — 37 passed, no
+  regressions. Acceptance criteria met; have not asked for human
+  approval to close the task yet.
+
