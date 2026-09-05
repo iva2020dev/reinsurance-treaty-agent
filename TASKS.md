@@ -37,7 +37,7 @@
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
-- [ ] Surface LLM Extraction Fallback Status in the UI
+- [ ] Surface LLM Extraction Fallback Status in the UI (@claude)
   - **ID**: update-ui-llm-fallback
   - **Tags**: ui, extraction, llm
   - **Details**: In `src/app.py`, show a clear on-page note when

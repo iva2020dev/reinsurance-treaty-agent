@@ -71,10 +71,38 @@ def serialize_state_for_debug(state: WorkflowState) -> dict:
         "sections": [asdict(section) for section in state.get("sections", [])],
         "treaty": treaty.model_dump(mode="json") if (treaty := state.get("treaty")) else None,
         "missing_fields": state.get("missing_fields", []),
+        "extraction_method": state.get("extraction_method"),
+        "llm_error": state.get("llm_error"),
         "claims": [claim.model_dump(mode="json") for claim in state.get("claims", [])],
         "complete": state.get("complete", False),
         "report": report.model_dump(mode="json") if (report := state.get("report")) else None,
     }
+
+
+def format_extraction_status(state: WorkflowState) -> str:
+    """Human-readable summary of which extraction path a run took, for the debug panel."""
+    method = state.get("extraction_method")
+    if method == "llm":
+        return (
+            "This run used the **LLM Extraction Fallback** (Claude Haiku 4.5) "
+            "because the Extractor (Regex) step couldn't find every required "
+            "field — see the log lines below for duration and token usage."
+        )
+    if method == "regex":
+        return (
+            "This run's Extractor (Regex) step found every required field, "
+            "so no LLM call was needed."
+        )
+    llm_error = state.get("llm_error")
+    if llm_error:
+        return (
+            "Regex extraction failed to find required fields, and the LLM "
+            f"Extraction Fallback also could not recover them: {llm_error}"
+        )
+    return (
+        "Regex extraction failed to find required fields, and the LLM "
+        "Extraction Fallback was not run."
+    )
 
 
 def format_log_header(filename: str, when: datetime | None = None) -> str:
@@ -157,18 +185,29 @@ def main() -> None:
                 try:
                     report = extract_report(state)
                 except ValueError as exc:
-                    st.error(str(exc))
+                    message = str(exc)
+                    llm_error = state.get("llm_error")
+                    if llm_error:
+                        message += f" (LLM Extraction Fallback also failed: {llm_error})"
+                    st.error(message)
                 else:
+                    if state.get("extraction_method") == "llm":
+                        st.info(
+                            "Extracted via **LLM Extraction Fallback** — this "
+                            "treaty's format didn't match the regex extractor."
+                        )
                     st.markdown(format_report_markdown(report))
     finally:
         workflow_logger.removeHandler(handler)
 
     with st.expander("Debug: workflow execution"):
-        st.caption(
-            "This workflow has no LLM calls — extraction is regex-based, so "
-            "there is no LLM usage/cost to report here, only the deterministic "
-            "Extractor → Verifier → Analyst node steps below."
-        )
+        if state is None:
+            st.caption(
+                "No workflow state was produced — the PDF could not be "
+                "parsed, so no node ran."
+            )
+        else:
+            st.caption(format_extraction_status(state))
         if log_lines:
             st.code("\n".join(log_lines), language="text")
         else:
