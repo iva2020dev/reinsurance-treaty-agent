@@ -469,7 +469,7 @@ tests/test_app.py::test_app_save_button_writes_default_log_file PASSED   [100%]
 | `test_app_debug_panel_shows_log_lines_and_state_on_success` | The debug expander shows per-node log lines and the full state as JSON on a successful run |
 | `test_app_debug_panel_shows_log_lines_on_parser_failure` | The debug panel shows no log lines/state when a `ParserError` fires before any node runs |
 | `test_format_extraction_status_for_each_extraction_method` | `format_extraction_status()` produces the right message for the `regex`, `llm`, and failed (`none` with/without `llm_error`) cases |
-| `test_app_shows_llm_extraction_fallback_note_and_state_on_success` | Uploading the fuzzy fixture (with a mocked successful Claude response) shows an "LLM Extraction Fallback" `st.info` note, renders the report, and the debug JSON's `extraction_method` is `"llm"` |
+| `test_app_shows_llm_extraction_fallback_note_and_state_on_success` | Uploading the fuzzy fixture (with a mocked successful Claude response) shows an "LLM Extraction Fallback" `st.warning` note, renders the report, and the debug JSON's `extraction_method` is `"llm"` |
 | `test_app_shows_llm_error_when_both_extraction_paths_fail` | A simulated total failure (regex fails, mocked LLM call also fails) shows one `st.error` naming the LLM failure, not a crash, and the debug JSON's `llm_error` is populated |
 | `test_format_log_header_includes_timestamp_and_filename` | The saved-log header string matches `"=== Run at <timestamp> \| file: <name> ==="` |
 | `test_save_logs_to_file_overwrite_replaces_existing_content` | `mode="overwrite"` clears a log file's prior content |
