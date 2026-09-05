@@ -4,13 +4,15 @@ from datetime import date
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 from src.models import ClaimsData, Severity, TreatyTerms
 from src.parser import PageSection, extract_treaty_sections
 from src.workflow import (
     analyst_node,
     extract_treaty_terms,
     extractor_node,
-    llm_fallback_extractor,
+    llm_extraction_fallback,
     run_workflow,
     verifier_node,
 )
@@ -80,9 +82,9 @@ def test_extract_treaty_terms_fails_on_fuzzy_prose_treaty():
     }
 
 
-def test_llm_fallback_not_invoked_when_regex_succeeds(monkeypatch):
-    mock_llm_node = MagicMock(side_effect=AssertionError("llm_fallback_extractor should not run"))
-    monkeypatch.setattr("src.workflow.llm_fallback_extractor", mock_llm_node)
+def test_llm_extraction_fallback_not_invoked_when_regex_succeeds(monkeypatch):
+    mock_llm_node = MagicMock(side_effect=AssertionError("llm_extraction_fallback should not run"))
+    monkeypatch.setattr("src.workflow.llm_extraction_fallback", mock_llm_node)
 
     result = run_workflow(WELL_FORMED_SECTIONS)
 
@@ -91,13 +93,13 @@ def test_llm_fallback_not_invoked_when_regex_succeeds(monkeypatch):
     assert result["complete"] is True
 
 
-def test_llm_fallback_extractor_succeeds_on_fuzzy_treaty(monkeypatch):
+def test_llm_extraction_fallback_succeeds_on_fuzzy_treaty(monkeypatch):
     tool_use_block = SimpleNamespace(
         type="tool_use",
         input={
             "cedent_name": "Sentinel Mutual Assurance",
-            "attachment_point": 2_500_000,
-            "limit": 5_000_000,
+            "attachment_point": 200_000,
+            "limit": 1_000_000,
             "reinsurance_premium": 400_000,
             "exclusions": ["War", "Nuclear"],
             "page_citations": {
@@ -120,15 +122,15 @@ def test_llm_fallback_extractor_succeeds_on_fuzzy_treaty(monkeypatch):
     _, missing_fields = extract_treaty_terms(sections)
     assert missing_fields  # sanity: regex genuinely fails on this fixture first
 
-    result = llm_fallback_extractor({"sections": sections})
+    result = llm_extraction_fallback({"sections": sections})
 
     assert result["extraction_method"] == "llm"
     assert result["llm_error"] is None
     assert result["missing_fields"] == []
     treaty = result["treaty"]
     assert treaty.cedent_name == "Sentinel Mutual Assurance"
-    assert treaty.attachment_point == 2_500_000
-    assert treaty.limit == 5_000_000
+    assert treaty.attachment_point == 200_000
+    assert treaty.limit == 1_000_000
     assert treaty.reinsurance_premium == 400_000
     mock_client.messages.create.assert_called_once()
     assert mock_client.messages.create.call_args.kwargs["tool_choice"] == {
@@ -137,12 +139,52 @@ def test_llm_fallback_extractor_succeeds_on_fuzzy_treaty(monkeypatch):
     }
 
 
-def test_llm_fallback_extractor_degrades_gracefully_on_failure(monkeypatch):
+def test_run_workflow_via_llm_extraction_fallback_flags_medium_finding(monkeypatch):
+    """End-to-end: regex fails on the fuzzy fixture, the (mocked) LLM
+    Extraction Fallback succeeds, and the real historical claim
+    ($900,000, exceeding the mocked $200,000 attachment point) produces
+    a non-zero loss ratio and a real MEDIUM finding -- not just an
+    empty-findings happy path."""
+    tool_use_block = SimpleNamespace(
+        type="tool_use",
+        input={
+            "cedent_name": "Sentinel Mutual Assurance",
+            "attachment_point": 200_000,
+            "limit": 1_000_000,
+            "reinsurance_premium": 400_000,
+            "exclusions": [],
+            "page_citations": {
+                "cedent_name": 1,
+                "attachment_point": 2,
+                "limit": 2,
+                "reinsurance_premium": 2,
+            },
+        },
+    )
+    mock_client = MagicMock()
+    mock_client.messages.create.return_value = SimpleNamespace(
+        content=[tool_use_block],
+        usage=SimpleNamespace(input_tokens=512, output_tokens=64),
+    )
+    monkeypatch.setattr("src.workflow.anthropic.Anthropic", lambda **kwargs: mock_client)
+
+    sections = extract_treaty_sections(SAMPLE_RICH_FUZZY_TREATY_PATH)
+    result = run_workflow(sections)
+
+    assert result["complete"] is True
+    assert result["extraction_method"] == "llm"
+    report = result["report"]
+    assert report.loss_ratio == pytest.approx(0.7)
+    assert len(report.findings) == 1
+    assert report.findings[0].severity == Severity.MEDIUM
+
+
+def test_llm_extraction_fallback_degrades_gracefully_on_failure(monkeypatch):
     mock_client = MagicMock()
     mock_client.messages.create.side_effect = RuntimeError("simulated network failure")
     monkeypatch.setattr("src.workflow.anthropic.Anthropic", lambda **kwargs: mock_client)
 
-    result = llm_fallback_extractor({"sections": []})
+    result = llm_extraction_fallback({"sections": []})
 
     assert result == {
         "extraction_method": "none",
@@ -150,7 +192,7 @@ def test_llm_fallback_extractor_degrades_gracefully_on_failure(monkeypatch):
     }
 
 
-def test_run_workflow_stays_incomplete_when_llm_fallback_also_fails(monkeypatch):
+def test_run_workflow_stays_incomplete_when_llm_extraction_fallback_also_fails(monkeypatch):
     mock_client = MagicMock()
     mock_client.messages.create.side_effect = RuntimeError("simulated network failure")
     monkeypatch.setattr("src.workflow.anthropic.Anthropic", lambda **kwargs: mock_client)

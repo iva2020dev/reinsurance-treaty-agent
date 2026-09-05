@@ -37,7 +37,7 @@ def test_extract_treaty_sections_handles_fuzzy_rich_treaty():
     assert len(sections) == 4
     assert [s.page_number for s in sections] == [1, 2, 3, 4]
     assert "Sentinel Mutual" in sections[0].text
-    assert "$2,500,000" in sections[1].text
+    assert "$200,000" in sections[1].text
     assert "EXCLUSIONS" in sections[2].text
     assert "Arbitration" in sections[3].text
 
