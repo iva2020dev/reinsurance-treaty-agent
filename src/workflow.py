@@ -162,9 +162,9 @@ def extractor_node(state: WorkflowState) -> dict:
     """Extract TreatyTerms from the parsed treaty sections."""
     treaty, missing_fields = extract_treaty_terms(state["sections"])
     if treaty is None:
-        logger.info("Extractor: missing required fields %s", missing_fields)
+        logger.info("Extractor (Regex): missing required fields %s", missing_fields)
         return {"treaty": treaty, "missing_fields": missing_fields}
-    logger.info("Extractor: extracted treaty terms for cedent %r", treaty.cedent_name)
+    logger.info("Extractor (Regex): extracted treaty terms for cedent %r", treaty.cedent_name)
     return {"treaty": treaty, "missing_fields": missing_fields, "extraction_method": "regex"}
 
 
@@ -172,7 +172,7 @@ def _format_sections_for_llm(sections: list[PageSection]) -> str:
     return "\n\n".join(f"--- Page {s.page_number} ---\n{s.text}" for s in sections)
 
 
-def llm_fallback_extractor(state: WorkflowState) -> dict:
+def llm_extraction_fallback(state: WorkflowState) -> dict:
     """Fall back to an LLM to extract TreatyTerms when regex found no required fields.
 
     Only called when the Extractor Node's missing_fields is non-empty (see
@@ -205,7 +205,7 @@ def llm_fallback_extractor(state: WorkflowState) -> dict:
     except Exception as exc:  # noqa: BLE001 -- any failure must degrade gracefully, not crash
         duration = time.perf_counter() - started_at
         logger.info(
-            "LLM fallback: extraction failed after %.2fs (model=%s, %s: %s)",
+            "LLM Extraction Fallback: extraction failed after %.2fs (model=%s, %s: %s)",
             duration,
             _LLM_MODEL,
             type(exc).__name__,
@@ -216,7 +216,7 @@ def llm_fallback_extractor(state: WorkflowState) -> dict:
     duration = time.perf_counter() - started_at
     usage = response.usage
     logger.info(
-        "LLM fallback: extracted treaty terms for cedent %r in %.2fs "
+        "LLM Extraction Fallback: extracted treaty terms for cedent %r in %.2fs "
         "(model=%s, input_tokens=%d, output_tokens=%d)",
         treaty.cedent_name,
         duration,
@@ -291,7 +291,7 @@ def analyst_node(state: WorkflowState) -> dict:
 
 
 def _route_after_extractor(state: WorkflowState) -> str:
-    return "llm_fallback_extractor" if state.get("missing_fields") else "verifier"
+    return "llm_extraction_fallback" if state.get("missing_fields") else "verifier"
 
 
 def _route_after_verifier(state: WorkflowState) -> str:
@@ -299,10 +299,10 @@ def _route_after_verifier(state: WorkflowState) -> str:
 
 
 def build_workflow_graph():
-    """Build and compile the Extractor -> [LLM Fallback] -> Verifier -> Analyst LangGraph state machine."""
+    """Build and compile the Extractor -> [LLM Extraction Fallback] -> Verifier -> Analyst LangGraph state machine."""
     graph = StateGraph(WorkflowState)
     graph.add_node("extractor", extractor_node)
-    graph.add_node("llm_fallback_extractor", llm_fallback_extractor)
+    graph.add_node("llm_extraction_fallback", llm_extraction_fallback)
     graph.add_node("verifier", verifier_node)
     graph.add_node("analyst", analyst_node)
 
@@ -310,9 +310,9 @@ def build_workflow_graph():
     graph.add_conditional_edges(
         "extractor",
         _route_after_extractor,
-        {"llm_fallback_extractor": "llm_fallback_extractor", "verifier": "verifier"},
+        {"llm_extraction_fallback": "llm_extraction_fallback", "verifier": "verifier"},
     )
-    graph.add_edge("llm_fallback_extractor", "verifier")
+    graph.add_edge("llm_extraction_fallback", "verifier")
     graph.add_conditional_edges("verifier", _route_after_verifier, {"analyst": "analyst", END: END})
     graph.add_edge("analyst", END)
 
