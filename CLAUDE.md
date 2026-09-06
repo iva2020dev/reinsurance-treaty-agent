@@ -2,6 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository RTA.
 
+Sections/instructions tagged **🔧 Harness (repo-agnostic)** are general
+engineering-process practices — they'd apply to any codebase organized
+this way, not just this repo's reinsurance domain. Everything else is
+specific to this project (its stack, files, or domain). This
+distinction matters when reusing conventions across repos: copy the
+🔧-tagged ones as-is; adapt or drop the rest.
+
 ## Project Overview
 
 ## Architecture
@@ -9,6 +16,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Key Architectural Patterns
 
 ### LLM-Calling Harness Pattern
+
+🔧 Harness principle (repo-agnostic): keep the mechanics of reliably
+calling an external service (client construction, timeouts, retry/
+backoff) in one dedicated module, separate from any feature's business
+logic (what to ask for, how to parse/degrade). `src/llm_client.py`
+below is this repo's instance of that principle, specific to the
+Anthropic API — a different repo would apply the same separation to
+whatever external service it calls.
 
 Any code that calls the Anthropic API — client construction, timeouts,
 retry/backoff — **MUST** go through `src/llm_client.py`
@@ -40,7 +55,43 @@ which stays in the feature's own module (e.g. `src/workflow.py`).
   automatically via normal logger propagation — no per-module wiring
   needed in `src/app.py`.
 
-## Task Management & Reasoning
+### Test Isolation Follows Code Split — 🔧 Harness (repo-agnostic)
+
+When logic is split out of a module into its own module/class (e.g.
+`src/llm_client.py` was split out of `src/workflow.py`), its tests
+**MUST** be split out into their own dedicated test file too — don't
+leave the new module's behavior tested only indirectly, as a side
+effect of testing whatever still calls it.
+
+- A caller's test file (e.g. `tests/test_workflow.py`) should verify
+  *business outcomes* of using the split-out module (the call
+  succeeded/degraded correctly), not that module's own internal
+  mechanics (exact retry counts, backoff timing, every exception type
+  it recognizes) — that duplicates coverage and makes the caller's
+  tests fail for reasons that have nothing to do with the caller.
+- The split-out module's own test file (e.g. `tests/test_llm_client.py`)
+  should exercise its public functions directly, against a minimal
+  fake/mock, independent of any real caller — this is what makes the
+  module actually reusable: a future caller can trust it without
+  re-deriving its correctness from someone else's test suite.
+- This applies to any module/class split, not just LLM-calling code —
+  e.g. `check_treaty_grounding()` living in `src/tools.py` is tested
+  directly in `tests/test_tools.py`, not only through
+  `llm_extraction_fallback`'s tests in `tests/test_workflow.py`.
+- Discovered as a gap in this repo on 2026-09-06: `src/llm_client.py`
+  shipped in the same PR as its split from `src/workflow.py`, but its
+  tests stayed in `tests/test_workflow.py`, testing it only indirectly
+  — fixed by adding `tests/test_llm_client.py` and trimming the
+  now-redundant mechanics assertions out of the workflow tests (see
+  `REASONING.md`'s 2026-09-06 entry for that specific fix).
+
+## Task Management & Reasoning — 🔧 Harness (repo-agnostic)
+
+This whole section is a repo-agnostic task-tracking convention (claim/
+branch/document/verify/approve-before-closing) — it would work the
+same way in any repo that adopted `TASKS.md`/`REASONING.md`, regardless
+of domain. Only the specific commands (`pnpm tasks:pick`) are tied to
+this repo's tooling choice.
 
 **🚨 MANDATORY: Always use TASKS.md and REASONING.md. No exceptions.**
 

@@ -2257,3 +2257,138 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `close/llm-fallback-grounding-check` branch/PR, titled
   `Closing task as "Done": Grounding/Assurance Check on LLM Output`,
   per the mandatory task-closing workflow.
+
+- **2026-09-06 15:46:01 (chore)**: Human asked why `src/llm_client.py`'s
+  tests weren't isolated — confirmed via `ls tests/` that no
+  `test_llm_client.py` existed; its retry/backoff logic was only ever
+  tested indirectly, as a side effect of `tests/test_workflow.py`'s
+  tests for `llm_extraction_fallback`. Asked for three things: (1) add
+  direct isolated unit tests for all of `src/llm_client.py`'s logic,
+  (2) write a repo-agnostic instruction that tests must be split
+  alongside a code split, tagged as a "harness" (generic) type of
+  instruction, (3) audit existing instructions in `CLAUDE.md`/
+  `AGENTS.md` and mark which ones are repo-agnostic ("harness") vs.
+  specific to this repo. **Action**:
+  1. Added `tests/test_llm_client.py` (10 tests) exercising
+     `get_client()`/`call_with_retry()` directly against a fake
+     zero-arg callable — no `src.workflow` involved at all: client
+     construction passes `max_retries=0`; first-try success; single
+     retry then success; exponential backoff across multiple retries;
+     custom `max_retries`/`base_delay_seconds`; exhausting retries
+     re-raises the last exception; a non-retryable Anthropic exception
+     and a plain `ValueError` both propagate on the first attempt; all
+     six `RETRYABLE_EXCEPTIONS` types actually trigger a retry (not
+     just the one or two exercised elsewhere); attempt/description
+     logging (via `caplog`).
+  2. Trimmed `tests/test_workflow.py`'s two remaining retry-adjacent
+     tests to business-outcome assertions only (extraction succeeds/
+     degrades correctly), removing the now-duplicated exact
+     attempt-count/backoff-delay assertions; deleted the third
+     ("does_not_retry_non_transient_failure") test entirely as fully
+     redundant with both the pre-existing `degrades_gracefully_on_failure`
+     test and `test_llm_client.py`'s own non-retryable-exception tests.
+  3. Added a new "Test Isolation Follows Code Split" subsection to
+     `CLAUDE.md`'s "Key Architectural Patterns", tagged
+     **🔧 Harness (repo-agnostic)**, generalizing beyond just this
+     incident (also citing `check_treaty_grounding()` in
+     `src/tools.py` as a positive example that was already isolated
+     correctly, since its tests were added directly in
+     `tests/test_tools.py`).
+  4. Established a `🔧 Harness (repo-agnostic)` tag with a one-line
+     legend in both files' intros, then audited every section: tagged
+     `CLAUDE.md`'s "Task Management & Reasoning" and the general
+     principle within "LLM-Calling Harness Pattern" (distinguishing it
+     from the repo-specific `src/llm_client.py` file); tagged
+     `AGENTS.md`'s "Mandatory Workflow", "Branch and PR Discipline",
+     "Priority Levels", "Task Dependencies", "Task Format",
+     "Reasoning Transcript", "Timestamp Format", and the "one agent per
+     task/working tree" bullet within "Working with multiple agents"
+     (left that section's header and the Junie-specific bullets
+     untagged, since those are repo-specific agent-coordination
+     choices, not a generic practice). Left "Keeping tasks.md tooling
+     current" and "Commands" untagged (tied to this repo's specific
+     tool/package-manager choices, not the underlying practice).
+     Noted separately to the human (not fixed, out of this task's
+     scope): `AGENTS.md`'s "Suggested Skills for reinsurance-treaty-agent"
+     list names completely unrelated tech (Radius, Socket.io, Mapbox,
+     Redis, Django) that doesn't match this repo at all — apparent
+     leftover template content worth a human decision, not a silent
+     rewrite.
+  **Outcome**: `python -m pytest tests/ -q` — 58 passed (49 prior +
+  10 new in `test_llm_client.py` − 1 removed from `test_workflow.py`).
+
+- **2026-09-06 15:21:01 (start)**: Picked up
+  `llm-fallback-grounding-check` (P1, claimed). **Goal**: after
+  `llm_extraction_fallback` extracts `TreatyTerms`, verify each cited
+  field is actually supported by the cited page's raw text, flagging
+  any that aren't rather than silently trusting the LLM's output.
+  **Analysis**: inspected the real fuzzy fixture's per-page text
+  (`extract_treaty_sections("data/sample_rich_fuzzy_treaty.pdf")`) —
+  page 1's cedent name is line-wrapped ("Sentinel Mutual\nAssurance"),
+  so a naive substring check would falsely flag the very fixture the
+  existing passing tests already rely on; grounding checks must
+  normalize whitespace (collapse to single spaces) before comparing.
+  Financial figures on page 2 appear as `$200,000`/`$1,000,000`/
+  `$400,000` — a numeric-equivalence check needs to strip `$`/`,`
+  before parsing. **Decision**: implement the check as a new
+  deterministic function in `src/tools.py` (alongside the other
+  deterministic tools), not a new module or inline in
+  `src/workflow.py` — this isn't an LLM-calling harness concern (no
+  API call involved), it's a domain-specific verification tool, so it
+  belongs with `calculate_loss_ratio`/`query_historical_claims` per
+  the file's existing purpose. Per the task's own field-matching rule:
+  exact (whitespace-normalized, case-insensitive) substring match for
+  `cedent_name`/`exclusions`; numeric-equivalence match (parse `$`/
+  comma-formatted numbers out of the page text, compare with
+  tolerance) for `attachment_point`/`limit`/`reinsurance_premium`. A
+  failing field is flagged in a new `ungrounded_fields` list, not
+  blocking extraction — the run still completes, just annotated for
+  transparency, per "flag it... rather than silently trusting it."
+
+- **2026-09-06 15:29:45 (outcome)**: **Action**: added
+  `check_treaty_grounding(treaty, sections) -> list[str]` to
+  `src/tools.py`, using whitespace-normalized substring matching for
+  `cedent_name`/`exclusions` and `$`/comma-tolerant numeric-equivalence
+  matching for `attachment_point`/`limit`/`reinsurance_premium`; a
+  field with no `page_citations` entry isn't checked. Wired it into
+  `llm_extraction_fallback` (only the LLM path, per the task's scope —
+  regex-extracted values are grounded by construction) via a new
+  `ungrounded_fields: list[str]` `WorkflowState` field, logged with
+  `logger.warning` when non-empty. `src/app.py`'s
+  `serialize_state_for_debug` now surfaces `ungrounded_fields`, and
+  `main()` shows a new `st.warning` naming any flagged fields.
+  Discovered mid-implementation, via the real live API
+  (`run_workflow_from_pdf("data/sample_rich_fuzzy_treaty.pdf")`), that
+  the fuzzy fixture's PDF text hyphenates-and-wraps a word
+  ("asbestos-\nrelated"), which naive whitespace normalization doesn't
+  rejoin — a real, non-obvious false-positive risk on our own
+  showcase fixture, not just a hypothetical edge case. Fixed by having
+  `_normalize_whitespace` collapse a hyphen followed by whitespace
+  before collapsing remaining whitespace (a genuine hyphen is never
+  followed by whitespace in correctly-typeset text, so this only
+  affects line-wrap artifacts); added a regression test for it.
+  Verified against the live API again afterward: `ungrounded_fields ==
+  []` on the real fixture, as expected. Added 8 new tests total: 6 in
+  `tests/test_tools.py` (grounded/ungrounded per field type, missing
+  citation, hyphen-wrap tolerance, no-citation-skipped), 1 in
+  `tests/test_workflow.py` (ungrounded field flagged but extraction
+  still completes), 1 in `tests/test_app.py` (the new warning + debug
+  JSON). Also discovered `README.md`'s "Running Tests" example
+  output/tables had already drifted out of sync with two *prior*
+  merged PRs (#37's real-API integration test, #40's three retry
+  tests, none of which were ever added) — since I was already
+  regenerating these same blocks for my own new tests, fixed the whole
+  section in one pass rather than leaving it half-stale; also added
+  the grounding-check behavior to "Using the app" and the Workflow
+  Graph section, and updated `CLAUDE.md`'s Key Files entry for
+  `src/tools.py`. Synced `TASKS.md`'s Files list (moved the check
+  itself to `src/tools.py`, added `tests/test_tools.py`/`README.md`/
+  `CLAUDE.md`). **Outcome**: `python -m pytest tests/ -q` — 58 passed
+  (50 prior + 8 new), including the real-API integration test.
+
+- **2026-09-06 (closing)**: PR #42 merged into `main` at `918873e`.
+  Human explicitly approved marking `llm-fallback-grounding-check`
+  done. Removing it from `TASKS.md`'s P1 section on this
+  `close/llm-fallback-grounding-check` branch/PR, titled
+  `Closing task as "Done": Grounding/Assurance Check on LLM Output`,
+  per the mandatory task-closing workflow.

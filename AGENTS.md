@@ -2,6 +2,10 @@
 
 Agent instructions for working with the reinsurance-treaty-agent (RTA) codebase.
 
+Sections/instructions tagged **🔧 Harness (repo-agnostic)** are general
+engineering-process practices, not specific to this repo's stack or
+domain — see `CLAUDE.md`'s intro for the full explanation of this tag.
+
 For project overview, architecture, commands, environment setup, deployment,
 and key files, see **CLAUDE.md** — that's the canonical reference for
 project facts. This file covers the cross-agent task workflow instead:
@@ -16,8 +20,9 @@ This project **ALWAYS** uses `TASKS.md` as a lightweight task queue, following t
 
 This repo is used with both Junie and Claude Code. Both read this file.
 
-- One agent per task, one agent per uncommitted working tree at a time.
-  Before starting either agent, `git status` should be clean.
+- 🔧 Harness (repo-agnostic): one agent per task, one agent per
+  uncommitted working tree at a time. Before starting either agent,
+  `git status` should be clean.
 - Note which agent is working a task in TASKS.md or REASONING.md so the
   other doesn't pick up the same item.
 - Claude Code is the primary worker for this repo and should pick up
@@ -26,7 +31,12 @@ This repo is used with both Junie and Claude Code. Both read this file.
   prefer handing multi-file or cross-service work — anything needing
   tests run and verified before committing — to Claude Code.
 
-### Mandatory Workflow
+### Mandatory Workflow — 🔧 Harness (repo-agnostic)
+
+This checklist (claim → branch → document → work → sync → approve →
+close) applies to any repo using the `TASKS.md`/`REASONING.md`
+convention, regardless of domain. Only the specific command
+(`pnpm tasks:pick`) in step 3 is tied to this repo's tooling.
 
 **🚨 CRITICAL: Every session MUST follow this workflow. No exceptions.**
 
@@ -78,7 +88,7 @@ This repo is used with both Junie and Claude Code. Both read this file.
     naming
 12. **Add** new tasks discovered during work to the appropriate priority section
 
-### Branch and PR Discipline
+### Branch and PR Discipline — 🔧 Harness (repo-agnostic)
 
 **Never push directly to the default branch (`main`/`master`), even
 when local verification (tests, build) is clean.** This applies to
@@ -99,19 +109,19 @@ which defeats the purpose of having it. If you find yourself about to
 run `git commit` while `git status`/`git branch` shows you're on
 `main`, stop and create the task branch first, even mid-task.
 
-### Priority Levels
+### Priority Levels — 🔧 Harness (repo-agnostic)
 
 - **P0** = Critical, urgent, blocks other work
 - **P1** = High priority, important features/fixes
 - **P2** = Medium priority, improvements
 - **P3** = Low priority, nice-to-have
 
-### Task Dependencies
+### Task Dependencies — 🔧 Harness (repo-agnostic)
 
 - Tasks with dependencies **MUST** have an **ID** field so blockers can reference them
 - Use the `**Blocked by**` field to indicate task dependencies (by ID)
 
-### Task Format
+### Task Format — 🔧 Harness (repo-agnostic; follows the upstream tasks.md spec)
 
 ```markdown
 - [ ] Task description (@agent-name)
@@ -144,7 +154,7 @@ pnpm tasks:pick         # Show next available task
 pnpm tasks:install      # Install tasks.md commands for your agent
 ```
 
-## Reasoning Transcript
+## Reasoning Transcript — 🔧 Harness (repo-agnostic)
 
 **ALWAYS** document your reasoning in `REASONING.md` for every task. This provides transparency and helps future agents (and humans) understand decisions made.
 
@@ -170,7 +180,7 @@ pnpm tasks:install      # Install tasks.md commands for your agent
 
 This creates a valuable audit trail of AI agent work.
 
-### Timestamp Format
+### Timestamp Format — 🔧 Harness (repo-agnostic)
 
 Every dated entry in `REASONING.md` and every "Recently completed" note in
 `TASKS.md` **MUST** include the time of day alongside the date, in
