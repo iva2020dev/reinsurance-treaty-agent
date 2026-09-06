@@ -2153,3 +2153,18 @@ This file contains the reasoning transcript of the AI agent for the current sess
   bullet, noted that retry attempts appear as their own log lines.
   **Outcome**: `python -m pytest tests/ -q` — 49 passed (docs-only,
   unaffected).
+
+- **2026-09-06 15:06:23 (docs)**: Human asked to add, to `README.md`,
+  how to force a real transient LLM failure locally and in the running
+  Streamlit app, with real command examples. **Action**: added a new
+  "Manually forcing a real transient LLM failure" subsection after the
+  test table in "Running Tests" — points `ANTHROPIC_BASE_URL` at an
+  unreachable address (`https://127.0.0.1:1`) so a genuine
+  `APIConnectionError` fires without a real network call or a valid
+  API key, with two command examples: a direct
+  `llm_extraction_fallback({'sections': []})` call (with the actual
+  log output this produced when run, verbatim), and the same env var
+  applied to `streamlit run src/app.py` for seeing the retry/backoff
+  log lines and the eventual error in the debug panel and report.
+  **Outcome**: `python -m pytest tests/ -q` — 49 passed (docs-only,
+  unaffected).

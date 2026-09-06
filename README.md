@@ -488,6 +488,52 @@ tests/test_app.py::test_app_save_button_writes_default_log_file PASSED   [100%]
 | `test_save_logs_to_file_creates_parent_directory` | Saving to a log path whose parent directory doesn't exist yet creates it |
 | `test_app_save_button_writes_default_log_file` | Clicking "Save logs to file" in the running app writes the header and log lines to `logs/workflow.log` |
 
+### Manually forcing a real transient LLM failure
+
+The automated tests above cover retry/backoff with a mocked client (no
+real network call, no waiting). To see the real behavior instead — a
+genuine transient failure, retried by `src/llm_client.py` with real
+backoff delays — point the Anthropic client at an unreachable address
+via the SDK's `ANTHROPIC_BASE_URL` environment variable. The request
+never reaches Anthropic's servers, so this costs nothing and needs no
+valid API key.
+
+**Locally, calling the function directly:**
+
+```bash
+ANTHROPIC_BASE_URL="https://127.0.0.1:1" python3 -c "
+from src.workflow import llm_extraction_fallback
+print(llm_extraction_fallback({'sections': []}))
+"
+```
+
+Expect log output like this (one retry attempt per line, backoff
+delay doubling, then graceful degradation after the retries are
+exhausted):
+
+```
+2026-09-06 14:56:05,846 src.llm_client: LLM Extraction Fallback: transient failure on attempt 1/3 (APIConnectionError: Connection error.), retrying in 1.0s
+2026-09-06 14:56:06,850 src.llm_client: LLM Extraction Fallback: transient failure on attempt 2/3 (APIConnectionError: Connection error.), retrying in 2.0s
+2026-09-06 14:56:08,856 src.llm_client: LLM Extraction Fallback: failed after 2 retries (APIConnectionError: Connection error.)
+2026-09-06 14:56:08,856 src.workflow: LLM Extraction Fallback: extraction failed after 3.04s (model=claude-haiku-4-5-20251001, APIConnectionError: Connection error.)
+{'extraction_method': 'none', 'llm_error': 'APIConnectionError: Connection error.'}
+```
+
+**In the running Streamlit app**, launch it the same way so every LLM
+call in that session hits the unreachable address, then upload
+`sample_rich_fuzzy_treaty.pdf` (the fixture that needs the LLM
+Extraction Fallback):
+
+```bash
+ANTHROPIC_BASE_URL="https://127.0.0.1:1" python3 -m streamlit run src/app.py
+```
+
+The same retry/backoff log lines above appear in the
+"Debug: workflow execution" panel's log view, and the report shows the
+"Could not extract required treaty terms" error (with the
+`APIConnectionError` reason) once all retries are exhausted — exactly
+the behavior a real prolonged outage would produce.
+
 ## Sample Treaty Fixtures
 
 `data/` holds hand-built mock treaty PDFs used by the parser tests,
