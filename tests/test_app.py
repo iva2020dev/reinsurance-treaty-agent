@@ -208,7 +208,27 @@ def test_app_shows_llm_extraction_fallback_note_and_state_on_success(monkeypatch
     debug_state = json.loads(at.json[0].value)
     assert debug_state["extraction_method"] == "llm"
     assert debug_state["llm_error"] is None
+    assert debug_state["ungrounded_fields"] == []
+    assert not any("could not be verified" in w.value for w in at.warning)
     assert any("LLM Extraction Fallback" in c.value for c in at.caption)
+
+
+def test_app_shows_ungrounded_field_warning_when_grounding_check_fails(monkeypatch):
+    response = dict(FUZZY_TREATY_LLM_RESPONSE, cedent_name="A Completely Different Company Name")
+    mock_client = _mock_llm_client(input_data=response)
+    monkeypatch.setattr("src.llm_client.anthropic.Anthropic", lambda **kwargs: mock_client)
+
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+    with open(FUZZY_TREATY_PATH, "rb") as f:
+        at.file_uploader[0].set_value([("sample_rich_fuzzy_treaty.pdf", f.read(), "application/pdf")])
+    at.run()
+
+    assert not at.exception
+    assert any("could not be verified" in w.value and "cedent_name" in w.value for w in at.warning)
+
+    debug_state = json.loads(at.json[0].value)
+    assert debug_state["ungrounded_fields"] == ["cedent_name"]
 
 
 def test_app_shows_llm_error_when_both_extraction_paths_fail(monkeypatch):

@@ -95,7 +95,7 @@ See `AGENTS.md` for full task format, reasoning transcript examples, branch/PR d
 | `src/workflow.py` | LangGraph state machine & node business logic (Extractor, LLM Extraction Fallback, Verifier, Analyst) |
 | `src/llm_client.py` | LLM-calling harness (Anthropic client construction, retry/backoff) — see "LLM-Calling Harness Pattern" above |
 | `src/app.py` | Streamlit UI |
-| `src/tools.py` | Deterministic tools (historical claims lookup, loss-ratio calculation) |
+| `src/tools.py` | Deterministic tools (historical claims lookup, loss-ratio calculation, LLM-output grounding check) |
 | `src/models.py` | Pydantic data schemas |
 | `src/parser.py` | PDF parsing into page sections |
 

@@ -2181,3 +2181,72 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `Closing task as "Done": Retry/Backoff Resilience for the LLM Call`.
   **Outcome**: `python -m pytest tests/ -q` — 49 passed (confirms
   acceptance holds before closing).
+
+- **2026-09-06 15:21:01 (start)**: Picked up
+  `llm-fallback-grounding-check` (P1, claimed). **Goal**: after
+  `llm_extraction_fallback` extracts `TreatyTerms`, verify each cited
+  field is actually supported by the cited page's raw text, flagging
+  any that aren't rather than silently trusting the LLM's output.
+  **Analysis**: inspected the real fuzzy fixture's per-page text
+  (`extract_treaty_sections("data/sample_rich_fuzzy_treaty.pdf")`) —
+  page 1's cedent name is line-wrapped ("Sentinel Mutual\nAssurance"),
+  so a naive substring check would falsely flag the very fixture the
+  existing passing tests already rely on; grounding checks must
+  normalize whitespace (collapse to single spaces) before comparing.
+  Financial figures on page 2 appear as `$200,000`/`$1,000,000`/
+  `$400,000` — a numeric-equivalence check needs to strip `$`/`,`
+  before parsing. **Decision**: implement the check as a new
+  deterministic function in `src/tools.py` (alongside the other
+  deterministic tools), not a new module or inline in
+  `src/workflow.py` — this isn't an LLM-calling harness concern (no
+  API call involved), it's a domain-specific verification tool, so it
+  belongs with `calculate_loss_ratio`/`query_historical_claims` per
+  the file's existing purpose. Per the task's own field-matching rule:
+  exact (whitespace-normalized, case-insensitive) substring match for
+  `cedent_name`/`exclusions`; numeric-equivalence match (parse `$`/
+  comma-formatted numbers out of the page text, compare with
+  tolerance) for `attachment_point`/`limit`/`reinsurance_premium`. A
+  failing field is flagged in a new `ungrounded_fields` list, not
+  blocking extraction — the run still completes, just annotated for
+  transparency, per "flag it... rather than silently trusting it."
+
+- **2026-09-06 15:29:45 (outcome)**: **Action**: added
+  `check_treaty_grounding(treaty, sections) -> list[str]` to
+  `src/tools.py`, using whitespace-normalized substring matching for
+  `cedent_name`/`exclusions` and `$`/comma-tolerant numeric-equivalence
+  matching for `attachment_point`/`limit`/`reinsurance_premium`; a
+  field with no `page_citations` entry isn't checked. Wired it into
+  `llm_extraction_fallback` (only the LLM path, per the task's scope —
+  regex-extracted values are grounded by construction) via a new
+  `ungrounded_fields: list[str]` `WorkflowState` field, logged with
+  `logger.warning` when non-empty. `src/app.py`'s
+  `serialize_state_for_debug` now surfaces `ungrounded_fields`, and
+  `main()` shows a new `st.warning` naming any flagged fields.
+  Discovered mid-implementation, via the real live API
+  (`run_workflow_from_pdf("data/sample_rich_fuzzy_treaty.pdf")`), that
+  the fuzzy fixture's PDF text hyphenates-and-wraps a word
+  ("asbestos-\nrelated"), which naive whitespace normalization doesn't
+  rejoin — a real, non-obvious false-positive risk on our own
+  showcase fixture, not just a hypothetical edge case. Fixed by having
+  `_normalize_whitespace` collapse a hyphen followed by whitespace
+  before collapsing remaining whitespace (a genuine hyphen is never
+  followed by whitespace in correctly-typeset text, so this only
+  affects line-wrap artifacts); added a regression test for it.
+  Verified against the live API again afterward: `ungrounded_fields ==
+  []` on the real fixture, as expected. Added 8 new tests total: 6 in
+  `tests/test_tools.py` (grounded/ungrounded per field type, missing
+  citation, hyphen-wrap tolerance, no-citation-skipped), 1 in
+  `tests/test_workflow.py` (ungrounded field flagged but extraction
+  still completes), 1 in `tests/test_app.py` (the new warning + debug
+  JSON). Also discovered `README.md`'s "Running Tests" example
+  output/tables had already drifted out of sync with two *prior*
+  merged PRs (#37's real-API integration test, #40's three retry
+  tests, none of which were ever added) — since I was already
+  regenerating these same blocks for my own new tests, fixed the whole
+  section in one pass rather than leaving it half-stale; also added
+  the grounding-check behavior to "Using the app" and the Workflow
+  Graph section, and updated `CLAUDE.md`'s Key Files entry for
+  `src/tools.py`. Synced `TASKS.md`'s Files list (moved the check
+  itself to `src/tools.py`, added `tests/test_tools.py`/`README.md`/
+  `CLAUDE.md`). **Outcome**: `python -m pytest tests/ -q` — 58 passed
+  (50 prior + 8 new), including the real-API integration test.
