@@ -68,15 +68,6 @@ ranked candidate.
 | 8 | B8 | Clause ambiguity/contradiction detection | Proposed | LLM | M | — |
 | 9 | B9 | Peer/portfolio benchmarking | Proposed | Deterministic | L | — |
 
-### Business Domain — Facultative
-
-| Pri | ID | Task | Status | Shape | Effort | Depends on |
-|---|---|---|---|---|---|---|
-| 1 | F1 | Facultative submission extraction | Proposed | Hybrid | M | — |
-| 2 | F2 | Facultative vs. treaty overlap check | Proposed | Deterministic | M | F1 |
-| 3 | F3 | Cat/peril exposure geocoding | Proposed | Hybrid | M | — |
-| 4 | F4 | Risk accumulation/PML aggregation check | Proposed | Deterministic | L | — |
-
 ### Business Domain — Claims
 
 | Pri | ID | Task | Status | Shape | Effort | Depends on |
@@ -86,6 +77,15 @@ ranked candidate.
 | 3 | C3 | Claims bordereau reconciliation | Proposed | Deterministic | M | — |
 | 4 | C4 | Claim exclusion applicability check | Proposed | LLM | M/L | — |
 | 5 | C5 | Reserve development tracking | Proposed | Deterministic | L | — |
+
+### Business Domain — Facultative
+
+| Pri | ID | Task | Status | Shape | Effort | Depends on |
+|---|---|---|---|---|---|---|
+| 1 | F1 | Facultative submission extraction | Proposed | Hybrid | M | — |
+| 2 | F2 | Facultative vs. treaty overlap check | Proposed | Deterministic | M | F1 |
+| 3 | F3 | Cat/peril exposure geocoding | Proposed | Hybrid | M | — |
+| 4 | F4 | Risk accumulation/PML aggregation check | Proposed | Deterministic | L | — |
 
 ---
 
@@ -228,38 +228,6 @@ correction) to grow the eval dataset in A3 over time.
   section.
   *Deterministic (once a portfolio store exists). Effort: L.*
 
-### Facultative (new line — per-risk, individually underwritten, not yet covered)
-
-Facultative reinsurance covers a *single* underlying risk/policy
-(submitted individually for underwriting), unlike Treaty's whole-book
-coverage — a genuinely different document shape and workflow.
-
-- **F1. Facultative submission extraction** — Priority 1 — parse a
-  facultative slip/submission (risk description, insured values,
-  location/occupancy, requested share/line, proposed rate) into a
-  structured schema, analogous to today's `TreatyTerms` but per-risk.
-  *Hybrid (regex+LLM, same pattern as Treaty). Effort: M — new schema,
-  reuses the extraction pipeline pattern.*
-- **F2. Facultative vs. treaty overlap check** — Priority 2 — does
-  this individual risk already fall within an existing treaty's
-  automatic coverage (making facultative placement redundant), or does
-  it exceed treaty capacity (requiring facultative cover)? Genuinely
-  valuable cross-check spanning both lines.
-  *Deterministic, depends on F1 + existing Treaty extraction.
-  Effort: M.*
-- **F3. Cat/peril exposure geocoding** — Priority 3 — extract risk
-  location and cross-reference against known catastrophe zones
-  (flood/wildfire/earthquake) for a quick red-flag on facultative risk
-  quality.
-  *Hybrid (extraction + external geo/peril data lookup). Effort: M —
-  needs an external data source, not just document analysis.*
-- **F4. Risk accumulation/PML aggregation check** — Priority 4 — flag
-  if accepting this facultative risk would push aggregate exposure in
-  a zone/peril above internal limits. Needs an aggregation store
-  across previously-accepted risks.
-  *Deterministic. Effort: L — needs persistent aggregation state, not
-  just single-document analysis.*
-
 ### Claims (new line — claims handling/adjustment, distinct from underwriting)
 
 - **C1. Large-loss/catastrophe claim flagging** — Priority 1 — flag
@@ -292,6 +260,38 @@ coverage — a genuinely different document shape and workflow.
   loss-ratio predictions. Bigger actuarial/data feature, needs
   time-series claims data the app doesn't currently model.
   *Deterministic (once the data model exists). Effort: L.*
+
+### Facultative (new line — per-risk, individually underwritten, not yet covered)
+
+Facultative reinsurance covers a *single* underlying risk/policy
+(submitted individually for underwriting), unlike Treaty's whole-book
+coverage — a genuinely different document shape and workflow.
+
+- **F1. Facultative submission extraction** — Priority 1 — parse a
+  facultative slip/submission (risk description, insured values,
+  location/occupancy, requested share/line, proposed rate) into a
+  structured schema, analogous to today's `TreatyTerms` but per-risk.
+  *Hybrid (regex+LLM, same pattern as Treaty). Effort: M — new schema,
+  reuses the extraction pipeline pattern.*
+- **F2. Facultative vs. treaty overlap check** — Priority 2 — does
+  this individual risk already fall within an existing treaty's
+  automatic coverage (making facultative placement redundant), or does
+  it exceed treaty capacity (requiring facultative cover)? Genuinely
+  valuable cross-check spanning both lines.
+  *Deterministic, depends on F1 + existing Treaty extraction.
+  Effort: M.*
+- **F3. Cat/peril exposure geocoding** — Priority 3 — extract risk
+  location and cross-reference against known catastrophe zones
+  (flood/wildfire/earthquake) for a quick red-flag on facultative risk
+  quality.
+  *Hybrid (extraction + external geo/peril data lookup). Effort: M —
+  needs an external data source, not just document analysis.*
+- **F4. Risk accumulation/PML aggregation check** — Priority 4 — flag
+  if accepting this facultative risk would push aggregate exposure in
+  a zone/peril above internal limits. Needs an aggregation store
+  across previously-accepted risks.
+  *Deterministic. Effort: L — needs persistent aggregation state, not
+  just single-document analysis.*
 
 ---
 

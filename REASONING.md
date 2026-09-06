@@ -1826,3 +1826,12 @@ This file contains the reasoning transcript of the AI agent for the current sess
   changed. **Outcome**: `python -m pytest tests/ -q` — 45 passed
   (docs-only, unaffected).
 
+- **2026-09-06 13:17:51 (correction)**: Human flagged that Claims
+  should be ordered before Facultative in `CANDIDATE_TASKS.md`.
+  Reordered both the `## Summary` section (Claims table now precedes
+  Facultative's) and the detailed `## B. Business Domain` section
+  (Claims subsection now precedes Facultative's) to match — IDs (`C1`-
+  `C5`, `F1`-`F4`) and every cross-reference are unchanged, this is
+  purely a section-ordering fix. **Outcome**: `python -m pytest
+  tests/ -q` — 45 passed (docs-only, unaffected).
+
