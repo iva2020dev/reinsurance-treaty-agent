@@ -1692,3 +1692,12 @@ This file contains the reasoning transcript of the AI agent for the current sess
   instead of crashing. Have not yet asked for human approval to close
   the task.
 
+- **2026-09-05 21:01:03 (update)**: Human confirmed the deployed app
+  works correctly end-to-end (verified real `extraction_method:"llm"`,
+  `llm_error:null`, correct treaty terms, `loss_ratio:0.7`, one
+  `MEDIUM` finding) and asked to change the LLM Extraction Fallback
+  note's color to a warning color. Changed `st.info` → `st.warning` in
+  `src/app.py`; updated the matching `AppTest` assertion
+  (`at.info` → `at.warning`) and the README description-table row.
+  `pytest tests/ -v` — 45 passed, no regressions.
+

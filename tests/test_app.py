@@ -200,7 +200,7 @@ def test_app_shows_llm_extraction_fallback_note_and_state_on_success(monkeypatch
     at.run()
 
     assert not at.exception
-    assert any("LLM Extraction Fallback" in i.value for i in at.info)
+    assert any("LLM Extraction Fallback" in w.value for w in at.warning)
     markdown_text = "\n".join(m.value for m in at.markdown)
     assert "Sentinel Mutual Assurance" in markdown_text
     assert "0.70" in markdown_text
