@@ -27,36 +27,53 @@ this list was drafted from.
 
 ## Summary
 
-| Pri | ID | Task | Category | Shape | Effort | Depends on |
-|---|---|---|---|---|---|---|
-| 1 | A7 | Retry/backoff resilience for the LLM call | Harness | Deterministic | S | — |
-| 2 | A3 | Grounding/assurance check on LLM output | Harness | Hybrid | M | — |
-| 3 | A1 | Extraction accuracy eval suite (golden dataset) | Harness | Hybrid | M | — |
-| 4 | A2 | CI-integrated regression eval gate | Harness | Deterministic | S | A1 |
-| 5 | A9 | Structured observability upgrade | Harness | Deterministic | M | — |
-| 6 | A6 | Cost & latency observability + guardrails | Harness | Deterministic | M | — |
-| 7 | A4 | Adversarial input hardening | Harness | Hybrid | M | — |
-| 8 | A10 | Data-handling/PII review for third-party LLM calls | Harness | Deterministic | S/M | — |
-| 9 | A8 | Fallback tiering / cost-aware escalation | Harness | Hybrid | M | — |
-| 10 | A5 | Human-in-the-loop review workflow | Harness | Deterministic | M | — |
-| 1 | B1 | Mandatory-clause / exclusion completeness checklist | Treaty | Deterministic | S | — |
-| 2 | B5 | Key-date/renewal calendar extraction | Treaty | Deterministic | S | — |
-| 3 | B2 | Renewal year-over-year diff | Treaty | Deterministic | M | — |
-| 4 | B3 | Multi-layer program extraction & aggregation | Treaty | Deterministic | L | — |
-| 5 | B4 | Reinstatement cost modeling | Treaty | Deterministic | M | B3 |
-| 6 | B8 | Semantic compliance/clause matching | Treaty | LLM | M | — |
-| 7 | B6 | Plain-English treaty summary | Treaty | LLM | S/M | — |
-| 8 | B7 | Clause ambiguity/contradiction detection | Treaty | LLM | M | — |
-| 9 | B9 | Peer/portfolio benchmarking | Treaty | Deterministic | L | — |
-| 1 | B10 | Facultative submission extraction | Facultative | Hybrid | M | — |
-| 2 | B11 | Facultative vs. treaty overlap check | Facultative | Deterministic | M | B10 |
-| 3 | B13 | Cat/peril exposure geocoding | Facultative | Hybrid | M | — |
-| 4 | B12 | Risk accumulation/PML aggregation check | Facultative | Deterministic | L | — |
-| 1 | B16 | Large-loss/catastrophe claim flagging | Claims | Deterministic | S | — |
-| 2 | B15 | Claim notification compliance check | Claims | Deterministic | S/M | B5 |
-| 3 | B14 | Claims bordereau reconciliation | Claims | Deterministic | M | — |
-| 4 | B17 | Claim exclusion applicability check | Claims | LLM | M/L | — |
-| 5 | B18 | Reserve development tracking | Claims | Deterministic | L | — |
+### Technical / AI Engineering & Production Harness
+
+| Pri | ID | Task | Shape | Effort | Depends on |
+|---|---|---|---|---|---|
+| 1 | A7 | Retry/backoff resilience for the LLM call | Deterministic | S | — |
+| 2 | A3 | Grounding/assurance check on LLM output | Hybrid | M | — |
+| 3 | A1 | Extraction accuracy eval suite (golden dataset) | Hybrid | M | — |
+| 4 | A2 | CI-integrated regression eval gate | Deterministic | S | A1 |
+| 5 | A9 | Structured observability upgrade | Deterministic | M | — |
+| 6 | A6 | Cost & latency observability + guardrails | Deterministic | M | — |
+| 7 | A4 | Adversarial input hardening | Hybrid | M | — |
+| 8 | A10 | Data-handling/PII review for third-party LLM calls | Deterministic | S/M | — |
+| 9 | A8 | Fallback tiering / cost-aware escalation | Hybrid | M | — |
+| 10 | A5 | Human-in-the-loop review workflow | Deterministic | M | — |
+
+### Business Domain — Treaty
+
+| Pri | ID | Task | Shape | Effort | Depends on |
+|---|---|---|---|---|---|
+| 1 | B1 | Mandatory-clause / exclusion completeness checklist | Deterministic | S | — |
+| 2 | B5 | Key-date/renewal calendar extraction | Deterministic | S | — |
+| 3 | B2 | Renewal year-over-year diff | Deterministic | M | — |
+| 4 | B3 | Multi-layer program extraction & aggregation | Deterministic | L | — |
+| 5 | B4 | Reinstatement cost modeling | Deterministic | M | B3 |
+| 6 | B8 | Semantic compliance/clause matching | LLM | M | — |
+| 7 | B6 | Plain-English treaty summary | LLM | S/M | — |
+| 8 | B7 | Clause ambiguity/contradiction detection | LLM | M | — |
+| 9 | B9 | Peer/portfolio benchmarking | Deterministic | L | — |
+
+### Business Domain — Facultative
+
+| Pri | ID | Task | Shape | Effort | Depends on |
+|---|---|---|---|---|---|
+| 1 | B10 | Facultative submission extraction | Hybrid | M | — |
+| 2 | B11 | Facultative vs. treaty overlap check | Deterministic | M | B10 |
+| 3 | B13 | Cat/peril exposure geocoding | Hybrid | M | — |
+| 4 | B12 | Risk accumulation/PML aggregation check | Deterministic | L | — |
+
+### Business Domain — Claims
+
+| Pri | ID | Task | Shape | Effort | Depends on |
+|---|---|---|---|---|---|
+| 1 | B16 | Large-loss/catastrophe claim flagging | Deterministic | S | — |
+| 2 | B15 | Claim notification compliance check | Deterministic | S/M | B5 |
+| 3 | B14 | Claims bordereau reconciliation | Deterministic | M | — |
+| 4 | B17 | Claim exclusion applicability check | LLM | M/L | — |
+| 5 | B18 | Reserve development tracking | Deterministic | L | — |
 
 ---
 

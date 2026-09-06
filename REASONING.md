@@ -1764,3 +1764,12 @@ This file contains the reasoning transcript of the AI agent for the current sess
   asserted without reasoning. `pytest tests/ -v` — 45 passed
   (docs-only, unaffected).
 
+- **2026-09-06 12:41:36 (update)**: Human asked to split the single
+  combined Summary table into separate named tables per category.
+  Replaced the one 28-row table (with a `Category` column) with four
+  tables under their own headings — "Technical / AI Engineering &
+  Production Harness," "Business Domain — Treaty," "— Facultative,"
+  "— Claims" — dropping the now-redundant `Category` column from each
+  since it's implied by the table's heading. `pytest tests/ -v` — 45
+  passed (docs-only, unaffected).
+
