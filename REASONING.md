@@ -1692,3 +1692,47 @@ This file contains the reasoning transcript of the AI agent for the current sess
   instead of crashing. Have not yet asked for human approval to close
   the task.
 
+## 2026-09-06 10:37:43 — Draft CANDIDATE_TASKS.md (staging list, not yet in TASKS.md)
+
+- **Goal**: Human asked to draft a list of candidate future tasks
+  covering two categories — (1) technical/AI-engineering harness work
+  (model behavior validation, evaluation frameworks, agent-behavior
+  quality checks/grounding, reliability/scalability/cost/latency) and
+  (2) business-domain features, explicitly asking to also consider
+  Facultative and Claims reinsurance lines (not just Treaty, which is
+  all this app covers today) — as a side `.md` file to clarify and
+  prioritize together before anything is added to `TASKS.md`.
+- **Analysis**: This session's earlier discussion (business-task
+  question, then feature-idea question, then cost/effort-estimate
+  question) already produced most of the Treaty-line domain candidates
+  (clause checklist, renewal diff, multi-layer extraction, ambiguity
+  detection, summary, semantic compliance) with rough effort/cost
+  framing. Facultative and Claims are genuinely distinct workflows
+  from what the app does today (Facultative = per-risk individual
+  underwriting vs. Treaty's whole-book coverage; Claims = post-loss
+  handling/adjustment vs. pre-bind underwriting review), so their
+  candidate tasks needed to be reasoned through fresh rather than
+  reused from earlier in the session.
+- **Decision**: Named the file `CANDIDATE_TASKS.md` (parallels
+  `TASKS.md`'s naming, unambiguous that it's pre-backlog). Kept every
+  item to a short description + rough shape (deterministic/LLM/hybrid)
+  + rough effort (S/M/L) — deliberately *not* full `TASKS.md`-spec'd
+  entries (no ID/Files/Acceptance yet), since nothing here has been
+  prioritized. Flagged two cross-cutting notes explicitly rather than
+  burying them in individual items: (a) items marked **L** are likely
+  each their own multi-task chain, same pattern as
+  `explore-hybrid-regex-llm-fallback`'s split into four; (b) the
+  LLM-suited domain features (summary, ambiguity detection, semantic
+  compliance, claim-exclusion check) would change the app's cost
+  profile from "LLM cost only on fallback" to "LLM cost on every run"
+  if made automatic rather than opt-in — a deliberate product decision
+  flagged for prioritization discussion, not a default assumed here.
+- **Action**: Created `CANDIDATE_TASKS.md` at the repo root with
+  sections A (10 harness items) and B (18 domain items across Treaty/
+  Facultative/Claims), plus a closing "Notes for prioritization
+  discussion" section.
+- **Outcome**: `pytest tests/ -v` — 45 passed (docs-only addition,
+  unaffected). This file is explicitly not part of the task-tracking
+  convention yet — no ID/claim/branch-per-item until the human
+  prioritizes and specific items graduate into `TASKS.md`.
+
