@@ -5,6 +5,8 @@ these drive the real graph through run_workflow()/run_workflow_from_pdf()
 with no node mocking, covering both success and failure paths.
 """
 
+import os
+
 import pytest
 
 from src.parser import ParserError, PageSection
@@ -12,6 +14,7 @@ from src.workflow import run_workflow, run_workflow_from_pdf
 
 MINIMAL_TREATY_PATH = "data/sample_treaty.pdf"
 RICH_TREATY_PATH = "data/sample_rich_treaty.pdf"
+FUZZY_TREATY_PATH = "data/sample_rich_fuzzy_treaty.pdf"
 
 
 def test_full_pipeline_success_minimal_treaty():
@@ -85,3 +88,30 @@ def test_full_pipeline_missing_required_term_handled_gracefully():
     assert result.get("report") is None
     assert "limit" in result["missing_fields"]
     assert "reinsurance_premium" in result["missing_fields"]
+
+
+@pytest.mark.skipif(
+    not os.environ.get("ANTHROPIC_API_KEY"),
+    reason="requires a real ANTHROPIC_API_KEY to call the live Anthropic API",
+)
+def test_full_pipeline_llm_extraction_fallback_real_api_call():
+    """True end-to-end test of the hybrid flow: no mocking of the LLM client.
+
+    The fuzzy fixture's prose defeats the regex extractor by design, so
+    this exercises a real `llm_extraction_fallback` call against the
+    live Anthropic API. Skipped automatically when no API key is
+    configured (e.g. in CI), so it never fails a run that simply lacks
+    the secret.
+    """
+    result = run_workflow_from_pdf(FUZZY_TREATY_PATH)
+
+    assert result["extraction_method"] == "llm"
+    assert result["llm_error"] is None
+    assert result["complete"] is True
+
+    report = result["report"]
+    assert report is not None
+    assert report.treaty.cedent_name == "Sentinel Mutual Assurance"
+    assert report.loss_ratio == pytest.approx(0.70)
+    assert len(report.findings) == 1
+    assert report.findings[0].severity == "medium"

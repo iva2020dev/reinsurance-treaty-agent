@@ -1906,3 +1906,48 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `Closing task as "Done": Surface LLM Extraction Fallback Status in
   the UI`. **Outcome**: `python -m pytest tests/ -q` — 45 passed
   (confirms the acceptance criteria hold on `main` before closing).
+
+- **2026-09-06 14:06:36 (start)**: Picked up
+  `integration-test-llm-fallback-deploy-config` (P1, claimed). **Goal**:
+  add one true end-to-end integration test exercising the LLM
+  Extraction Fallback with a real Anthropic API call against
+  `data/sample_rich_fuzzy_treaty.pdf`, skipping cleanly when
+  `ANTHROPIC_API_KEY` isn't set, and confirm the deployment docs
+  already cover the required Streamlit Cloud secret. **Analysis**:
+  checked `README.md`'s Deployment section — the `ANTHROPIC_API_KEY`
+  Streamlit Cloud secret is already documented (added during the
+  earlier hybrid-extraction work), so that half of this task's
+  `Details` is already satisfied; the only remaining work is the new
+  integration test itself. `tests/test_integration.py` already exists
+  with 5 tests driving `run_workflow_from_pdf()`/`run_workflow()`
+  end-to-end with no node mocking — the new test follows that same
+  pattern but is the first one in this repo to make a real network
+  call, gated by `pytest.mark.skipif` on `ANTHROPIC_API_KEY` being
+  unset (no existing skip-pattern precedent in this repo to match, so
+  this establishes one). **Decision**: assert the final `AnomalyReport`
+  for cedent Sentinel Mutual Assurance is correct end-to-end
+  (`loss_ratio == 0.70`, one MEDIUM finding, `extraction_method ==
+  "llm"`), matching the fuzzy fixture's known values from its earlier
+  redesign. **Action**: (in progress — see next entry for what was
+  actually changed).
+
+- **2026-09-06 14:08:13 (outcome)**: **Action**: added
+  `test_full_pipeline_llm_extraction_fallback_real_api_call` to
+  `tests/test_integration.py`, gated with
+  `@pytest.mark.skipif(not os.environ.get("ANTHROPIC_API_KEY"), ...)`
+  — the first test in this repo to make a real network call, so this
+  establishes the skip-pattern precedent the original task plan
+  expected to already exist. No `README.md` change was needed since
+  the Streamlit Cloud secret documentation was already added during
+  the earlier hybrid-extraction work (confirmed at task pickup).
+  **Outcome**: verified all three required behaviors directly rather
+  than trusting the skip logic on paper: (1) with the local `.env`'s
+  real key in place, `pytest tests/test_integration.py -v` ran the new
+  test for real against the live Anthropic API and it passed; (2) with
+  `.env` temporarily moved aside and `ANTHROPIC_API_KEY` unset
+  (simulating a CI runner without the secret), the same test correctly
+  `SKIPPED` instead of failing (5 passed, 1 skipped); `.env` was
+  restored immediately after. (3) Full suite: `python -m pytest
+  tests/ -q` — 46 passed (45 existing + 1 new, key present locally).
+  Acceptance criteria for `integration-test-llm-fallback-deploy-config`
+  are met. Awaiting human approval before marking done.
