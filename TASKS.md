@@ -57,8 +57,11 @@
     pass/fail — against the known-correct values. This is the harness
     that would catch a prompt or model-version regression before it
     reaches production, and is a prerequisite for `extraction-eval-ci-gate`.
-  - **Files**: new golden-fixture + scorer location (e.g. `tests/eval/`),
-    `README.md` (documents how to run the eval suite)
+  - **Files**: `tests/eval/golden_dataset.py`, `tests/eval/scorer.py`,
+    `tests/eval/run_eval.py`, `tests/eval/test_eval_suite.py`,
+    `tests/eval/build_fixtures.py`, `data/golden_harborlight_treaty.pdf`,
+    `data/golden_continental_treaty.pdf` (+ their `_parsed.json`
+    companions), `README.md`, `CLAUDE.md`
   - **Acceptance**: Running the eval suite locally produces a
     field-level accuracy report for every golden document, and a
     deliberately-broken extraction (e.g. a corrupted

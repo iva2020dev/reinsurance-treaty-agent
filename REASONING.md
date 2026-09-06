@@ -2359,3 +2359,43 @@ This file contains the reasoning transcript of the AI agent for the current sess
   extraction schema" via a deliberately wrong mocked LLM response and
   asserts the scored accuracy actually drops, per the task's own
   acceptance criteria).
+
+- **2026-09-06 (outcome)**: **Action**: built the 2 new fixtures via
+  `tests/eval/build_fixtures.py`'s reusable raw-PDF writer, verified
+  both defeat regex extraction as intended and generated their
+  `_parsed.json` companions (matching the existing fixtures'
+  convention). Implemented `tests/eval/golden_dataset.py` (5
+  `GoldenCase`s), `scorer.py` (`score_case()`/`run_eval()`,
+  `EvalReport` with per-field accuracy plus mean exclusions precision/
+  recall), and `run_eval.py` (the `python -m tests.eval.run_eval` CLI).
+  Ran the CLI directly against the live Anthropic API (a real key is
+  present in this machine's local `.env`) as a genuine end-to-end
+  validation of all 3 new/existing LLM-path fixtures' labeled values —
+  100% accuracy across all 5 cases, confirming the golden dataset's
+  expected values are actually correct against the real model, not
+  just internally consistent. Added `tests/eval/test_eval_suite.py`
+  (6 tests, mocked client, deterministic) covering: regex-path cases
+  scoring perfectly with no mocking; a correct mocked LLM response
+  scoring perfectly; a corrupted mocked response (wrong cedent name,
+  emptied exclusions) being caught per-field; `run_eval()`'s aggregate
+  accuracy actually dropping when a case regresses (the acceptance
+  criteria's own scenario); a total LLM failure degrading to an error
+  result rather than crashing; and the exclusions scorer crediting a
+  paraphrased clause, not just an exact string. While regenerating
+  `README.md`'s "Running Tests" example-output blocks for my own new
+  tests, discovered PR #43 (test isolation) had already introduced the
+  same kind of staleness this task's predecessor once fixed: the
+  full-suite transcript was still "58 items" (now 73), `test_llm_client.py`
+  had no per-file block at all despite existing, and one table row
+  still named `test_llm_extraction_fallback_does_not_retry_non_transient_failure`,
+  a test that PR #43 deleted. Fixed all three in the same pass rather
+  than leaving them half-stale, and added a new "Running the Extraction
+  Accuracy Eval Suite" section plus the 2 new fixtures to "Sample
+  Treaty Fixtures". Also fixed an unrelated bug discovered while
+  reviewing REASONING.md's tail before starting: resolving PR #43's
+  merge conflict had duplicated ~76 lines of this file's own log (the
+  `llm-fallback-grounding-check` start/outcome/closing sequence
+  appeared twice) — fixed on its own branch/PR (#45), not bundled into
+  this task. Synced `TASKS.md`'s Files list to the actual delivered
+  files. **Outcome**: `python -m pytest tests/ -q` — 73 passed (67
+  prior + 6 new in `tests/eval/test_eval_suite.py`).

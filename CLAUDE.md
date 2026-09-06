@@ -149,5 +149,6 @@ See `AGENTS.md` for full task format, reasoning transcript examples, branch/PR d
 | `src/tools.py` | Deterministic tools (historical claims lookup, loss-ratio calculation, LLM-output grounding check) |
 | `src/models.py` | Pydantic data schemas |
 | `src/parser.py` | PDF parsing into page sections |
+| `tests/eval/` | Extraction accuracy eval suite: golden dataset + field-level precision/recall scorer over the full extraction pipeline — see `README.md`'s "Running the Extraction Accuracy Eval Suite" |
 
 ## Deployment (Railway)
