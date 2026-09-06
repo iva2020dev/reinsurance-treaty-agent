@@ -1998,3 +1998,16 @@ This file contains the reasoning transcript of the AI agent for the current sess
   them, since `TASKS.md` is now the live source of truth for their
   actual status. **Outcome**: `python -m pytest tests/ -q` — 46 passed
   (docs-only change, unaffected).
+
+- **2026-09-06 14:21:07 (update)**: Human asked to add, to every task
+  in `TASKS.md`, an explicit external key back to its
+  `CANDIDATE_TASKS.md` ID. **Action**: added a structured
+  **Candidate ID** field (right after **Tags**, before **Details**) to
+  every task entry: `A1`/`A2`/`A3`/`A4` for the four just-graduated
+  harness tasks, and an explicit "— (not from `CANDIDATE_TASKS.md`;
+  found directly while working another task)" for
+  `fix-claude-review-ci-secret`, which was discovered as a CI failure
+  rather than sourced from the candidate list — kept it present but
+  marked empty rather than omitting it, so every task consistently has
+  the field per the human's "every task" instruction. **Outcome**:
+  `python -m pytest tests/ -q` — 46 passed (docs-only, unaffected).

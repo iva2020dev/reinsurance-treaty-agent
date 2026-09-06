@@ -42,6 +42,7 @@
 - [ ] Retry/Backoff Resilience for the LLM Call
   - **ID**: llm-fallback-retry-backoff
   - **Tags**: reliability, extraction, llm
+  - **Candidate ID**: A1 (`CANDIDATE_TASKS.md`)
   - **Details**: Graduated from `CANDIDATE_TASKS.md` (`A1`, Priority 1
     of 10 in the Harness list). In `src/workflow.py`'s
     `llm_extraction_fallback`, add bounded retry-with-backoff for
@@ -69,6 +70,7 @@
 - [ ] Grounding/Assurance Check on LLM Output
   - **ID**: llm-fallback-grounding-check
   - **Tags**: quality, extraction, llm
+  - **Candidate ID**: A2 (`CANDIDATE_TASKS.md`)
   - **Details**: Graduated from `CANDIDATE_TASKS.md` (`A2`, Priority 2
     of 10 in the Harness list). After `llm_extraction_fallback`
     successfully extracts `TreatyTerms`, add a deterministic
@@ -91,6 +93,7 @@
 - [ ] Extraction Accuracy Eval Suite (Golden Dataset)
   - **ID**: extraction-accuracy-eval-suite
   - **Tags**: evaluation, extraction, llm
+  - **Candidate ID**: A3 (`CANDIDATE_TASKS.md`)
   - **Details**: Graduated from `CANDIDATE_TASKS.md` (`A3`, Priority 3
     of 10 in the Harness list). Build a small labeled golden dataset
     of treaty documents (the three existing fixtures plus at least 2-3
@@ -113,6 +116,7 @@
 - [ ] CI-Integrated Regression Eval Gate
   - **ID**: extraction-eval-ci-gate
   - **Tags**: ci, evaluation, extraction, llm
+  - **Candidate ID**: A4 (`CANDIDATE_TASKS.md`)
   - **Blocked by**: extraction-accuracy-eval-suite
   - **Details**: Graduated from `CANDIDATE_TASKS.md` (`A4`, Priority 4
     of 10 in the Harness list). Run `extraction-accuracy-eval-suite`'s
@@ -137,6 +141,8 @@
 - [ ] Fix Claude Code Review CI Check (missing API key secret)
   - **ID**: fix-claude-review-ci-secret
   - **Tags**: ci, github-actions, maintenance
+  - **Candidate ID**: — (not from `CANDIDATE_TASKS.md`; found directly
+    while working another task)
   - **Details**: The `claude-review` GitHub Actions workflow
     (`Claude Code Review`) fails on every PR with: "Environment variable
     validation failed: Either ANTHROPIC_API_KEY, CLAUDE_CODE_OAUTH_TOKEN,
