@@ -29,6 +29,7 @@
      ✅ 2026-09-06 14:03:25 Surface LLM Extraction Fallback Status in the UI (update-ui-llm-fallback)
      ✅ 2026-09-06 14:11:27 End-to-End Test the Hybrid Flow and Document Deployment Config (integration-test-llm-fallback-deploy-config)
      ✅ 2026-09-06 15:14:46 Retry/Backoff Resilience for the LLM Call (llm-fallback-retry-backoff)
+     ✅ 2026-09-06 15:29:45 Grounding/Assurance Check on LLM Output (llm-fallback-grounding-check)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -40,28 +41,6 @@
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
-- [ ] Grounding/Assurance Check on LLM Output
-  - **ID**: llm-fallback-grounding-check
-  - **Tags**: quality, extraction, llm
-  - **Candidate ID**: A2 (`CANDIDATE_TASKS.md`)
-  - **Details**: Graduated from `CANDIDATE_TASKS.md` (`A2`, Priority 2
-    of 10 in the Harness list). After `llm_extraction_fallback`
-    successfully extracts `TreatyTerms`, add a deterministic
-    verification pass: for each extracted field with a
-    `page_citations` entry, confirm the cited page's raw text actually
-    supports the extracted value (exact match for `cedent_name`/
-    `exclusions`; numeric-equivalence match for `attachment_point`/
-    `limit`/`reinsurance_premium`, tolerating formatting differences
-    like `"$200,000"` vs `200000`). If a field fails grounding, flag it
-    (e.g. a new state field such as `ungrounded_fields`) rather than
-    silently trusting it, and surface the flag in the UI/debug panel.
-  - **Files**: `src/workflow.py`, `src/app.py`,
-    `tests/test_workflow.py`, `tests/test_app.py`
-  - **Acceptance**: A mocked LLM response whose `page_citations` point
-    to text that doesn't actually support the claimed value is flagged
-    as ungrounded (visible in the debug panel), while a normal,
-    correctly-grounded response (e.g. today's fuzzy fixture) is not
-    flagged. `pytest tests/` passes.
 
 - [ ] Extraction Accuracy Eval Suite (Golden Dataset)
   - **ID**: extraction-accuracy-eval-suite

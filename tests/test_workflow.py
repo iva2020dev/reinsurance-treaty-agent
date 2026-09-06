@@ -128,6 +128,7 @@ def test_llm_extraction_fallback_succeeds_on_fuzzy_treaty(monkeypatch):
     assert result["extraction_method"] == "llm"
     assert result["llm_error"] is None
     assert result["missing_fields"] == []
+    assert result["ungrounded_fields"] == []
     treaty = result["treaty"]
     assert treaty.cedent_name == "Sentinel Mutual Assurance"
     assert treaty.attachment_point == 200_000
@@ -138,6 +139,41 @@ def test_llm_extraction_fallback_succeeds_on_fuzzy_treaty(monkeypatch):
         "type": "tool",
         "name": "extract_treaty_terms",
     }
+
+
+def test_llm_extraction_fallback_flags_ungrounded_field_but_still_completes(monkeypatch):
+    """A cited page that doesn't actually support the extracted value is flagged,
+    not treated as a failure -- extraction still succeeds and is usable."""
+    tool_use_block = SimpleNamespace(
+        type="tool_use",
+        input={
+            "cedent_name": "A Completely Different Company Name",
+            "attachment_point": 200_000,
+            "limit": 1_000_000,
+            "reinsurance_premium": 400_000,
+            "exclusions": [],
+            "page_citations": {
+                "cedent_name": 1,  # page 1's real text doesn't mention this name
+                "attachment_point": 2,
+                "limit": 2,
+                "reinsurance_premium": 2,
+            },
+        },
+    )
+    mock_client = MagicMock()
+    mock_client.messages.create.return_value = SimpleNamespace(
+        content=[tool_use_block],
+        usage=SimpleNamespace(input_tokens=512, output_tokens=64),
+    )
+    monkeypatch.setattr("src.llm_client.anthropic.Anthropic", lambda **kwargs: mock_client)
+
+    sections = extract_treaty_sections(SAMPLE_RICH_FUZZY_TREATY_PATH)
+    result = llm_extraction_fallback({"sections": sections})
+
+    assert result["extraction_method"] == "llm"
+    assert result["llm_error"] is None
+    assert result["ungrounded_fields"] == ["cedent_name"]
+    assert result["treaty"].cedent_name == "A Completely Different Company Name"
 
 
 def test_run_workflow_via_llm_extraction_fallback_flags_medium_finding(monkeypatch):
