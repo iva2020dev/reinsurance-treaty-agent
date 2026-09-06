@@ -37,27 +37,6 @@
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
-- [ ] End-to-End Test the Hybrid Flow and Document Deployment Config (@claude)
-  - **ID**: integration-test-llm-fallback-deploy-config
-  - **Tags**: testing, extraction, llm, deployment
-  - **Details**: Add one true end-to-end integration test in
-    `tests/test_integration.py` driving `run_workflow_from_pdf()` on
-    the real `sample_rich_fuzzy_treaty.pdf` fixture with a real
-    Anthropic API call — skip/xfail automatically when
-    `ANTHROPIC_API_KEY` isn't set in the environment, so CI without a
-    key doesn't fail — asserting the final `AnomalyReport` for cedent
-    Sentinel Mutual Assurance is correct end-to-end. Update
-    `README.md`'s Deployment section to note that the deployed
-    Streamlit Community Cloud app needs `ANTHROPIC_API_KEY` added as a
-    Cloud secret for the LLM Extraction Fallback to work in production
-    (regex-only behavior continues to work without it, per the graceful
-    degradation already built).
-  - **Files**: `tests/test_integration.py`, `README.md`
-  - **Acceptance**: The new integration test passes when
-    `ANTHROPIC_API_KEY` is present locally (skips cleanly otherwise);
-    `README.md` documents the required Streamlit Cloud secret; the full
-    `pytest tests/` suite passes.
-
 
 ## P2
 
