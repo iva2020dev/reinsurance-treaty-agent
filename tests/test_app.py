@@ -26,7 +26,7 @@ FUZZY_TREATY_PATH = "data/sample_rich_fuzzy_treaty.pdf"
 
 
 def _mock_llm_client(*, input_data: dict | None = None, error: Exception | None = None) -> MagicMock:
-    """A mock anthropic.Anthropic() client for patching src.workflow.anthropic.Anthropic."""
+    """A mock anthropic.Anthropic() client for patching src.llm_client.anthropic.Anthropic."""
     mock_client = MagicMock()
     if error is not None:
         mock_client.messages.create.side_effect = error
@@ -191,7 +191,7 @@ def test_format_extraction_status_for_each_extraction_method():
 
 def test_app_shows_llm_extraction_fallback_note_and_state_on_success(monkeypatch):
     mock_client = _mock_llm_client(input_data=FUZZY_TREATY_LLM_RESPONSE)
-    monkeypatch.setattr("src.workflow.anthropic.Anthropic", lambda **kwargs: mock_client)
+    monkeypatch.setattr("src.llm_client.anthropic.Anthropic", lambda **kwargs: mock_client)
 
     at = AppTest.from_file("../src/app.py")
     at.run()
@@ -213,7 +213,7 @@ def test_app_shows_llm_extraction_fallback_note_and_state_on_success(monkeypatch
 
 def test_app_shows_llm_error_when_both_extraction_paths_fail(monkeypatch):
     mock_client = _mock_llm_client(error=RuntimeError("simulated network failure"))
-    monkeypatch.setattr("src.workflow.anthropic.Anthropic", lambda **kwargs: mock_client)
+    monkeypatch.setattr("src.llm_client.anthropic.Anthropic", lambda **kwargs: mock_client)
 
     at = AppTest.from_file("../src/app.py")
     at.run()

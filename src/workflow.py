@@ -6,11 +6,11 @@ import time
 from pathlib import Path
 from typing import Literal, TypedDict
 
-import anthropic
 from dotenv import load_dotenv
 from langgraph.graph import END, StateGraph
 from pydantic import ValidationError
 
+from src.llm_client import call_with_retry, get_client
 from src.models import AnomalyFinding, AnomalyReport, ClaimsData, Severity, TreatyTerms
 from src.parser import PageSection, extract_treaty_sections
 from src.tools import calculate_loss_ratio, query_historical_claims
@@ -176,16 +176,20 @@ def llm_extraction_fallback(state: WorkflowState) -> dict:
     """Fall back to an LLM to extract TreatyTerms when regex found no required fields.
 
     Only called when the Extractor Node's missing_fields is non-empty (see
-    _route_after_extractor). On any failure -- a missing/invalid API key,
-    a network/timeout error, a malformed tool response, or a TreatyTerms
-    validation error -- logs it and leaves the run in the same
+    _route_after_extractor). Transient failures (timeout, connection error,
+    rate limit, momentary server overload) are retried with exponential
+    backoff by src.llm_client.call_with_retry, which logs each attempt.
+    On any other failure -- a missing/invalid API key, a malformed tool
+    response, a TreatyTerms validation error, or a transient failure that
+    exhausts its retries -- this logs it and leaves the run in the same
     "incomplete" state the regex-only path already produces
     (treaty=None, missing_fields unchanged), rather than crashing.
     """
     started_at = time.perf_counter()
-    try:
-        client = anthropic.Anthropic(timeout=_LLM_TIMEOUT_SECONDS)
-        response = client.messages.create(
+
+    def _create_completion():
+        client = get_client(timeout=_LLM_TIMEOUT_SECONDS)
+        return client.messages.create(
             model=_LLM_MODEL,
             max_tokens=1024,
             tools=[_TREATY_EXTRACTION_TOOL],
@@ -200,6 +204,9 @@ def llm_extraction_fallback(state: WorkflowState) -> dict:
                 }
             ],
         )
+
+    try:
+        response = call_with_retry(_create_completion, description="LLM Extraction Fallback")
         tool_use = next(block for block in response.content if block.type == "tool_use")
         treaty = TreatyTerms(**tool_use.input)
     except Exception as exc:  # noqa: BLE001 -- any failure must degrade gracefully, not crash
