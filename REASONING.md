@@ -1804,3 +1804,25 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `python -m pytest` for the repo-root path to resolve, unrelated to
   this change).
 
+- **2026-09-06 13:16:22 (update)**: Human asked to prioritize
+  `CANDIDATE_TASKS.md` together, keeping the current suggested
+  priority order but renumbering each item's ID to match its position,
+  starting from 1 per category. **Analysis**: Treaty/Facultative/
+  Claims all shared the `B` prefix (`B0`-`B18`), so restarting each at
+  1 would collide (Facultative's new `B1` vs. Treaty's existing `B1`).
+  Asked the human to choose a scoping scheme via AskUserQuestion;
+  chosen: give each category its own prefix (`A` Harness, `B` Treaty,
+  `F` Facultative, `C` Claims), keeping `B0` for the shipped Burn-Cost
+  Check since it isn't a ranked candidate. **Action**: renumbered
+  every ID across all four Summary tables, all detailed entries
+  (headings and prose), all `Depends on` references, and the "Notes
+  for prioritization discussion" section's cross-references, per this
+  mapping (old → new): Harness A7→A1, A3→A2, A1→A3, A2→A4, A9→A5,
+  A6→A6, A4→A7, A10→A8, A8→A9, A5→A10; Treaty B1→B1, B5→B2, B2→B3,
+  B3→B4, B4→B5, B8→B6, B6→B7, B7→B8, B9→B9 (B0 unchanged); Facultative
+  B10→F1, B11→F2, B13→F3, B12→F4; Claims B16→C1, B15→C2, B14→C3,
+  B17→C4, B18→C5. No re-ranking — every item's relative order and
+  Priority number within its category is unchanged, only the ID
+  changed. **Outcome**: `python -m pytest tests/ -q` — 45 passed
+  (docs-only, unaffected).
+
