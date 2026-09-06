@@ -141,8 +141,8 @@
 - [ ] Fix Claude Code Review CI Check (missing API key secret)
   - **ID**: fix-claude-review-ci-secret
   - **Tags**: ci, github-actions, maintenance
-  - **Candidate ID**: — (not from `CANDIDATE_TASKS.md`; found directly
-    while working another task)
+  - **Candidate ID**: N/A (not graduated from `CANDIDATE_TASKS.md`;
+    found directly while working another task)
   - **Details**: The `claude-review` GitHub Actions workflow
     (`Claude Code Review`) fails on every PR with: "Environment variable
     validation failed: Either ANTHROPIC_API_KEY, CLAUDE_CODE_OAUTH_TOKEN,

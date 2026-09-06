@@ -2011,3 +2011,13 @@ This file contains the reasoning transcript of the AI agent for the current sess
   marked empty rather than omitting it, so every task consistently has
   the field per the human's "every task" instruction. **Outcome**:
   `python -m pytest tests/ -q` — 46 passed (docs-only, unaffected).
+
+- **2026-09-06 14:23:40 (correction)**: Human asked why the
+  `fix-claude-review-ci-secret` task's Candidate ID wasn't just "N/A"
+  like the field's stated purpose implies for non-graduated tasks —
+  it was already present but phrased as an em-dash explanation rather
+  than a plain `N/A` value, which read as if the field were missing.
+  Changed it to `N/A (not graduated from CANDIDATE_TASKS.md; found
+  directly while working another task)` for consistency with how
+  every other field's "no value" case should read. **Outcome**:
+  `python -m pytest tests/ -q` — 46 passed (docs-only, unaffected).
