@@ -1951,3 +1951,20 @@ This file contains the reasoning transcript of the AI agent for the current sess
   tests/ -q` — 46 passed (45 existing + 1 new, key present locally).
   Acceptance criteria for `integration-test-llm-fallback-deploy-config`
   are met. Awaiting human approval before marking done.
+
+- **2026-09-06 14:11:27 (close)**: Human approved closing
+  `integration-test-llm-fallback-deploy-config` as done — its
+  acceptance criteria were verified on `main` (PR #37 merged): the
+  real end-to-end integration test passes with `ANTHROPIC_API_KEY`
+  present and skips cleanly without one, and `README.md`'s Streamlit
+  Cloud secret documentation was already in place from earlier work.
+  **Action**: removed the task entry from `TASKS.md`'s P1 section
+  (history preserved in git), on branch
+  `close/integration-test-llm-fallback-deploy-config`, titled per
+  convention `Closing task as "Done": End-to-End Test the Hybrid Flow
+  and Document Deployment Config`. This closes out the entire
+  `explore-hybrid-regex-llm-fallback` task chain (fixture → node → UI
+  → integration test/docs, all four sub-tasks now done); only
+  `fix-claude-review-ci-secret` (P2) remains in `TASKS.md`. **Outcome**:
+  `python -m pytest tests/ -q` — 46 passed (confirms acceptance holds
+  before closing).
