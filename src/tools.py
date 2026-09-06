@@ -1,12 +1,18 @@
 """Deterministic tools (database query, math calculators)."""
 
 import csv
+import math
+import re
 from datetime import date
 from pathlib import Path
 
-from src.models import ClaimsData
+from src.models import ClaimsData, TreatyTerms
+from src.parser import PageSection
 
 HISTORICAL_CLAIMS_CSV = Path(__file__).resolve().parent.parent / "data" / "historical_claims.csv"
+
+_NUMERIC_FIELDS = ("attachment_point", "limit", "reinsurance_premium")
+_NUMBER_PATTERN = re.compile(r"\$?\d[\d,]*(?:\.\d+)?")
 
 
 def query_historical_claims(
@@ -48,3 +54,64 @@ def calculate_loss_ratio(
         max(0.0, min(claim.claim_amount, layer_top) - attachment_point) for claim in claims
     )
     return ceded_total / limit
+
+
+def _normalize_whitespace(text: str) -> str:
+    # Rejoin a hyphenated word broken across a PDF line wrap (e.g.
+    # "asbestos-\nrelated" -> "asbestos-related") before collapsing
+    # whitespace -- a genuine hyphen is never followed by whitespace in
+    # correctly-typeset text, so this only affects wrap artifacts.
+    text = re.sub(r"-\s+", "-", text)
+    return re.sub(r"\s+", " ", text).strip().lower()
+
+
+def _numbers_in_text(text: str) -> list[float]:
+    numbers = []
+    for match in _NUMBER_PATTERN.finditer(text):
+        try:
+            numbers.append(float(match.group().replace("$", "").replace(",", "")))
+        except ValueError:
+            continue
+    return numbers
+
+
+def check_treaty_grounding(treaty: TreatyTerms, sections: list[PageSection]) -> list[str]:
+    """Return the names of fields whose extracted value isn't supported by its cited page.
+
+    For every field in treaty.page_citations, confirms the cited
+    page's raw text actually contains the extracted value: an exact,
+    whitespace-normalized, case-insensitive substring match for
+    cedent_name/exclusions, or a numeric-equivalence match (tolerating
+    "$"/comma formatting) for attachment_point/limit/
+    reinsurance_premium. A field with no citation entry isn't checked
+    -- there's nothing to verify it against. This is a deterministic
+    safety net over LLM-extracted values, not used for regex
+    extraction (whose values are anchored to page text by
+    construction).
+    """
+    pages_by_number = {section.page_number: section.text for section in sections}
+    ungrounded = []
+    for field, page_number in treaty.page_citations.items():
+        page_text = pages_by_number.get(page_number)
+        if page_text is None:
+            ungrounded.append(field)
+            continue
+
+        if field in _NUMERIC_FIELDS:
+            value = getattr(treaty, field)
+            grounded = any(
+                math.isclose(value, n, rel_tol=1e-9, abs_tol=0.01)
+                for n in _numbers_in_text(page_text)
+            )
+        elif field == "exclusions":
+            normalized_page = _normalize_whitespace(page_text)
+            grounded = all(
+                _normalize_whitespace(item) in normalized_page for item in treaty.exclusions
+            )
+        else:  # cedent_name, or any other free-text field
+            value = getattr(treaty, field, "")
+            grounded = _normalize_whitespace(str(value)) in _normalize_whitespace(page_text)
+
+        if not grounded:
+            ungrounded.append(field)
+    return ungrounded

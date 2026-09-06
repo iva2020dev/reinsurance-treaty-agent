@@ -13,7 +13,7 @@ from pydantic import ValidationError
 from src.llm_client import call_with_retry, get_client
 from src.models import AnomalyFinding, AnomalyReport, ClaimsData, Severity, TreatyTerms
 from src.parser import PageSection, extract_treaty_sections
-from src.tools import calculate_loss_ratio, query_historical_claims
+from src.tools import calculate_loss_ratio, check_treaty_grounding, query_historical_claims
 
 load_dotenv()  # no-op in production, where ANTHROPIC_API_KEY comes from a real env var/secret
 
@@ -95,6 +95,7 @@ class WorkflowState(TypedDict, total=False):
     missing_fields: list[str]
     extraction_method: Literal["regex", "llm", "none"]
     llm_error: str | None
+    ungrounded_fields: list[str]
     claims: list[ClaimsData]
     complete: bool
     report: AnomalyReport | None
@@ -231,11 +232,19 @@ def llm_extraction_fallback(state: WorkflowState) -> dict:
         usage.input_tokens,
         usage.output_tokens,
     )
+    ungrounded_fields = check_treaty_grounding(treaty, state["sections"])
+    if ungrounded_fields:
+        logger.warning(
+            "LLM Extraction Fallback: %d field(s) failed grounding check: %s",
+            len(ungrounded_fields),
+            ungrounded_fields,
+        )
     return {
         "treaty": treaty,
         "missing_fields": [],
         "extraction_method": "llm",
         "llm_error": None,
+        "ungrounded_fields": ungrounded_fields,
     }
 
 

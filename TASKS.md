@@ -40,7 +40,7 @@
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
-- [ ] Grounding/Assurance Check on LLM Output
+- [ ] Grounding/Assurance Check on LLM Output (@claude)
   - **ID**: llm-fallback-grounding-check
   - **Tags**: quality, extraction, llm
   - **Candidate ID**: A2 (`CANDIDATE_TASKS.md`)
@@ -55,8 +55,13 @@
     like `"$200,000"` vs `200000`). If a field fails grounding, flag it
     (e.g. a new state field such as `ungrounded_fields`) rather than
     silently trusting it, and surface the flag in the UI/debug panel.
-  - **Files**: `src/workflow.py`, `src/app.py`,
-    `tests/test_workflow.py`, `tests/test_app.py`
+    **Updated 2026-09-06**: the verification pass itself
+    (`check_treaty_grounding`) lives in `src/tools.py` (a deterministic
+    tool, not an LLM-calling harness concern), not inline in
+    `src/workflow.py`.
+  - **Files**: `src/tools.py`, `src/workflow.py`, `src/app.py`,
+    `tests/test_tools.py`, `tests/test_workflow.py`,
+    `tests/test_app.py`, `README.md`, `CLAUDE.md`
   - **Acceptance**: A mocked LLM response whose `page_citations` point
     to text that doesn't actually support the claimed value is flagged
     as ungrounded (visible in the debug panel), while a normal,

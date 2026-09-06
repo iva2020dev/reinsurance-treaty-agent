@@ -73,6 +73,7 @@ def serialize_state_for_debug(state: WorkflowState) -> dict:
         "missing_fields": state.get("missing_fields", []),
         "extraction_method": state.get("extraction_method"),
         "llm_error": state.get("llm_error"),
+        "ungrounded_fields": state.get("ungrounded_fields", []),
         "claims": [claim.model_dump(mode="json") for claim in state.get("claims", [])],
         "complete": state.get("complete", False),
         "report": report.model_dump(mode="json") if (report := state.get("report")) else None,
@@ -198,6 +199,14 @@ def main() -> None:
                         st.warning(
                             "Extracted via **LLM Extraction Fallback** — this "
                             "treaty's format didn't match the regex extractor."
+                        )
+                    ungrounded_fields = state.get("ungrounded_fields", [])
+                    if ungrounded_fields:
+                        st.warning(
+                            f"⚠️ {len(ungrounded_fields)} field(s) could not be "
+                            f"verified against the cited source text: "
+                            f"{', '.join(ungrounded_fields)}. Double-check these "
+                            f"values before relying on this report."
                         )
                     st.markdown(format_report_markdown(report))
     finally:
