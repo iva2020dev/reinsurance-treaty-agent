@@ -53,11 +53,21 @@
     set). Non-transient failures (auth errors, a malformed tool
     response, a `TreatyTerms` validation error) must NOT be retried —
     they should fail straight to degradation exactly as today. Log
-    each retry attempt (attempt number, backoff delay, exception) via
-    the existing `"src.workflow"` logger so retries are visible in the
-    debug panel like every other event. Cap total retries/backoff so a
-    single upload can't hang indefinitely.
-  - **Files**: `src/workflow.py`, `tests/test_workflow.py`
+    each retry attempt (attempt number, backoff delay, exception).
+    Cap total retries/backoff so a single upload can't hang
+    indefinitely. **Updated 2026-09-06**: the human asked to separate
+    this retry/backoff harness logic from workflow.py's business
+    logic — the retry mechanics now live in a new `src/llm_client.py`
+    module (`get_client`, `call_with_retry`), imported by
+    `llm_extraction_fallback` rather than implemented inline; retry
+    log lines are now emitted under the `"src.llm_client"` logger
+    instead of `"src.workflow"`, so `src/app.py`'s debug-panel handler
+    was widened from `logging.getLogger("src.workflow")` to
+    `logging.getLogger("src")` (the parent) so it still captures both
+    loggers' output, plus any future harness module's — no behavior
+    change to what the debug panel shows.
+  - **Files**: `src/llm_client.py` (new), `src/workflow.py`,
+    `src/app.py`, `tests/test_workflow.py`, `tests/test_app.py`
   - **Acceptance**: A mocked transient failure followed by a
     successful retry produces a correct `extraction_method="llm"`
     result, with retry attempts visible in captured log lines. A

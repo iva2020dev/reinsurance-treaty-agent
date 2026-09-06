@@ -2076,3 +2076,44 @@ This file contains the reasoning transcript of the AI agent for the current sess
   existing + 3 new), including the real-API integration test
   (`ANTHROPIC_API_KEY` present locally), confirming the success path
   and `max_retries=0` change didn't break the live LLM call.
+
+- **2026-09-06 14:42:50 (refactor)**: Human asked to separate "service/
+  harness" logic from workflow logic, prompted by
+  `llm_extraction_fallback`'s retry loop just added in this same
+  branch/PR. **Goal**: `src/workflow.py` should stay focused on the
+  LangGraph state machine and business logic (what to ask the LLM for,
+  how to parse/degrade); the mechanics of reliably calling an LLM
+  (client construction, retry/backoff) belong in their own module, so
+  future harness work (`A2` grounding check, later fallback-tiering
+  ideas) has one obvious place to live rather than accumulating inline
+  in `workflow.py`. **Decision**: new module `src/llm_client.py`
+  exposing `get_client(timeout=...)` (constructs the client with
+  `max_retries=0`, since this module owns retries now) and
+  `call_with_retry(fn, ...)` (generic bounded retry-with-backoff over
+  `RETRYABLE_EXCEPTIONS`, logging each attempt, re-raising the last
+  exception on exhaustion rather than swallowing it — letting the
+  caller decide how to degrade). This is intentionally generic (takes
+  any zero-arg callable), not treaty-extraction-specific, so a future
+  LLM-calling feature (`B6`-`B8`, `C4`) can reuse it without
+  duplicating retry logic. **Action**: `llm_extraction_fallback` now
+  builds a closure over the actual `messages.create(...)` call and
+  passes it to `call_with_retry`, shrinking back to roughly its
+  pre-retry-feature shape (a single try/except degrade block) with all
+  retry mechanics delegated out. Removed `import anthropic` from
+  `workflow.py` (no longer referenced there). Since retry log lines
+  now come from the `"src.llm_client"` logger rather than
+  `"src.workflow"`, widened `src/app.py`'s debug-panel log handler
+  from `logging.getLogger("src.workflow")` to the parent
+  `logging.getLogger("src")`, so it captures both (and any future
+  harness submodule) via normal logger propagation — confirmed via
+  `tests/test_app.py`'s existing debug-panel assertions, unchanged and
+  passing. Updated all `monkeypatch.setattr(...)` targets in
+  `tests/test_workflow.py` and `tests/test_app.py` from
+  `"src.workflow.anthropic.Anthropic"`/`"src.workflow.time.sleep"` to
+  `"src.llm_client.anthropic.Anthropic"`/`"src.llm_client.time.sleep"`,
+  matching where the client/sleep calls now actually happen. Synced
+  `TASKS.md`'s `llm-fallback-retry-backoff` entry (Files list, and a
+  dated addendum to Details) to reflect this mid-task change in scope.
+  **Outcome**: `python -m pytest tests/ -q` — 49 passed, including the
+  real-API integration test, confirming the refactor is behavior-
+  preserving.

@@ -170,9 +170,12 @@ def main() -> None:
 
     log_lines: list[str] = []
     handler = _ListLogHandler(log_lines)
-    workflow_logger = logging.getLogger("src.workflow")
-    workflow_logger.addHandler(handler)
-    workflow_logger.setLevel(logging.INFO)
+    # "src" (not "src.workflow") so this also captures logging from
+    # harness modules like src.llm_client, which log under their own
+    # module name -- child loggers propagate up to this handler.
+    src_logger = logging.getLogger("src")
+    src_logger.addHandler(handler)
+    src_logger.setLevel(logging.INFO)
 
     state: WorkflowState | None = None
     try:
@@ -198,7 +201,7 @@ def main() -> None:
                         )
                     st.markdown(format_report_markdown(report))
     finally:
-        workflow_logger.removeHandler(handler)
+        src_logger.removeHandler(handler)
 
     with st.expander("Debug: workflow execution"):
         if state is None:

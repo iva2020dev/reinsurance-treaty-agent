@@ -117,7 +117,7 @@ def test_llm_extraction_fallback_succeeds_on_fuzzy_treaty(monkeypatch):
     mock_client.messages.create.return_value = SimpleNamespace(
         content=[tool_use_block], usage=mock_usage
     )
-    monkeypatch.setattr("src.workflow.anthropic.Anthropic", lambda **kwargs: mock_client)
+    monkeypatch.setattr("src.llm_client.anthropic.Anthropic", lambda **kwargs: mock_client)
 
     sections = extract_treaty_sections(SAMPLE_RICH_FUZZY_TREATY_PATH)
     _, missing_fields = extract_treaty_terms(sections)
@@ -167,7 +167,7 @@ def test_run_workflow_via_llm_extraction_fallback_flags_medium_finding(monkeypat
         content=[tool_use_block],
         usage=SimpleNamespace(input_tokens=512, output_tokens=64),
     )
-    monkeypatch.setattr("src.workflow.anthropic.Anthropic", lambda **kwargs: mock_client)
+    monkeypatch.setattr("src.llm_client.anthropic.Anthropic", lambda **kwargs: mock_client)
 
     sections = extract_treaty_sections(SAMPLE_RICH_FUZZY_TREATY_PATH)
     result = run_workflow(sections)
@@ -183,7 +183,7 @@ def test_run_workflow_via_llm_extraction_fallback_flags_medium_finding(monkeypat
 def test_llm_extraction_fallback_degrades_gracefully_on_failure(monkeypatch):
     mock_client = MagicMock()
     mock_client.messages.create.side_effect = RuntimeError("simulated network failure")
-    monkeypatch.setattr("src.workflow.anthropic.Anthropic", lambda **kwargs: mock_client)
+    monkeypatch.setattr("src.llm_client.anthropic.Anthropic", lambda **kwargs: mock_client)
 
     result = llm_extraction_fallback({"sections": []})
 
@@ -198,7 +198,7 @@ def test_llm_extraction_fallback_degrades_gracefully_on_failure(monkeypatch):
 def test_llm_extraction_fallback_retries_transient_failure_then_succeeds(monkeypatch):
     """A transient failure (timeout) followed by success should retry, not degrade."""
     sleeps: list[float] = []
-    monkeypatch.setattr("src.workflow.time.sleep", sleeps.append)
+    monkeypatch.setattr("src.llm_client.time.sleep", sleeps.append)
 
     tool_use_block = SimpleNamespace(
         type="tool_use",
@@ -218,7 +218,7 @@ def test_llm_extraction_fallback_retries_transient_failure_then_succeeds(monkeyp
     timeout_error = anthropic.APITimeoutError(request=MagicMock())
     mock_client = MagicMock()
     mock_client.messages.create.side_effect = [timeout_error, success_response]
-    monkeypatch.setattr("src.workflow.anthropic.Anthropic", lambda **kwargs: mock_client)
+    monkeypatch.setattr("src.llm_client.anthropic.Anthropic", lambda **kwargs: mock_client)
 
     result = llm_extraction_fallback({"sections": []})
 
@@ -232,12 +232,12 @@ def test_llm_extraction_fallback_retries_transient_failure_then_succeeds(monkeyp
 def test_llm_extraction_fallback_gives_up_after_max_retries(monkeypatch):
     """A transient failure that never recovers exhausts retries and degrades gracefully."""
     sleeps: list[float] = []
-    monkeypatch.setattr("src.workflow.time.sleep", sleeps.append)
+    monkeypatch.setattr("src.llm_client.time.sleep", sleeps.append)
 
     timeout_error = anthropic.APITimeoutError(request=MagicMock())
     mock_client = MagicMock()
     mock_client.messages.create.side_effect = timeout_error
-    monkeypatch.setattr("src.workflow.anthropic.Anthropic", lambda **kwargs: mock_client)
+    monkeypatch.setattr("src.llm_client.anthropic.Anthropic", lambda **kwargs: mock_client)
 
     result = llm_extraction_fallback({"sections": []})
 
@@ -251,7 +251,7 @@ def test_llm_extraction_fallback_gives_up_after_max_retries(monkeypatch):
 def test_llm_extraction_fallback_does_not_retry_non_transient_failure(monkeypatch):
     """An auth error (or any non-retryable failure) fails on the first attempt, unretried."""
     sleeps: list[float] = []
-    monkeypatch.setattr("src.workflow.time.sleep", sleeps.append)
+    monkeypatch.setattr("src.llm_client.time.sleep", sleeps.append)
 
     auth_error = anthropic.AuthenticationError(
         message="invalid x-api-key",
@@ -260,7 +260,7 @@ def test_llm_extraction_fallback_does_not_retry_non_transient_failure(monkeypatc
     )
     mock_client = MagicMock()
     mock_client.messages.create.side_effect = auth_error
-    monkeypatch.setattr("src.workflow.anthropic.Anthropic", lambda **kwargs: mock_client)
+    monkeypatch.setattr("src.llm_client.anthropic.Anthropic", lambda **kwargs: mock_client)
 
     result = llm_extraction_fallback({"sections": []})
 
@@ -273,7 +273,7 @@ def test_llm_extraction_fallback_does_not_retry_non_transient_failure(monkeypatc
 def test_run_workflow_stays_incomplete_when_llm_extraction_fallback_also_fails(monkeypatch):
     mock_client = MagicMock()
     mock_client.messages.create.side_effect = RuntimeError("simulated network failure")
-    monkeypatch.setattr("src.workflow.anthropic.Anthropic", lambda **kwargs: mock_client)
+    monkeypatch.setattr("src.llm_client.anthropic.Anthropic", lambda **kwargs: mock_client)
 
     sections = extract_treaty_sections(SAMPLE_RICH_FUZZY_TREATY_PATH)
     result = run_workflow(sections)
