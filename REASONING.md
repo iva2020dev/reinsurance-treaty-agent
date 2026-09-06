@@ -1736,3 +1736,22 @@ This file contains the reasoning transcript of the AI agent for the current sess
   convention yet — no ID/claim/branch-per-item until the human
   prioritizes and specific items graduate into `TASKS.md`.
 
+- **2026-09-06 11:16:14 (update)**: Human asked to add a summary
+  table on top of `CANDIDATE_TASKS.md` and prioritize items within
+  each category/subsection. Added a `## Summary` table (Pri/ID/Task/
+  Category/Shape/Effort/Depends on) right after the intro, covering
+  all 28 items in one scannable view. Reordered every section/
+  subsection's detailed entries into the same priority order (each
+  heading now also says "— Priority N"), ranked by a rough
+  value/effort/dependency read: cheap+standalone+high-value items
+  first, foundational items before what depends on them (A1 before A2,
+  B3 before B4, B10 before B11, B5 before B15), and the items needing
+  a brand-new persistent data model (A5, B9, B12, B18) last in their
+  section, since they're the biggest lift with the least immediate
+  payoff. Kept original IDs unchanged (only reordered physical
+  presentation) so cross-references in the "Notes" section and any
+  future discussion still resolve. Expanded that Notes section with
+  one line explaining the rationale so the ranking isn't just
+  asserted without reasoning. `pytest tests/ -v` — 45 passed
+  (docs-only, unaffected).
+
