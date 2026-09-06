@@ -37,7 +37,7 @@
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
-- [ ] End-to-End Test the Hybrid Flow and Document Deployment Config
+- [ ] End-to-End Test the Hybrid Flow and Document Deployment Config (@claude)
   - **ID**: integration-test-llm-fallback-deploy-config
   - **Tags**: testing, extraction, llm, deployment
   - **Details**: Add one true end-to-end integration test in
