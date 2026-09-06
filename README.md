@@ -9,13 +9,18 @@ The agentic workflow in `src/workflow.py` is a LangGraph state machine:
 the Extractor Node reads treaty terms from parsed text via regex; if
 it can't find one or more required fields (e.g. a treaty phrased as
 prose instead of the `Label: value` convention), the LLM Extraction
-Fallback Node retries the extraction using Claude Haiku 4.5 with
-structured tool-use output before continuing. The Verifier Node then
-checks completeness and (if complete) looks up historical claims for
-the cedent, and the Analyst Node computes the loss ratio and flags
-anomalies. If extraction is still incomplete after both attempts, the
-graph ends right after the Verifier Node instead of running the
-Analyst Node.
+Fallback Node attempts extraction using Claude Haiku 4.5 with
+structured tool-use output before continuing. That call goes through
+the LLM-calling harness in `src/llm_client.py`, which automatically
+retries a transient failure (timeout, network hiccup, rate limit,
+momentary server overload) up to twice with exponential backoff before
+giving up — a non-transient failure (e.g. an invalid API key) is not
+retried. The Verifier Node then checks completeness and (if complete)
+looks up historical claims for the cedent, and the Analyst Node
+computes the loss ratio and flags anomalies. If extraction is still
+incomplete after the LLM fallback (including its retries), the graph
+ends right after the Verifier Node instead of running the Analyst
+Node.
 
 <!-- workflow-graph:start -->
 ```mermaid
@@ -105,16 +110,22 @@ process does; press `Ctrl+C` there to stop it.
    renders the resulting anomaly report: treaty terms with page
    citations, the historical loss ratio, and any flagged findings. If a
    treaty needed the LLM Extraction Fallback (regex alone couldn't find
-   required fields), a note above the report says so. An unreadable/
-   malformed PDF, or one where both regex and the LLM fallback fail to
-   find required treaty terms, shows a clear error message instead of
-   crashing — including the LLM failure reason, if that's what
-   happened.
+   required fields), a note above the report says so. If the LLM call
+   hits a transient failure (a timeout, a network hiccup, a momentary
+   rate limit or server overload), it's retried automatically — up to
+   2 retries with exponential backoff (1s, then 2s) — before giving up;
+   a non-transient failure (e.g. an invalid API key) fails immediately,
+   unretried. An unreadable/malformed PDF, or one where both regex and
+   the LLM fallback (including all its retries) fail to find required
+   treaty terms, shows a clear error message instead of crashing —
+   including the LLM failure reason, if that's what happened.
 3. Expand **"Debug: workflow execution"** below the report to see:
    - A caption naming which extraction path this run took (Regex only,
      LLM Extraction Fallback, or both attempts failed and why).
    - A per-node execution log (Extractor (Regex) → [LLM Extraction
-     Fallback] → Verifier → Analyst), each line timestamped.
+     Fallback] → Verifier → Analyst), each line timestamped — including
+     a line for each retry attempt if a transient LLM failure occurred,
+     noting the backoff delay before the next attempt.
    - The raw workflow state as JSON (parsed sections, extracted treaty
      terms, `extraction_method`, `llm_error`, claims, the final
      report).

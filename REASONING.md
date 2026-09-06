@@ -2137,3 +2137,19 @@ This file contains the reasoning transcript of the AI agent for the current sess
   previously-empty "Key Files" table with the actual `src/` modules,
   including the new `src/llm_client.py`. **Outcome**: `python -m
   pytest tests/ -q` — 49 passed (docs-only, unaffected).
+
+- **2026-09-06 15:03:32 (docs)**: Human asked where the retry/backoff
+  feature was covered in `README.md` — it wasn't, confirmed via grep
+  (no mention of "retry", "backoff", or "llm_client" anywhere).
+  **Action**: (1) in "Workflow Graph", clarified the LLM Extraction
+  Fallback Node's description — the pre-existing sentence "retries the
+  extraction using Claude Haiku 4.5" predates this feature and meant
+  "attempts extraction after regex failed," which now reads
+  confusingly next to the new retry-on-transient-failure behavior;
+  reworded it and added a sentence naming `src/llm_client.py`'s harness
+  and its retry/backoff behavior explicitly. (2) in "Using the app"
+  step 2, added a sentence describing the retry-then-give-up behavior
+  for transient vs. non-transient failures. (3) in step 3's debug-panel
+  bullet, noted that retry attempts appear as their own log lines.
+  **Outcome**: `python -m pytest tests/ -q` — 49 passed (docs-only,
+  unaffected).
