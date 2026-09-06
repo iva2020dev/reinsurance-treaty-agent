@@ -1968,3 +1968,56 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `fix-claude-review-ci-secret` (P2) remains in `TASKS.md`. **Outcome**:
   `python -m pytest tests/ -q` — 46 passed (confirms acceptance holds
   before closing).
+
+- **2026-09-06 14:18:16 (graduate)**: Continued the candidate-tasks
+  prioritization discussion. Recommended a harness-first sequence
+  (A1 -> A2 -> A3 -> A4, matching the Harness table's existing
+  priority order), corrected after the human asked why A2 (grounding
+  check) was initially skipped in a hastily-stated "A1 then A3 then
+  A4" — no good reason; A2 catches a live run producing a confidently
+  wrong, ungrounded extraction, which matters more immediately than
+  a not-yet-existing regression-eval suite. Human approved graduating
+  all four (A1-A4) into `TASKS.md`. **Action**: added four new P1
+  entries — `llm-fallback-retry-backoff` (A1), `llm-fallback-grounding-check`
+  (A2), `extraction-accuracy-eval-suite` (A3), `extraction-eval-ci-gate`
+  (A4, `Blocked by: extraction-accuracy-eval-suite`) — each with
+  Details/Files/Acceptance derived from the candidate entry's
+  description plus the actual `src/workflow.py` code (confirmed
+  `llm_extraction_fallback`'s current broad `except Exception` has no
+  retry logic today, and `anthropic.Anthropic(timeout=...)` is
+  constructed with no explicit `max_retries`). None are claimed yet —
+  graduating to the backlog isn't the same as picking up work. Also
+  added the two most recently closed tasks (`update-ui-llm-fallback`,
+  `integration-test-llm-fallback-deploy-config`) to `TASKS.md`'s
+  "Recently completed" comment block, which had fallen behind.
+  Updated `CANDIDATE_TASKS.md`: marked A1-A4's Status as
+  "📋 In TASKS.md" in the Harness summary table and each detailed
+  entry (pointing at their new `TASKS.md` IDs), and added this Status
+  value's meaning to the intro paragraph — the candidate list keeps
+  these entries for historical/planning context rather than deleting
+  them, since `TASKS.md` is now the live source of truth for their
+  actual status. **Outcome**: `python -m pytest tests/ -q` — 46 passed
+  (docs-only change, unaffected).
+
+- **2026-09-06 14:21:07 (update)**: Human asked to add, to every task
+  in `TASKS.md`, an explicit external key back to its
+  `CANDIDATE_TASKS.md` ID. **Action**: added a structured
+  **Candidate ID** field (right after **Tags**, before **Details**) to
+  every task entry: `A1`/`A2`/`A3`/`A4` for the four just-graduated
+  harness tasks, and an explicit "— (not from `CANDIDATE_TASKS.md`;
+  found directly while working another task)" for
+  `fix-claude-review-ci-secret`, which was discovered as a CI failure
+  rather than sourced from the candidate list — kept it present but
+  marked empty rather than omitting it, so every task consistently has
+  the field per the human's "every task" instruction. **Outcome**:
+  `python -m pytest tests/ -q` — 46 passed (docs-only, unaffected).
+
+- **2026-09-06 14:23:40 (correction)**: Human asked why the
+  `fix-claude-review-ci-secret` task's Candidate ID wasn't just "N/A"
+  like the field's stated purpose implies for non-graduated tasks —
+  it was already present but phrased as an em-dash explanation rather
+  than a plain `N/A` value, which read as if the field were missing.
+  Changed it to `N/A (not graduated from CANDIDATE_TASKS.md; found
+  directly while working another task)` for consistency with how
+  every other field's "no value" case should read. **Outcome**:
+  `python -m pytest tests/ -q` — 46 passed (docs-only, unaffected).
