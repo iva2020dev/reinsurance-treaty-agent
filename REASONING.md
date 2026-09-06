@@ -1883,3 +1883,26 @@ This file contains the reasoning transcript of the AI agent for the current sess
   expect more LLM reliance than `B0`), and `F3` (unstructured location
   prose needs LLM normalization before geocoding). **Outcome**:
   `python -m pytest tests/ -q` — 45 passed (docs-only, unaffected).
+
+- **2026-09-06 14:03:25 (close)**: Human asked whether
+  `update-ui-llm-fallback` should be closed before starting other
+  work, since its implementation (PRs #31/#32) was already merged to
+  `main` but the task was never formally marked done — and the next
+  P1 task, `integration-test-llm-fallback-deploy-config`, was
+  explicitly `Blocked by` it. **Goal**: close the task per the
+  human-approval convention (`AGENTS.md`/`CLAUDE.md`), rather than
+  leaving `TASKS.md` out of sync with real repo state. **Analysis**:
+  re-verified the acceptance criteria are actually met on `main` today
+  — `src/app.py`'s `format_extraction_status()` and the `st.warning`
+  note cover the `extraction_method == "llm"` and `"none"`/`llm_error`
+  cases, `serialize_state_for_debug()` already surfaces
+  `extraction_method`/`llm_error` in the JSON debug view, and
+  `tests/test_app.py` has passing tests for both cases. **Action**:
+  human explicitly approved closing it as done; removed the task entry
+  from `TASKS.md`'s P1 section (history preserved in git) and dropped
+  the now-satisfied `Blocked by: update-ui-llm-fallback` line from
+  `integration-test-llm-fallback-deploy-config`, on branch
+  `close/update-ui-llm-fallback`, titled per convention
+  `Closing task as "Done": Surface LLM Extraction Fallback Status in
+  the UI`. **Outcome**: `python -m pytest tests/ -q` — 45 passed
+  (confirms the acceptance criteria hold on `main` before closing).
