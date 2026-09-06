@@ -30,6 +30,7 @@
      ✅ 2026-09-06 14:11:27 End-to-End Test the Hybrid Flow and Document Deployment Config (integration-test-llm-fallback-deploy-config)
      ✅ 2026-09-06 15:14:46 Retry/Backoff Resilience for the LLM Call (llm-fallback-retry-backoff)
      ✅ 2026-09-06 15:29:45 Grounding/Assurance Check on LLM Output (llm-fallback-grounding-check)
+     ✅ 2026-09-06 16:05:00 Extraction Accuracy Eval Suite (Golden Dataset) (extraction-accuracy-eval-suite)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -42,31 +43,6 @@
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
 
-- [ ] Extraction Accuracy Eval Suite (Golden Dataset) (@claude)
-  - **ID**: extraction-accuracy-eval-suite
-  - **Tags**: evaluation, extraction, llm
-  - **Candidate ID**: A3 (`CANDIDATE_TASKS.md`)
-  - **Details**: Graduated from `CANDIDATE_TASKS.md` (`A3`, Priority 3
-    of 10 in the Harness list). Build a small labeled golden dataset
-    of treaty documents (the three existing fixtures plus at least 2-3
-    new prose/fuzzy variants with more realistic real-world phrasing
-    than today's) with known-correct `TreatyTerms`, plus an automated
-    scorer that runs each document through the full extraction
-    pipeline (regex, falling back to the LLM Extraction Fallback where
-    triggered) and reports field-level precision/recall — not just
-    pass/fail — against the known-correct values. This is the harness
-    that would catch a prompt or model-version regression before it
-    reaches production, and is a prerequisite for `extraction-eval-ci-gate`.
-  - **Files**: `tests/eval/golden_dataset.py`, `tests/eval/scorer.py`,
-    `tests/eval/run_eval.py`, `tests/eval/test_eval_suite.py`,
-    `tests/eval/build_fixtures.py`, `data/golden_harborlight_treaty.pdf`,
-    `data/golden_continental_treaty.pdf` (+ their `_parsed.json`
-    companions), `README.md`, `CLAUDE.md`
-  - **Acceptance**: Running the eval suite locally produces a
-    field-level accuracy report for every golden document, and a
-    deliberately-broken extraction (e.g. a corrupted
-    `_TREATY_EXTRACTION_TOOL` schema) is caught by a drop in scored
-    accuracy. The existing `pytest tests/` suite still passes.
 
 - [ ] CI-Integrated Regression Eval Gate
   - **ID**: extraction-eval-ci-gate

@@ -2399,3 +2399,12 @@ This file contains the reasoning transcript of the AI agent for the current sess
   this task. Synced `TASKS.md`'s Files list to the actual delivered
   files. **Outcome**: `python -m pytest tests/ -q` — 73 passed (67
   prior + 6 new in `tests/eval/test_eval_suite.py`).
+
+- **2026-09-06 (closing)**: PR #46 merged into `main` at `7e07f6a`
+  (PR #45's unrelated REASONING.md dedup fix merged first at
+  `204f97e`). Human explicitly approved marking
+  `extraction-accuracy-eval-suite` done. Removing it from `TASKS.md`'s
+  P1 section on this `close/extraction-accuracy-eval-suite`
+  branch/PR, titled `Closing task as "Done": Extraction Accuracy Eval
+  Suite (Golden Dataset)`, per the mandatory task-closing workflow.
+  Unblocks `extraction-eval-ci-gate`, which depended on this.
