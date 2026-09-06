@@ -1701,3 +1701,106 @@ This file contains the reasoning transcript of the AI agent for the current sess
   (`at.info` → `at.warning`) and the README description-table row.
   `pytest tests/ -v` — 45 passed, no regressions.
 
+## 2026-09-06 10:37:43 — Draft CANDIDATE_TASKS.md (staging list, not yet in TASKS.md)
+
+- **Goal**: Human asked to draft a list of candidate future tasks
+  covering two categories — (1) technical/AI-engineering harness work
+  (model behavior validation, evaluation frameworks, agent-behavior
+  quality checks/grounding, reliability/scalability/cost/latency) and
+  (2) business-domain features, explicitly asking to also consider
+  Facultative and Claims reinsurance lines (not just Treaty, which is
+  all this app covers today) — as a side `.md` file to clarify and
+  prioritize together before anything is added to `TASKS.md`.
+- **Analysis**: This session's earlier discussion (business-task
+  question, then feature-idea question, then cost/effort-estimate
+  question) already produced most of the Treaty-line domain candidates
+  (clause checklist, renewal diff, multi-layer extraction, ambiguity
+  detection, summary, semantic compliance) with rough effort/cost
+  framing. Facultative and Claims are genuinely distinct workflows
+  from what the app does today (Facultative = per-risk individual
+  underwriting vs. Treaty's whole-book coverage; Claims = post-loss
+  handling/adjustment vs. pre-bind underwriting review), so their
+  candidate tasks needed to be reasoned through fresh rather than
+  reused from earlier in the session.
+- **Decision**: Named the file `CANDIDATE_TASKS.md` (parallels
+  `TASKS.md`'s naming, unambiguous that it's pre-backlog). Kept every
+  item to a short description + rough shape (deterministic/LLM/hybrid)
+  + rough effort (S/M/L) — deliberately *not* full `TASKS.md`-spec'd
+  entries (no ID/Files/Acceptance yet), since nothing here has been
+  prioritized. Flagged two cross-cutting notes explicitly rather than
+  burying them in individual items: (a) items marked **L** are likely
+  each their own multi-task chain, same pattern as
+  `explore-hybrid-regex-llm-fallback`'s split into four; (b) the
+  LLM-suited domain features (summary, ambiguity detection, semantic
+  compliance, claim-exclusion check) would change the app's cost
+  profile from "LLM cost only on fallback" to "LLM cost on every run"
+  if made automatic rather than opt-in — a deliberate product decision
+  flagged for prioritization discussion, not a default assumed here.
+- **Action**: Created `CANDIDATE_TASKS.md` at the repo root with
+  sections A (10 harness items) and B (18 domain items across Treaty/
+  Facultative/Claims), plus a closing "Notes for prioritization
+  discussion" section.
+- **Outcome**: `pytest tests/ -v` — 45 passed (docs-only addition,
+  unaffected). This file is explicitly not part of the task-tracking
+  convention yet — no ID/claim/branch-per-item until the human
+  prioritizes and specific items graduate into `TASKS.md`.
+
+- **2026-09-06 11:16:14 (update)**: Human asked to add a summary
+  table on top of `CANDIDATE_TASKS.md` and prioritize items within
+  each category/subsection. Added a `## Summary` table (Pri/ID/Task/
+  Category/Shape/Effort/Depends on) right after the intro, covering
+  all 28 items in one scannable view. Reordered every section/
+  subsection's detailed entries into the same priority order (each
+  heading now also says "— Priority N"), ranked by a rough
+  value/effort/dependency read: cheap+standalone+high-value items
+  first, foundational items before what depends on them (A1 before A2,
+  B3 before B4, B10 before B11, B5 before B15), and the items needing
+  a brand-new persistent data model (A5, B9, B12, B18) last in their
+  section, since they're the biggest lift with the least immediate
+  payoff. Kept original IDs unchanged (only reordered physical
+  presentation) so cross-references in the "Notes" section and any
+  future discussion still resolve. Expanded that Notes section with
+  one line explaining the rationale so the ranking isn't just
+  asserted without reasoning. `pytest tests/ -v` — 45 passed
+  (docs-only, unaffected).
+
+- **2026-09-06 12:41:36 (update)**: Human asked to split the single
+  combined Summary table into separate named tables per category.
+  Replaced the one 28-row table (with a `Category` column) with four
+  tables under their own headings — "Technical / AI Engineering &
+  Production Harness," "Business Domain — Treaty," "— Facultative,"
+  "— Claims" — dropping the now-redundant `Category` column from each
+  since it's implied by the table's heading. `pytest tests/ -v` — 45
+  passed (docs-only, unaffected).
+
+- **2026-09-06 12:53:22 (update)**: Human asked which of the four
+  Summary tables reflects the Business Domain capability the app has
+  actually shipped, then asked to name it "Burn-Cost Check," add it to
+  the candidate tables as Done, and add a Status flag to every
+  candidate task. **Goal**: make `CANDIDATE_TASKS.md` distinguish the
+  one already-shipped item from the 27 proposed ones, without
+  renumbering or otherwise disturbing the existing priority order.
+  **Decision**: name the shipped capability `B0` (not folded into the
+  B1-B18 numbering, since it isn't a candidate up for prioritization —
+  it's the baseline). **Action**: (1) added a `Status` column (values
+  `✅ Done` / `Proposed`) to all four `## Summary` tables; (2) added a
+  `B0` row to the Treaty summary table with Pri `—` and Status
+  `✅ Done`; (3) added a detailed `### B0. Burn-Cost Check` entry
+  before B1 in the Treaty section, describing the actual shipped
+  pipeline: Extractor (regex, falling back to LLM Extraction Fallback)
+  → `query_historical_claims` → `calculate_loss_ratio` → severity-
+  tiered `AnomalyFinding`s (LOW/MEDIUM/HIGH), pointing at
+  `src/workflow.py`/`src/tools.py`/`src/app.py`; (4) updated the intro
+  paragraph to explain the new Status column; (5) added a line to
+  "Notes for prioritization discussion" clarifying B0 has no Priority
+  because it isn't a candidate for re-ranking. Chose "Burn-Cost Check"
+  (the human's own term, from the earlier planning discussion) over a
+  more generic label like "Loss Ratio Check" since it's the standard
+  reinsurance-industry name for exactly this analysis (comparing
+  historical incurred losses against a layer to gauge its adequacy).
+  **Outcome**: `python -m pytest tests/ -q` — 45 passed (docs-only,
+  unaffected; note plain `pytest tests/` fails on `ModuleNotFoundError:
+  No module named 'src'` from this shell — must run via
+  `python -m pytest` for the repo-root path to resolve, unrelated to
+  this change).
+
