@@ -2250,3 +2250,10 @@ This file contains the reasoning transcript of the AI agent for the current sess
   itself to `src/tools.py`, added `tests/test_tools.py`/`README.md`/
   `CLAUDE.md`). **Outcome**: `python -m pytest tests/ -q` — 58 passed
   (50 prior + 8 new), including the real-API integration test.
+
+- **2026-09-06 (closing)**: PR #42 merged into `main` at `918873e`.
+  Human explicitly approved marking `llm-fallback-grounding-check`
+  done. Removing it from `TASKS.md`'s P1 section on this
+  `close/llm-fallback-grounding-check` branch/PR, titled
+  `Closing task as "Done": Grounding/Assurance Check on LLM Output`,
+  per the mandatory task-closing workflow.
