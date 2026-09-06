@@ -23,57 +23,63 @@ dependency, not a final decision. See the 2026-09-06 session's
 discussion in `REASONING.md` for the fuller cost/effort comparison
 this list was drafted from.
 
+Every table below also has a **Status** column: **✅ Done** marks
+capability already shipped in the app today (currently just the
+Treaty **Burn-Cost Check**, `B0`); everything else is **Proposed** —
+not started, not scoped, not approved.
+
 ---
 
 ## Summary
 
 ### Technical / AI Engineering & Production Harness
 
-| Pri | ID | Task | Shape | Effort | Depends on |
-|---|---|---|---|---|---|
-| 1 | A7 | Retry/backoff resilience for the LLM call | Deterministic | S | — |
-| 2 | A3 | Grounding/assurance check on LLM output | Hybrid | M | — |
-| 3 | A1 | Extraction accuracy eval suite (golden dataset) | Hybrid | M | — |
-| 4 | A2 | CI-integrated regression eval gate | Deterministic | S | A1 |
-| 5 | A9 | Structured observability upgrade | Deterministic | M | — |
-| 6 | A6 | Cost & latency observability + guardrails | Deterministic | M | — |
-| 7 | A4 | Adversarial input hardening | Hybrid | M | — |
-| 8 | A10 | Data-handling/PII review for third-party LLM calls | Deterministic | S/M | — |
-| 9 | A8 | Fallback tiering / cost-aware escalation | Hybrid | M | — |
-| 10 | A5 | Human-in-the-loop review workflow | Deterministic | M | — |
+| Pri | ID | Task | Status | Shape | Effort | Depends on |
+|---|---|---|---|---|---|---|
+| 1 | A7 | Retry/backoff resilience for the LLM call | Proposed | Deterministic | S | — |
+| 2 | A3 | Grounding/assurance check on LLM output | Proposed | Hybrid | M | — |
+| 3 | A1 | Extraction accuracy eval suite (golden dataset) | Proposed | Hybrid | M | — |
+| 4 | A2 | CI-integrated regression eval gate | Proposed | Deterministic | S | A1 |
+| 5 | A9 | Structured observability upgrade | Proposed | Deterministic | M | — |
+| 6 | A6 | Cost & latency observability + guardrails | Proposed | Deterministic | M | — |
+| 7 | A4 | Adversarial input hardening | Proposed | Hybrid | M | — |
+| 8 | A10 | Data-handling/PII review for third-party LLM calls | Proposed | Deterministic | S/M | — |
+| 9 | A8 | Fallback tiering / cost-aware escalation | Proposed | Hybrid | M | — |
+| 10 | A5 | Human-in-the-loop review workflow | Proposed | Deterministic | M | — |
 
 ### Business Domain — Treaty
 
-| Pri | ID | Task | Shape | Effort | Depends on |
-|---|---|---|---|---|---|
-| 1 | B1 | Mandatory-clause / exclusion completeness checklist | Deterministic | S | — |
-| 2 | B5 | Key-date/renewal calendar extraction | Deterministic | S | — |
-| 3 | B2 | Renewal year-over-year diff | Deterministic | M | — |
-| 4 | B3 | Multi-layer program extraction & aggregation | Deterministic | L | — |
-| 5 | B4 | Reinstatement cost modeling | Deterministic | M | B3 |
-| 6 | B8 | Semantic compliance/clause matching | LLM | M | — |
-| 7 | B6 | Plain-English treaty summary | LLM | S/M | — |
-| 8 | B7 | Clause ambiguity/contradiction detection | LLM | M | — |
-| 9 | B9 | Peer/portfolio benchmarking | Deterministic | L | — |
+| Pri | ID | Task | Status | Shape | Effort | Depends on |
+|---|---|---|---|---|---|---|
+| — | B0 | **Burn-Cost Check** | **✅ Done** | Hybrid | — (shipped) | — |
+| 1 | B1 | Mandatory-clause / exclusion completeness checklist | Proposed | Deterministic | S | — |
+| 2 | B5 | Key-date/renewal calendar extraction | Proposed | Deterministic | S | — |
+| 3 | B2 | Renewal year-over-year diff | Proposed | Deterministic | M | — |
+| 4 | B3 | Multi-layer program extraction & aggregation | Proposed | Deterministic | L | — |
+| 5 | B4 | Reinstatement cost modeling | Proposed | Deterministic | M | B3 |
+| 6 | B8 | Semantic compliance/clause matching | Proposed | LLM | M | — |
+| 7 | B6 | Plain-English treaty summary | Proposed | LLM | S/M | — |
+| 8 | B7 | Clause ambiguity/contradiction detection | Proposed | LLM | M | — |
+| 9 | B9 | Peer/portfolio benchmarking | Proposed | Deterministic | L | — |
 
 ### Business Domain — Facultative
 
-| Pri | ID | Task | Shape | Effort | Depends on |
-|---|---|---|---|---|---|
-| 1 | B10 | Facultative submission extraction | Hybrid | M | — |
-| 2 | B11 | Facultative vs. treaty overlap check | Deterministic | M | B10 |
-| 3 | B13 | Cat/peril exposure geocoding | Hybrid | M | — |
-| 4 | B12 | Risk accumulation/PML aggregation check | Deterministic | L | — |
+| Pri | ID | Task | Status | Shape | Effort | Depends on |
+|---|---|---|---|---|---|---|
+| 1 | B10 | Facultative submission extraction | Proposed | Hybrid | M | — |
+| 2 | B11 | Facultative vs. treaty overlap check | Proposed | Deterministic | M | B10 |
+| 3 | B13 | Cat/peril exposure geocoding | Proposed | Hybrid | M | — |
+| 4 | B12 | Risk accumulation/PML aggregation check | Proposed | Deterministic | L | — |
 
 ### Business Domain — Claims
 
-| Pri | ID | Task | Shape | Effort | Depends on |
-|---|---|---|---|---|---|
-| 1 | B16 | Large-loss/catastrophe claim flagging | Deterministic | S | — |
-| 2 | B15 | Claim notification compliance check | Deterministic | S/M | B5 |
-| 3 | B14 | Claims bordereau reconciliation | Deterministic | M | — |
-| 4 | B17 | Claim exclusion applicability check | LLM | M/L | — |
-| 5 | B18 | Reserve development tracking | Deterministic | L | — |
+| Pri | ID | Task | Status | Shape | Effort | Depends on |
+|---|---|---|---|---|---|---|
+| 1 | B16 | Large-loss/catastrophe claim flagging | Proposed | Deterministic | S | — |
+| 2 | B15 | Claim notification compliance check | Proposed | Deterministic | S/M | B5 |
+| 3 | B14 | Claims bordereau reconciliation | Proposed | Deterministic | M | — |
+| 4 | B17 | Claim exclusion applicability check | Proposed | LLM | M/L | — |
+| 5 | B18 | Reserve development tracking | Proposed | Deterministic | L | — |
 
 ---
 
@@ -153,6 +159,20 @@ correction) to grow the eval dataset in A1 over time.
 ## B. Business Domain
 
 ### Treaty (extends what the app already does)
+
+- **B0. Burn-Cost Check** — Status: ✅ Done (implemented) —
+  what the app already does today, end to end: extract a treaty's terms
+  (attachment point, limit, premium, exclusions — via the regex
+  Extractor, falling back to the LLM Extraction Fallback when the
+  regex step can't find every required field), look up the cedent's
+  historical claims (`query_historical_claims`), compute the burn-cost
+  loss ratio for the layer (`calculate_loss_ratio`: ceded losses within
+  the layer, summed and divided by the limit), and flag anomalies by
+  severity (LOW when there's no claims history, MEDIUM at a 0.5+ loss
+  ratio, HIGH above 1.0). Every item below in this Treaty section is a
+  proposed extension of, or addition alongside, this shipped baseline.
+  - *Shape: Hybrid (regex-first, LLM fallback). Effort: shipped —
+    see `src/workflow.py`, `src/tools.py`, `src/app.py`.*
 
 - **B1. Mandatory-clause / exclusion completeness checklist** — Priority 1 —
   compare extracted `exclusions` against a configurable list of
@@ -284,6 +304,10 @@ coverage — a genuinely different document shape and workflow.
   automatic rather than opt-in, change the app's cost profile from
   "LLM cost only on fallback" to "LLM cost on every run" — worth a
   deliberate decision, not a default.
+- B0 (Burn-Cost Check) is not a candidate — it's the shipped baseline
+  every other Treaty item extends or sits alongside. It's listed with
+  no Priority (not up for re-ranking) so the numbered priorities above
+  stay comparable to how they read before B0 was added.
 - A1/A2 (eval suite + CI gate) arguably deserve doing *before* any
   further LLM-suited feature work (B6–B8, B17), since they're the
   harness that would catch a bad prompt/model change in those features

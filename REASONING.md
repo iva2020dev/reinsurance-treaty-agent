@@ -1773,3 +1773,34 @@ This file contains the reasoning transcript of the AI agent for the current sess
   since it's implied by the table's heading. `pytest tests/ -v` — 45
   passed (docs-only, unaffected).
 
+- **2026-09-06 12:53:22 (update)**: Human asked which of the four
+  Summary tables reflects the Business Domain capability the app has
+  actually shipped, then asked to name it "Burn-Cost Check," add it to
+  the candidate tables as Done, and add a Status flag to every
+  candidate task. **Goal**: make `CANDIDATE_TASKS.md` distinguish the
+  one already-shipped item from the 27 proposed ones, without
+  renumbering or otherwise disturbing the existing priority order.
+  **Decision**: name the shipped capability `B0` (not folded into the
+  B1-B18 numbering, since it isn't a candidate up for prioritization —
+  it's the baseline). **Action**: (1) added a `Status` column (values
+  `✅ Done` / `Proposed`) to all four `## Summary` tables; (2) added a
+  `B0` row to the Treaty summary table with Pri `—` and Status
+  `✅ Done`; (3) added a detailed `### B0. Burn-Cost Check` entry
+  before B1 in the Treaty section, describing the actual shipped
+  pipeline: Extractor (regex, falling back to LLM Extraction Fallback)
+  → `query_historical_claims` → `calculate_loss_ratio` → severity-
+  tiered `AnomalyFinding`s (LOW/MEDIUM/HIGH), pointing at
+  `src/workflow.py`/`src/tools.py`/`src/app.py`; (4) updated the intro
+  paragraph to explain the new Status column; (5) added a line to
+  "Notes for prioritization discussion" clarifying B0 has no Priority
+  because it isn't a candidate for re-ranking. Chose "Burn-Cost Check"
+  (the human's own term, from the earlier planning discussion) over a
+  more generic label like "Loss Ratio Check" since it's the standard
+  reinsurance-industry name for exactly this analysis (comparing
+  historical incurred losses against a layer to gauge its adequacy).
+  **Outcome**: `python -m pytest tests/ -q` — 45 passed (docs-only,
+  unaffected; note plain `pytest tests/` fails on `ModuleNotFoundError:
+  No module named 'src'` from this shell — must run via
+  `python -m pytest` for the repo-root path to resolve, unrelated to
+  this change).
+
