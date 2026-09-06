@@ -42,7 +42,7 @@
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
 
-- [ ] Extraction Accuracy Eval Suite (Golden Dataset)
+- [ ] Extraction Accuracy Eval Suite (Golden Dataset) (@claude)
   - **ID**: extraction-accuracy-eval-suite
   - **Tags**: evaluation, extraction, llm
   - **Candidate ID**: A3 (`CANDIDATE_TASKS.md`)
