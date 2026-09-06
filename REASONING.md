@@ -1802,5 +1802,19 @@ This file contains the reasoning transcript of the AI agent for the current sess
   unaffected; note plain `pytest tests/` fails on `ModuleNotFoundError:
   No module named 'src'` from this shell — must run via
   `python -m pytest` for the repo-root path to resolve, unrelated to
-  this change).
+  this change). PR #33 merged (mergedAt 2026-09-06T10:05:33Z).
+
+- **2026-09-06 13:10:12 (chore)**: Human noticed `logs/` (created by
+  the Streamlit app's "Save logs to file" control) wasn't showing up
+  on GitHub/`main` and asked whether it's ignored. **Analysis**:
+  `.gitignore` only had `*.log` (line 59, inherited from the Python
+  template) — that ignores `logs/workflow.log` but not other file
+  types dropped in the same directory (a stray `.txt` debug export was
+  untracked-but-visible in `git status`, never actually committed).
+  **Decision**: ignore the whole `logs/` directory rather than adding
+  more file-extension patterns, since it's a runtime output directory,
+  not source. **Action**: added `logs/` to `.gitignore` (on branch
+  `chore/gitignore-logs-dir`, off up-to-date `main` post-merge of
+  PR #33). **Outcome**: `python -m pytest tests/ -q` — 45 passed
+  (unaffected).
 

@@ -227,3 +227,6 @@ __marimo__/
 # Streamlit agent skills (environment-specific symlinks)
 .agents/skills/developing-with-streamlit
 .claude/skills/developing-with-streamlit
+
+# App-generated runtime logs (workflow.log and any other saved run output)
+logs/
