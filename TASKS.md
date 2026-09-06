@@ -28,6 +28,7 @@
      ✅ 2026-09-05 16:30:02 Implement the LLM Extraction Fallback Node (implement-llm-fallback-node)
      ✅ 2026-09-06 14:03:25 Surface LLM Extraction Fallback Status in the UI (update-ui-llm-fallback)
      ✅ 2026-09-06 14:11:27 End-to-End Test the Hybrid Flow and Document Deployment Config (integration-test-llm-fallback-deploy-config)
+     ✅ 2026-09-06 15:14:46 Retry/Backoff Resilience for the LLM Call (llm-fallback-retry-backoff)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -38,44 +39,6 @@
 ## P1
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
-
-- [ ] Retry/Backoff Resilience for the LLM Call (@claude)
-  - **ID**: llm-fallback-retry-backoff
-  - **Tags**: reliability, extraction, llm
-  - **Candidate ID**: A1 (`CANDIDATE_TASKS.md`)
-  - **Details**: Graduated from `CANDIDATE_TASKS.md` (`A1`, Priority 1
-    of 10 in the Harness list). In `src/workflow.py`'s
-    `llm_extraction_fallback`, add bounded retry-with-backoff for
-    *transient* failures only (`anthropic.APITimeoutError`,
-    `anthropic.APIConnectionError`, `anthropic.RateLimitError`,
-    `anthropic.InternalServerError`) before falling through to today's
-    graceful-degradation path (`extraction_method="none"`, `llm_error`
-    set). Non-transient failures (auth errors, a malformed tool
-    response, a `TreatyTerms` validation error) must NOT be retried —
-    they should fail straight to degradation exactly as today. Log
-    each retry attempt (attempt number, backoff delay, exception).
-    Cap total retries/backoff so a single upload can't hang
-    indefinitely. **Updated 2026-09-06**: the human asked to separate
-    this retry/backoff harness logic from workflow.py's business
-    logic — the retry mechanics now live in a new `src/llm_client.py`
-    module (`get_client`, `call_with_retry`), imported by
-    `llm_extraction_fallback` rather than implemented inline; retry
-    log lines are now emitted under the `"src.llm_client"` logger
-    instead of `"src.workflow"`, so `src/app.py`'s debug-panel handler
-    was widened from `logging.getLogger("src.workflow")` to
-    `logging.getLogger("src")` (the parent) so it still captures both
-    loggers' output, plus any future harness module's — no behavior
-    change to what the debug panel shows.
-  - **Files**: `src/llm_client.py` (new), `src/workflow.py`,
-    `src/app.py`, `tests/test_workflow.py`, `tests/test_app.py`
-  - **Acceptance**: A mocked transient failure followed by a
-    successful retry produces a correct `extraction_method="llm"`
-    result, with retry attempts visible in captured log lines. A
-    mocked non-transient failure (e.g. invalid API key) fails
-    immediately with no retry, unchanged from today. A mocked failure
-    that exhausts all retries degrades gracefully
-    (`extraction_method="none"`, `llm_error` set) exactly like today,
-    never crashing. `pytest tests/` passes.
 
 - [ ] Grounding/Assurance Check on LLM Output
   - **ID**: llm-fallback-grounding-check

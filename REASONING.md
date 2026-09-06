@@ -2168,3 +2168,16 @@ This file contains the reasoning transcript of the AI agent for the current sess
   log lines and the eventual error in the debug panel and report.
   **Outcome**: `python -m pytest tests/ -q` — 49 passed (docs-only,
   unaffected).
+
+- **2026-09-06 15:14:46 (close)**: Human approved closing
+  `llm-fallback-retry-backoff` as done — its acceptance criteria were
+  met on `main` via PR #40 (retry/backoff behavior, the
+  `src/llm_client.py` harness separation, `CLAUDE.md` architecture
+  docs, and `README.md` coverage including a manual-testing recipe,
+  all merged). **Action**: removed the task entry from `TASKS.md`'s P1
+  section (history preserved in git) and added it to the "Recently
+  completed" comment block, on branch
+  `close/llm-fallback-retry-backoff`, titled per convention
+  `Closing task as "Done": Retry/Backoff Resilience for the LLM Call`.
+  **Outcome**: `python -m pytest tests/ -q` — 49 passed (confirms
+  acceptance holds before closing).
