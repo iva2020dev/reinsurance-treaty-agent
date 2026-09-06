@@ -39,7 +39,7 @@
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
-- [ ] Retry/Backoff Resilience for the LLM Call
+- [ ] Retry/Backoff Resilience for the LLM Call (@claude)
   - **ID**: llm-fallback-retry-backoff
   - **Tags**: reliability, extraction, llm
   - **Candidate ID**: A1 (`CANDIDATE_TASKS.md`)

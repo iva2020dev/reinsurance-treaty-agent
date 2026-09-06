@@ -4,6 +4,7 @@ from datetime import date
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import anthropic
 import pytest
 
 from src.models import ClaimsData, Severity, TreatyTerms
@@ -190,6 +191,83 @@ def test_llm_extraction_fallback_degrades_gracefully_on_failure(monkeypatch):
         "extraction_method": "none",
         "llm_error": "RuntimeError: simulated network failure",
     }
+    # Non-transient (not one of the retryable exception types): one attempt, no retry.
+    mock_client.messages.create.assert_called_once()
+
+
+def test_llm_extraction_fallback_retries_transient_failure_then_succeeds(monkeypatch):
+    """A transient failure (timeout) followed by success should retry, not degrade."""
+    sleeps: list[float] = []
+    monkeypatch.setattr("src.workflow.time.sleep", sleeps.append)
+
+    tool_use_block = SimpleNamespace(
+        type="tool_use",
+        input={
+            "cedent_name": "Sentinel Mutual Assurance",
+            "attachment_point": 200_000,
+            "limit": 1_000_000,
+            "reinsurance_premium": 400_000,
+            "exclusions": [],
+            "page_citations": {},
+        },
+    )
+    success_response = SimpleNamespace(
+        content=[tool_use_block],
+        usage=SimpleNamespace(input_tokens=512, output_tokens=64),
+    )
+    timeout_error = anthropic.APITimeoutError(request=MagicMock())
+    mock_client = MagicMock()
+    mock_client.messages.create.side_effect = [timeout_error, success_response]
+    monkeypatch.setattr("src.workflow.anthropic.Anthropic", lambda **kwargs: mock_client)
+
+    result = llm_extraction_fallback({"sections": []})
+
+    assert result["extraction_method"] == "llm"
+    assert result["llm_error"] is None
+    assert result["treaty"].cedent_name == "Sentinel Mutual Assurance"
+    assert mock_client.messages.create.call_count == 2
+    assert sleeps == [1.0]  # one retry, first backoff delay
+
+
+def test_llm_extraction_fallback_gives_up_after_max_retries(monkeypatch):
+    """A transient failure that never recovers exhausts retries and degrades gracefully."""
+    sleeps: list[float] = []
+    monkeypatch.setattr("src.workflow.time.sleep", sleeps.append)
+
+    timeout_error = anthropic.APITimeoutError(request=MagicMock())
+    mock_client = MagicMock()
+    mock_client.messages.create.side_effect = timeout_error
+    monkeypatch.setattr("src.workflow.anthropic.Anthropic", lambda **kwargs: mock_client)
+
+    result = llm_extraction_fallback({"sections": []})
+
+    assert result["extraction_method"] == "none"
+    assert "APITimeoutError" in result["llm_error"]
+    # 1 initial attempt + 2 retries = 3 total calls; 2 backoff sleeps in between.
+    assert mock_client.messages.create.call_count == 3
+    assert sleeps == [1.0, 2.0]
+
+
+def test_llm_extraction_fallback_does_not_retry_non_transient_failure(monkeypatch):
+    """An auth error (or any non-retryable failure) fails on the first attempt, unretried."""
+    sleeps: list[float] = []
+    monkeypatch.setattr("src.workflow.time.sleep", sleeps.append)
+
+    auth_error = anthropic.AuthenticationError(
+        message="invalid x-api-key",
+        response=MagicMock(headers={}),
+        body=None,
+    )
+    mock_client = MagicMock()
+    mock_client.messages.create.side_effect = auth_error
+    monkeypatch.setattr("src.workflow.anthropic.Anthropic", lambda **kwargs: mock_client)
+
+    result = llm_extraction_fallback({"sections": []})
+
+    assert result["extraction_method"] == "none"
+    assert "AuthenticationError" in result["llm_error"]
+    mock_client.messages.create.assert_called_once()
+    assert sleeps == []
 
 
 def test_run_workflow_stays_incomplete_when_llm_extraction_fallback_also_fails(monkeypatch):

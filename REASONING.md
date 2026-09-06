@@ -2021,3 +2021,58 @@ This file contains the reasoning transcript of the AI agent for the current sess
   directly while working another task)` for consistency with how
   every other field's "no value" case should read. **Outcome**:
   `python -m pytest tests/ -q` — 46 passed (docs-only, unaffected).
+
+- **2026-09-06 14:35:43 (start)**: Picked up
+  `llm-fallback-retry-backoff` (P1, claimed). **Goal**: retry
+  `llm_extraction_fallback`'s Anthropic API call on transient failures
+  (timeout, connection error, rate limit, 5xx/overloaded/unavailable)
+  with bounded exponential backoff before falling through to today's
+  graceful-degradation path, while leaving non-transient failures
+  (auth errors, malformed tool response, `TreatyTerms` validation
+  errors) failing immediately exactly as today. **Analysis**: the
+  installed `anthropic` SDK (1.3.0) already retries transient failures
+  internally by default (`max_retries=2` on `anthropic.Anthropic()`,
+  confirmed via `BaseClient._calculate_retry_timeout`'s exponential
+  backoff + jitter) — but those retries are invisible to this app's
+  own logging, since they happen inside the SDK before any exception
+  reaches our code. That means relying on the SDK default wouldn't
+  satisfy the task's acceptance criteria ("retry attempts visible in
+  captured log lines"), and stacking our own retry loop on top of the
+  SDK's default would silently multiply the worst-case delay/attempts.
+  **Decision**: construct the client with `max_retries=0` (opt out of
+  the SDK's silent retries) and implement an explicit, logged retry
+  loop in `llm_extraction_fallback` for a specific tuple of retryable
+  exception types (`anthropic.APITimeoutError`,
+  `anthropic.APIConnectionError`, `anthropic.RateLimitError`,
+  `anthropic.InternalServerError`, `anthropic.OverloadedError`,
+  `anthropic.ServiceUnavailableError`), bounded at 2 retries (3 total
+  attempts) with exponential backoff (1s, 2s). Everything else (a
+  plain `StopIteration` from the `next()` tool-use lookup, a
+  `TreatyTerms` `ValidationError`, `AuthenticationError`,
+  `BadRequestError`, etc.) stays in the existing broad
+  `except Exception` catch-all and fails on the first attempt, exactly
+  as today — confirmed no regression against the existing
+  `test_llm_extraction_fallback_degrades_gracefully_on_failure` test,
+  which uses a plain `RuntimeError` and asserts
+  `messages.create.assert_called_once()`.
+
+- **2026-09-06 14:37:02 (outcome)**: **Action**: in
+  `src/workflow.py`, added `_RETRYABLE_LLM_EXCEPTIONS`,
+  `_LLM_MAX_RETRIES` (2), and `_LLM_RETRY_BASE_DELAY_SECONDS` (1.0,
+  doubling per attempt); rewrote `llm_extraction_fallback` as a
+  bounded retry loop around the existing try body, constructing the
+  client with `max_retries=0`; logs each retry attempt (attempt
+  number, exception, backoff delay) and, on final exhaustion, the
+  total retry count, via the existing `"src.workflow"` logger. Added
+  three tests to `tests/test_workflow.py`: a transient failure
+  (`anthropic.APITimeoutError`) followed by success retries once and
+  succeeds; a persistent transient failure exhausts all retries (3
+  total calls, sleeps `[1.0, 2.0]`) and degrades gracefully exactly as
+  before; a non-transient failure (`anthropic.AuthenticationError`)
+  fails on the first attempt with no retry/sleep. All three monkeypatch
+  `src.workflow.time.sleep` to a list-appending stub so retries don't
+  actually delay the test run, while still asserting the exact delays
+  used. **Outcome**: `python -m pytest tests/ -q` — 49 passed (46
+  existing + 3 new), including the real-API integration test
+  (`ANTHROPIC_API_KEY` present locally), confirming the success path
+  and `max_retries=0` change didn't break the live LLM call.

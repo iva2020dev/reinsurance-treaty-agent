@@ -24,6 +24,20 @@ _REQUIRED_FIELDS = ("cedent_name", "attachment_point", "limit", "reinsurance_pre
 _LLM_MODEL = "claude-haiku-4-5-20251001"
 _LLM_TIMEOUT_SECONDS = 30.0
 
+# Transient failures worth retrying (network hiccups, rate limits, momentary
+# server overload) -- everything else (auth errors, malformed responses,
+# TreatyTerms validation errors) fails on the first attempt, unretried.
+_RETRYABLE_LLM_EXCEPTIONS = (
+    anthropic.APITimeoutError,
+    anthropic.APIConnectionError,
+    anthropic.RateLimitError,
+    anthropic.InternalServerError,
+    anthropic.OverloadedError,
+    anthropic.ServiceUnavailableError,
+)
+_LLM_MAX_RETRIES = 2
+_LLM_RETRY_BASE_DELAY_SECONDS = 1.0
+
 _TREATY_EXTRACTION_TOOL = {
     "name": "extract_treaty_terms",
     "description": (
@@ -176,42 +190,76 @@ def llm_extraction_fallback(state: WorkflowState) -> dict:
     """Fall back to an LLM to extract TreatyTerms when regex found no required fields.
 
     Only called when the Extractor Node's missing_fields is non-empty (see
-    _route_after_extractor). On any failure -- a missing/invalid API key,
-    a network/timeout error, a malformed tool response, or a TreatyTerms
-    validation error -- logs it and leaves the run in the same
+    _route_after_extractor). Transient failures (timeout, connection error,
+    rate limit, momentary server overload) are retried up to
+    _LLM_MAX_RETRIES times with exponential backoff, logging each attempt.
+    On any other failure -- a missing/invalid API key, a malformed tool
+    response, a TreatyTerms validation error, or a transient failure that
+    exhausts its retries -- logs it and leaves the run in the same
     "incomplete" state the regex-only path already produces
     (treaty=None, missing_fields unchanged), rather than crashing.
     """
     started_at = time.perf_counter()
-    try:
-        client = anthropic.Anthropic(timeout=_LLM_TIMEOUT_SECONDS)
-        response = client.messages.create(
-            model=_LLM_MODEL,
-            max_tokens=1024,
-            tools=[_TREATY_EXTRACTION_TOOL],
-            tool_choice={"type": "tool", "name": "extract_treaty_terms"},
-            messages=[
-                {
-                    "role": "user",
-                    "content": (
-                        "Extract the treaty terms from this reinsurance treaty "
-                        f"document:\n\n{_format_sections_for_llm(state['sections'])}"
-                    ),
-                }
-            ],
-        )
-        tool_use = next(block for block in response.content if block.type == "tool_use")
-        treaty = TreatyTerms(**tool_use.input)
-    except Exception as exc:  # noqa: BLE001 -- any failure must degrade gracefully, not crash
-        duration = time.perf_counter() - started_at
-        logger.info(
-            "LLM Extraction Fallback: extraction failed after %.2fs (model=%s, %s: %s)",
-            duration,
-            _LLM_MODEL,
-            type(exc).__name__,
-            exc,
-        )
-        return {"extraction_method": "none", "llm_error": f"{type(exc).__name__}: {exc}"}
+    attempt = 0
+    while True:
+        try:
+            # max_retries=0: this method owns retry/backoff itself (with
+            # visible logging per attempt) instead of the SDK's silent
+            # default retries, so the two don't stack.
+            client = anthropic.Anthropic(timeout=_LLM_TIMEOUT_SECONDS, max_retries=0)
+            response = client.messages.create(
+                model=_LLM_MODEL,
+                max_tokens=1024,
+                tools=[_TREATY_EXTRACTION_TOOL],
+                tool_choice={"type": "tool", "name": "extract_treaty_terms"},
+                messages=[
+                    {
+                        "role": "user",
+                        "content": (
+                            "Extract the treaty terms from this reinsurance treaty "
+                            f"document:\n\n{_format_sections_for_llm(state['sections'])}"
+                        ),
+                    }
+                ],
+            )
+            tool_use = next(block for block in response.content if block.type == "tool_use")
+            treaty = TreatyTerms(**tool_use.input)
+            break
+        except _RETRYABLE_LLM_EXCEPTIONS as exc:
+            if attempt >= _LLM_MAX_RETRIES:
+                duration = time.perf_counter() - started_at
+                logger.info(
+                    "LLM Extraction Fallback: extraction failed after %.2fs and "
+                    "%d retries (model=%s, %s: %s)",
+                    duration,
+                    attempt,
+                    _LLM_MODEL,
+                    type(exc).__name__,
+                    exc,
+                )
+                return {"extraction_method": "none", "llm_error": f"{type(exc).__name__}: {exc}"}
+            delay = _LLM_RETRY_BASE_DELAY_SECONDS * (2**attempt)
+            logger.info(
+                "LLM Extraction Fallback: transient failure on attempt %d/%d "
+                "(%s: %s), retrying in %.1fs",
+                attempt + 1,
+                _LLM_MAX_RETRIES + 1,
+                type(exc).__name__,
+                exc,
+                delay,
+            )
+            time.sleep(delay)
+            attempt += 1
+        except Exception as exc:  # noqa: BLE001 -- non-retryable, degrade immediately
+            duration = time.perf_counter() - started_at
+            logger.info(
+                "LLM Extraction Fallback: extraction failed after %.2fs (model=%s, %s: %s)",
+                duration,
+                _LLM_MODEL,
+                type(exc).__name__,
+                exc,
+            )
+            return {"extraction_method": "none", "llm_error": f"{type(exc).__name__}: {exc}"}
 
     duration = time.perf_counter() - started_at
     usage = response.usage
