@@ -221,68 +221,83 @@ Example output:
 
 ```
 ============================= test session starts ==============================
-collected 58 items
+collected 73 items
 
-tests/test_app.py::test_format_report_markdown_includes_terms_citations_and_findings PASSED [  1%]
-tests/test_app.py::test_format_report_markdown_no_findings PASSED        [  3%]
-tests/test_app.py::test_analyze_uploaded_pdf_success PASSED              [  5%]
-tests/test_app.py::test_analyze_uploaded_pdf_malformed_raises_parser_error PASSED [  6%]
-tests/test_app.py::test_app_upload_and_render_success PASSED             [  8%]
-tests/test_app.py::test_app_upload_malformed_pdf_shows_error_not_crash PASSED [ 10%]
-tests/test_app.py::test_serialize_state_for_debug_is_json_safe PASSED    [ 12%]
-tests/test_app.py::test_app_debug_panel_shows_log_lines_and_state_on_success PASSED [ 13%]
-tests/test_app.py::test_app_debug_panel_shows_log_lines_on_parser_failure PASSED [ 15%]
-tests/test_app.py::test_format_extraction_status_for_each_extraction_method PASSED [ 17%]
-tests/test_app.py::test_app_shows_llm_extraction_fallback_note_and_state_on_success PASSED [ 18%]
-tests/test_app.py::test_app_shows_ungrounded_field_warning_when_grounding_check_fails PASSED [ 20%]
-tests/test_app.py::test_app_shows_llm_error_when_both_extraction_paths_fail PASSED [ 22%]
-tests/test_app.py::test_format_log_header_includes_timestamp_and_filename PASSED [ 24%]
-tests/test_app.py::test_save_logs_to_file_overwrite_replaces_existing_content PASSED [ 25%]
-tests/test_app.py::test_save_logs_to_file_append_keeps_existing_content PASSED [ 27%]
-tests/test_app.py::test_save_logs_to_file_creates_parent_directory PASSED [ 29%]
-tests/test_app.py::test_app_save_button_writes_default_log_file PASSED   [ 31%]
-tests/test_integration.py::test_full_pipeline_success_minimal_treaty PASSED [ 32%]
-tests/test_integration.py::test_full_pipeline_success_rich_treaty PASSED [ 34%]
+tests/eval/test_eval_suite.py::test_score_case_regex_path_cases_are_fully_correct PASSED [  1%]
+tests/eval/test_eval_suite.py::test_score_case_llm_path_correct_response_scores_perfectly PASSED [  2%]
+tests/eval/test_eval_suite.py::test_score_case_flags_incorrect_field_from_corrupted_extraction PASSED [  4%]
+tests/eval/test_eval_suite.py::test_run_eval_overall_accuracy_drops_when_a_case_regresses PASSED [  5%]
+tests/eval/test_eval_suite.py::test_score_case_handles_llm_failure_without_crashing PASSED [  6%]
+tests/eval/test_eval_suite.py::test_score_exclusions_matches_paraphrased_clauses_not_just_exact_strings PASSED [  8%]
+tests/test_app.py::test_format_report_markdown_includes_terms_citations_and_findings PASSED [  9%]
+tests/test_app.py::test_format_report_markdown_no_findings PASSED        [ 10%]
+tests/test_app.py::test_analyze_uploaded_pdf_success PASSED              [ 12%]
+tests/test_app.py::test_analyze_uploaded_pdf_malformed_raises_parser_error PASSED [ 13%]
+tests/test_app.py::test_app_upload_and_render_success PASSED             [ 15%]
+tests/test_app.py::test_app_upload_malformed_pdf_shows_error_not_crash PASSED [ 16%]
+tests/test_app.py::test_serialize_state_for_debug_is_json_safe PASSED    [ 17%]
+tests/test_app.py::test_app_debug_panel_shows_log_lines_and_state_on_success PASSED [ 19%]
+tests/test_app.py::test_app_debug_panel_shows_log_lines_on_parser_failure PASSED [ 20%]
+tests/test_app.py::test_format_extraction_status_for_each_extraction_method PASSED [ 21%]
+tests/test_app.py::test_app_shows_llm_extraction_fallback_note_and_state_on_success PASSED [ 23%]
+tests/test_app.py::test_app_shows_ungrounded_field_warning_when_grounding_check_fails PASSED [ 24%]
+tests/test_app.py::test_app_shows_llm_error_when_both_extraction_paths_fail PASSED [ 26%]
+tests/test_app.py::test_format_log_header_includes_timestamp_and_filename PASSED [ 27%]
+tests/test_app.py::test_save_logs_to_file_overwrite_replaces_existing_content PASSED [ 28%]
+tests/test_app.py::test_save_logs_to_file_append_keeps_existing_content PASSED [ 30%]
+tests/test_app.py::test_save_logs_to_file_creates_parent_directory PASSED [ 31%]
+tests/test_app.py::test_app_save_button_writes_default_log_file PASSED   [ 32%]
+tests/test_integration.py::test_full_pipeline_success_minimal_treaty PASSED [ 34%]
+tests/test_integration.py::test_full_pipeline_success_rich_treaty PASSED [ 35%]
 tests/test_integration.py::test_full_pipeline_malformed_pdf_raises_parser_error PASSED [ 36%]
-tests/test_integration.py::test_full_pipeline_unknown_cedent_handled_gracefully PASSED [ 37%]
+tests/test_integration.py::test_full_pipeline_unknown_cedent_handled_gracefully PASSED [ 38%]
 tests/test_integration.py::test_full_pipeline_missing_required_term_handled_gracefully PASSED [ 39%]
 tests/test_integration.py::test_full_pipeline_llm_extraction_fallback_real_api_call PASSED [ 41%]
-tests/test_parser.py::test_extract_treaty_sections_handles_minimal_two_page_treaty PASSED [ 43%]
-tests/test_parser.py::test_extract_treaty_sections_handles_rich_multi_page_treaty PASSED [ 44%]
-tests/test_parser.py::test_extract_treaty_sections_handles_fuzzy_rich_treaty PASSED [ 46%]
-tests/test_parser.py::test_extract_treaty_sections_raises_on_malformed_pdf PASSED [ 48%]
-tests/test_parser.py::test_extract_treaty_sections_raises_on_missing_file PASSED [ 50%]
-tests/test_tools.py::test_query_historical_claims_returns_claims_for_known_cedent PASSED [ 51%]
-tests/test_tools.py::test_query_historical_claims_returns_empty_list_for_unknown_cedent PASSED [ 53%]
-tests/test_tools.py::test_calculate_loss_ratio_known_inputs PASSED       [ 55%]
-tests/test_tools.py::test_calculate_loss_ratio_empty_claims_is_zero PASSED [ 56%]
-tests/test_tools.py::test_check_treaty_grounding_all_fields_supported_by_cited_pages PASSED [ 58%]
-tests/test_tools.py::test_check_treaty_grounding_flags_unsupported_cedent_name PASSED [ 60%]
-tests/test_tools.py::test_check_treaty_grounding_flags_unsupported_numeric_value PASSED [ 62%]
-tests/test_tools.py::test_check_treaty_grounding_flags_unsupported_exclusion PASSED [ 63%]
-tests/test_tools.py::test_check_treaty_grounding_flags_citation_pointing_at_missing_page PASSED [ 65%]
-tests/test_tools.py::test_check_treaty_grounding_tolerates_hyphenated_word_broken_across_line_wrap PASSED [ 67%]
-tests/test_tools.py::test_check_treaty_grounding_skips_fields_with_no_citation PASSED [ 68%]
-tests/test_tools.py::test_calculate_loss_ratio_claim_exceeding_layer_top_is_capped PASSED [ 70%]
-tests/test_workflow.py::test_extractor_node_well_formed_input PASSED     [ 72%]
-tests/test_workflow.py::test_extractor_node_flags_missing_fields PASSED  [ 74%]
-tests/test_workflow.py::test_extract_treaty_terms_fails_on_fuzzy_prose_treaty PASSED [ 75%]
-tests/test_workflow.py::test_llm_extraction_fallback_not_invoked_when_regex_succeeds PASSED [ 77%]
-tests/test_workflow.py::test_llm_extraction_fallback_succeeds_on_fuzzy_treaty PASSED [ 79%]
-tests/test_workflow.py::test_llm_extraction_fallback_flags_ungrounded_field_but_still_completes PASSED [ 81%]
-tests/test_workflow.py::test_run_workflow_via_llm_extraction_fallback_flags_medium_finding PASSED [ 82%]
-tests/test_workflow.py::test_llm_extraction_fallback_degrades_gracefully_on_failure PASSED [ 84%]
-tests/test_workflow.py::test_llm_extraction_fallback_retries_transient_failure_then_succeeds PASSED [ 86%]
-tests/test_workflow.py::test_llm_extraction_fallback_gives_up_after_max_retries PASSED [ 87%]
-tests/test_workflow.py::test_llm_extraction_fallback_does_not_retry_non_transient_failure PASSED [ 89%]
-tests/test_workflow.py::test_run_workflow_stays_incomplete_when_llm_extraction_fallback_also_fails PASSED [ 91%]
-tests/test_workflow.py::test_verifier_node_complete_triggers_historical_claims_lookup PASSED [ 93%]
-tests/test_workflow.py::test_verifier_node_flags_incompleteness_without_calling_tools PASSED [ 94%]
-tests/test_workflow.py::test_analyst_node_no_anomalies PASSED            [ 96%]
+tests/test_llm_client.py::test_get_client_disables_the_sdks_own_silent_retries PASSED [ 42%]
+tests/test_llm_client.py::test_call_with_retry_returns_result_on_first_success PASSED [ 43%]
+tests/test_llm_client.py::test_call_with_retry_retries_transient_failure_then_succeeds PASSED [ 45%]
+tests/test_llm_client.py::test_call_with_retry_uses_exponential_backoff_across_multiple_retries PASSED [ 46%]
+tests/test_llm_client.py::test_call_with_retry_respects_custom_max_retries_and_base_delay PASSED [ 47%]
+tests/test_llm_client.py::test_call_with_retry_raises_last_exception_after_exhausting_retries PASSED [ 49%]
+tests/test_llm_client.py::test_call_with_retry_does_not_retry_a_non_retryable_exception PASSED [ 50%]
+tests/test_llm_client.py::test_call_with_retry_treats_a_plain_exception_as_non_retryable PASSED [ 52%]
+tests/test_llm_client.py::test_call_with_retry_retries_all_documented_retryable_exception_types PASSED [ 53%]
+tests/test_llm_client.py::test_call_with_retry_logs_each_attempt_with_the_given_description PASSED [ 54%]
+tests/test_parser.py::test_extract_treaty_sections_handles_minimal_two_page_treaty PASSED [ 56%]
+tests/test_parser.py::test_extract_treaty_sections_handles_rich_multi_page_treaty PASSED [ 57%]
+tests/test_parser.py::test_extract_treaty_sections_handles_fuzzy_rich_treaty PASSED [ 58%]
+tests/test_parser.py::test_extract_treaty_sections_raises_on_malformed_pdf PASSED [ 60%]
+tests/test_parser.py::test_extract_treaty_sections_raises_on_missing_file PASSED [ 61%]
+tests/test_tools.py::test_query_historical_claims_returns_claims_for_known_cedent PASSED [ 63%]
+tests/test_tools.py::test_query_historical_claims_returns_empty_list_for_unknown_cedent PASSED [ 64%]
+tests/test_tools.py::test_calculate_loss_ratio_known_inputs PASSED       [ 65%]
+tests/test_tools.py::test_calculate_loss_ratio_empty_claims_is_zero PASSED [ 67%]
+tests/test_tools.py::test_check_treaty_grounding_all_fields_supported_by_cited_pages PASSED [ 68%]
+tests/test_tools.py::test_check_treaty_grounding_flags_unsupported_cedent_name PASSED [ 69%]
+tests/test_tools.py::test_check_treaty_grounding_flags_unsupported_numeric_value PASSED [ 71%]
+tests/test_tools.py::test_check_treaty_grounding_flags_unsupported_exclusion PASSED [ 72%]
+tests/test_tools.py::test_check_treaty_grounding_flags_citation_pointing_at_missing_page PASSED [ 73%]
+tests/test_tools.py::test_check_treaty_grounding_tolerates_hyphenated_word_broken_across_line_wrap PASSED [ 75%]
+tests/test_tools.py::test_check_treaty_grounding_skips_fields_with_no_citation PASSED [ 76%]
+tests/test_tools.py::test_calculate_loss_ratio_claim_exceeding_layer_top_is_capped PASSED [ 78%]
+tests/test_workflow.py::test_extractor_node_well_formed_input PASSED     [ 79%]
+tests/test_workflow.py::test_extractor_node_flags_missing_fields PASSED  [ 80%]
+tests/test_workflow.py::test_extract_treaty_terms_fails_on_fuzzy_prose_treaty PASSED [ 82%]
+tests/test_workflow.py::test_llm_extraction_fallback_not_invoked_when_regex_succeeds PASSED [ 83%]
+tests/test_workflow.py::test_llm_extraction_fallback_succeeds_on_fuzzy_treaty PASSED [ 84%]
+tests/test_workflow.py::test_llm_extraction_fallback_flags_ungrounded_field_but_still_completes PASSED [ 86%]
+tests/test_workflow.py::test_run_workflow_via_llm_extraction_fallback_flags_medium_finding PASSED [ 87%]
+tests/test_workflow.py::test_llm_extraction_fallback_degrades_gracefully_on_failure PASSED [ 89%]
+tests/test_workflow.py::test_llm_extraction_fallback_retries_transient_failure_then_succeeds PASSED [ 90%]
+tests/test_workflow.py::test_llm_extraction_fallback_gives_up_after_max_retries PASSED [ 91%]
+tests/test_workflow.py::test_run_workflow_stays_incomplete_when_llm_extraction_fallback_also_fails PASSED [ 93%]
+tests/test_workflow.py::test_verifier_node_complete_triggers_historical_claims_lookup PASSED [ 94%]
+tests/test_workflow.py::test_verifier_node_flags_incompleteness_without_calling_tools PASSED [ 95%]
+tests/test_workflow.py::test_analyst_node_no_anomalies PASSED            [ 97%]
 tests/test_workflow.py::test_analyst_node_flags_at_least_one_anomaly PASSED [ 98%]
 tests/test_workflow_graph_docs.py::test_readme_workflow_graph_matches_live_graph PASSED [100%]
 
-============================== 58 passed in 7.54s ===============================
+============================== 73 passed in 7.26s ==============================
 ```
 
 Run a single test file, e.g. just the parser tests:
@@ -405,26 +420,25 @@ Example output:
 
 ```
 ============================= test session starts ==============================
-collected 16 items
+collected 15 items
 
 tests/test_workflow.py::test_extractor_node_well_formed_input PASSED     [  6%]
-tests/test_workflow.py::test_extractor_node_flags_missing_fields PASSED  [ 12%]
-tests/test_workflow.py::test_extract_treaty_terms_fails_on_fuzzy_prose_treaty PASSED [ 18%]
-tests/test_workflow.py::test_llm_extraction_fallback_not_invoked_when_regex_succeeds PASSED [ 25%]
-tests/test_workflow.py::test_llm_extraction_fallback_succeeds_on_fuzzy_treaty PASSED [ 31%]
-tests/test_workflow.py::test_llm_extraction_fallback_flags_ungrounded_field_but_still_completes PASSED [ 37%]
-tests/test_workflow.py::test_run_workflow_via_llm_extraction_fallback_flags_medium_finding PASSED [ 43%]
-tests/test_workflow.py::test_llm_extraction_fallback_degrades_gracefully_on_failure PASSED [ 50%]
-tests/test_workflow.py::test_llm_extraction_fallback_retries_transient_failure_then_succeeds PASSED [ 56%]
-tests/test_workflow.py::test_llm_extraction_fallback_gives_up_after_max_retries PASSED [ 62%]
-tests/test_workflow.py::test_llm_extraction_fallback_does_not_retry_non_transient_failure PASSED [ 68%]
-tests/test_workflow.py::test_run_workflow_stays_incomplete_when_llm_extraction_fallback_also_fails PASSED [ 75%]
-tests/test_workflow.py::test_verifier_node_complete_triggers_historical_claims_lookup PASSED [ 81%]
-tests/test_workflow.py::test_verifier_node_flags_incompleteness_without_calling_tools PASSED [ 87%]
+tests/test_workflow.py::test_extractor_node_flags_missing_fields PASSED  [ 13%]
+tests/test_workflow.py::test_extract_treaty_terms_fails_on_fuzzy_prose_treaty PASSED [ 20%]
+tests/test_workflow.py::test_llm_extraction_fallback_not_invoked_when_regex_succeeds PASSED [ 26%]
+tests/test_workflow.py::test_llm_extraction_fallback_succeeds_on_fuzzy_treaty PASSED [ 33%]
+tests/test_workflow.py::test_llm_extraction_fallback_flags_ungrounded_field_but_still_completes PASSED [ 40%]
+tests/test_workflow.py::test_run_workflow_via_llm_extraction_fallback_flags_medium_finding PASSED [ 46%]
+tests/test_workflow.py::test_llm_extraction_fallback_degrades_gracefully_on_failure PASSED [ 53%]
+tests/test_workflow.py::test_llm_extraction_fallback_retries_transient_failure_then_succeeds PASSED [ 60%]
+tests/test_workflow.py::test_llm_extraction_fallback_gives_up_after_max_retries PASSED [ 66%]
+tests/test_workflow.py::test_run_workflow_stays_incomplete_when_llm_extraction_fallback_also_fails PASSED [ 73%]
+tests/test_workflow.py::test_verifier_node_complete_triggers_historical_claims_lookup PASSED [ 80%]
+tests/test_workflow.py::test_verifier_node_flags_incompleteness_without_calling_tools PASSED [ 86%]
 tests/test_workflow.py::test_analyst_node_no_anomalies PASSED            [ 93%]
 tests/test_workflow.py::test_analyst_node_flags_at_least_one_anomaly PASSED [100%]
 
-============================== 16 passed in 0.59s ===============================
+============================== 15 passed in 0.33s ===============================
 ```
 
 | Test | Checks |
@@ -439,12 +453,53 @@ tests/test_workflow.py::test_analyst_node_flags_at_least_one_anomaly PASSED [100
 | `test_llm_extraction_fallback_degrades_gracefully_on_failure` | A simulated API failure returns `extraction_method="none"` and a populated `llm_error`, without raising |
 | `test_llm_extraction_fallback_retries_transient_failure_then_succeeds` | A mocked transient failure (timeout) followed by success retries once (one backoff sleep) and produces a correct result |
 | `test_llm_extraction_fallback_gives_up_after_max_retries` | A transient failure that never recovers exhausts all retries (3 total attempts, 2 backoff sleeps) and still degrades gracefully |
-| `test_llm_extraction_fallback_does_not_retry_non_transient_failure` | A non-transient failure (auth error) fails on the first attempt, with no retry/sleep at all |
 | `test_run_workflow_stays_incomplete_when_llm_extraction_fallback_also_fails` | End-to-end: regex fails, the LLM extraction fallback also fails (mocked), and the run ends with `complete=False`, not a crash |
 | `test_verifier_node_complete_triggers_historical_claims_lookup` | A valid treaty triggers a real `query_historical_claims` call and returns the cedent's claims |
 | `test_verifier_node_flags_incompleteness_without_calling_tools` | `treaty=None` marks the run incomplete and skips the tool call entirely (empty claims) |
 | `test_analyst_node_no_anomalies` | A moderate loss ratio with claims data present produces `findings == []` |
 | `test_analyst_node_flags_at_least_one_anomaly` | Zero historical claims produces a `LOW` "no historical data" finding |
+
+Run just the LLM-calling harness tests (`get_client()`/
+`call_with_retry()`, from `src/llm_client.py`), isolated from
+`src/workflow.py` entirely -- against a fake zero-arg callable, not a
+mocked Anthropic client:
+
+```bash
+python3 -m pytest tests/test_llm_client.py -v
+```
+
+Example output:
+
+```
+============================= test session starts ==============================
+collected 10 items
+
+tests/test_llm_client.py::test_get_client_disables_the_sdks_own_silent_retries PASSED [ 10%]
+tests/test_llm_client.py::test_call_with_retry_returns_result_on_first_success PASSED [ 20%]
+tests/test_llm_client.py::test_call_with_retry_retries_transient_failure_then_succeeds PASSED [ 30%]
+tests/test_llm_client.py::test_call_with_retry_uses_exponential_backoff_across_multiple_retries PASSED [ 40%]
+tests/test_llm_client.py::test_call_with_retry_respects_custom_max_retries_and_base_delay PASSED [ 50%]
+tests/test_llm_client.py::test_call_with_retry_raises_last_exception_after_exhausting_retries PASSED [ 60%]
+tests/test_llm_client.py::test_call_with_retry_does_not_retry_a_non_retryable_exception PASSED [ 70%]
+tests/test_llm_client.py::test_call_with_retry_treats_a_plain_exception_as_non_retryable PASSED [ 80%]
+tests/test_llm_client.py::test_call_with_retry_retries_all_documented_retryable_exception_types PASSED [ 90%]
+tests/test_llm_client.py::test_call_with_retry_logs_each_attempt_with_the_given_description PASSED [100%]
+
+============================== 10 passed in 0.34s ===============================
+```
+
+| Test | Checks |
+|---|---|
+| `test_get_client_disables_the_sdks_own_silent_retries` | `get_client()` constructs an `anthropic.Anthropic` with `max_retries=0`, so the SDK's own retries never stack with this harness's |
+| `test_call_with_retry_returns_result_on_first_success` | A callable that succeeds immediately is called exactly once |
+| `test_call_with_retry_retries_transient_failure_then_succeeds` | One retryable failure followed by success retries once, with one backoff sleep |
+| `test_call_with_retry_uses_exponential_backoff_across_multiple_retries` | Multiple consecutive retryable failures produce exponentially increasing sleep durations |
+| `test_call_with_retry_respects_custom_max_retries_and_base_delay` | Custom `max_retries`/`base_delay_seconds` arguments change attempt count and backoff timing accordingly |
+| `test_call_with_retry_raises_last_exception_after_exhausting_retries` | A retryable failure that never recovers re-raises the *last* exception once retries are exhausted, rather than swallowing it |
+| `test_call_with_retry_does_not_retry_a_non_retryable_exception` | A non-retryable Anthropic exception (e.g. an auth error) propagates on the first attempt, with no retry/sleep at all |
+| `test_call_with_retry_treats_a_plain_exception_as_non_retryable` | A plain `ValueError` (not an Anthropic exception) also propagates immediately, not just Anthropic-specific errors |
+| `test_call_with_retry_retries_all_documented_retryable_exception_types` | All six types listed in `RETRYABLE_EXCEPTIONS` actually trigger a retry, not just the one or two exercised by the other tests |
+| `test_call_with_retry_logs_each_attempt_with_the_given_description` | Each attempt (including the final failure) is logged with the caller-supplied `description`, visible via `caplog` |
 
 Run just the integration tests — the full pipeline
 (`run_workflow_from_pdf`/`run_workflow`, from `src/workflow.py`) with
@@ -536,6 +591,40 @@ tests/test_app.py::test_app_save_button_writes_default_log_file PASSED   [100%]
 | `test_save_logs_to_file_creates_parent_directory` | Saving to a log path whose parent directory doesn't exist yet creates it |
 | `test_app_save_button_writes_default_log_file` | Clicking "Save logs to file" in the running app writes the header and log lines to `logs/workflow.log` |
 
+Run just the eval suite's own tests (`tests/eval/scorer.py`, with a
+mocked LLM client, not the live API -- see [Running the Extraction
+Accuracy Eval Suite](#running-the-extraction-accuracy-eval-suite)
+above for the real end-to-end CLI):
+
+```bash
+python3 -m pytest tests/eval/test_eval_suite.py -v
+```
+
+Example output:
+
+```
+============================= test session starts ==============================
+collected 6 items
+
+tests/eval/test_eval_suite.py::test_score_case_regex_path_cases_are_fully_correct PASSED [ 16%]
+tests/eval/test_eval_suite.py::test_score_case_llm_path_correct_response_scores_perfectly PASSED [ 33%]
+tests/eval/test_eval_suite.py::test_score_case_flags_incorrect_field_from_corrupted_extraction PASSED [ 50%]
+tests/eval/test_eval_suite.py::test_run_eval_overall_accuracy_drops_when_a_case_regresses PASSED [ 66%]
+tests/eval/test_eval_suite.py::test_score_case_handles_llm_failure_without_crashing PASSED [ 83%]
+tests/eval/test_eval_suite.py::test_score_exclusions_matches_paraphrased_clauses_not_just_exact_strings PASSED [100%]
+
+============================== 6 passed in 0.44s ===============================
+```
+
+| Test | Checks |
+|---|---|
+| `test_score_case_regex_path_cases_are_fully_correct` | The 2 regex-path golden cases score 100% on every scalar field plus exclusions precision/recall, with no mocking involved |
+| `test_score_case_llm_path_correct_response_scores_perfectly` | A mocked, correct LLM tool-use response for the fuzzy fixture scores 100% |
+| `test_score_case_flags_incorrect_field_from_corrupted_extraction` | A mocked response with a wrong cedent name and an empty exclusions list is caught: `field_correct["cedent_name"]` is `False`, exclusions recall is `0.0` |
+| `test_run_eval_overall_accuracy_drops_when_a_case_regresses` | The acceptance-criteria scenario: scoring the dataset with a deliberately-broken mocked response (simulating a corrupted extraction) yields a lower `overall_accuracy()` than the correct baseline |
+| `test_score_case_handles_llm_failure_without_crashing` | A simulated total LLM failure scores every field `False` with a populated `error`, rather than raising |
+| `test_score_exclusions_matches_paraphrased_clauses_not_just_exact_strings` | The exclusions scorer credits a paraphrased clause (e.g. "Losses from War and hostilities" for the keyword "war") as a match, not just an exact string |
+
 ### Manually forcing a real transient LLM failure
 
 The automated tests above cover retry/backoff with a mocked client (no
@@ -582,6 +671,65 @@ The same retry/backoff log lines above appear in the
 `APIConnectionError` reason) once all retries are exhausted — exactly
 the behavior a real prolonged outage would produce.
 
+## Running the Extraction Accuracy Eval Suite
+
+`tests/eval/` is a small harness, separate from `pytest tests/`, that
+scores the *accuracy* of the full extraction pipeline (regex, falling
+back to the LLM Extraction Fallback) against a labeled golden dataset
+— not just whether a test passes, but field-level precision/recall
+against known-correct values. This is what would catch a prompt or
+model-version regression that still "passes" (extracts *something*)
+but gets the actual values wrong.
+
+- `tests/eval/golden_dataset.py` — 5 `GoldenCase` entries: 2 regex-path
+  fixtures (`sample_treaty.pdf`, `sample_rich_treaty.pdf`) and 3
+  LLM-path fixtures phrased as prose in three distinct styles
+  (`sample_rich_fuzzy_treaty.pdf`, plus two new ones,
+  `golden_harborlight_treaty.pdf` and `golden_continental_treaty.pdf`
+  — see [Sample Treaty Fixtures](#sample-treaty-fixtures)).
+- `tests/eval/scorer.py` — `run_eval()` runs each case through
+  `run_workflow_from_pdf()` and computes per-field accuracy for the 4
+  scalar fields, plus set-based precision/recall for the list-valued
+  `exclusions` field (matched via normalized substring containment,
+  since an LLM's exact clause phrasing can vary even when correct).
+- `tests/eval/run_eval.py` — a CLI that prints the report.
+
+Run it directly:
+
+```bash
+python -m tests.eval.run_eval
+```
+
+The 2 regex-path cases always run (no API calls involved). The 3
+LLM-path cases need a real `ANTHROPIC_API_KEY` (same convention as the
+real-API integration test above) — without one, they're reported as
+skipped rather than failing:
+
+```
+Extraction Accuracy Eval Suite -- 5 case(s) scored
+
+case                 method   cedent attach limit  premium  excl P  excl R  error
+acme_minimal         regex    OK     OK     OK     OK       1.00    1.00
+meridian_rich        regex    OK     OK     OK     OK       1.00    1.00
+sentinel_fuzzy       llm      OK     OK     OK     OK       1.00    1.00
+harborlight_prose    llm      OK     OK     OK     OK       1.00    1.00
+continental_prose    llm      OK     OK     OK     OK       1.00    1.00
+
+cedent_name accuracy: 100%
+attachment_point accuracy: 100%
+limit accuracy: 100%
+reinsurance_premium accuracy: 100%
+exclusions mean precision: 100%
+exclusions mean recall: 100%
+overall scalar-field accuracy: 100%
+```
+
+`tests/eval/test_eval_suite.py` (run as part of `pytest tests/`) tests
+the scorer itself deterministically, with a mocked LLM client rather
+than the live API — including a deliberately-broken mocked extraction
+(wrong values, a dropped exclusions list) and asserting the scored
+accuracy actually drops, the regression this suite exists to catch.
+
 ## Sample Treaty Fixtures
 
 `data/` holds hand-built mock treaty PDFs used by the parser tests,
@@ -593,3 +741,5 @@ without running any code:
 | `sample_treaty.pdf` | `sample_treaty_parsed.json` | 2 | Minimal: attachment point, limit, premium, exclusions |
 | `sample_rich_treaty.pdf` | `sample_rich_treaty_parsed.json` | 4 | Detailed: parties/period/territory, two layers with reinstatements and brokerage, a 10-item exclusions list, and claims/arbitration/governing-law provisions |
 | `sample_rich_fuzzy_treaty.pdf` | `sample_rich_fuzzy_treaty_parsed.json` | 4 | Same substantive facts as a real treaty (cedent Sentinel Mutual Assurance, attachment point/limit/premium, exclusions), but phrased as prose instead of the `Label: value` convention, so the regex Extractor Node genuinely fails to find any required field — used to exercise the LLM extraction fallback |
+| `golden_harborlight_treaty.pdf` | `golden_harborlight_treaty_parsed.json` | 3 | Prose-phrased (cedent Harborlight Mutual Insurance Company), styled differently from the fuzzy fixture above (different structure/wording, `USD 500,000`-style numeric formatting) — part of the [extraction accuracy eval suite](#running-the-extraction-accuracy-eval-suite)'s golden dataset |
+| `golden_continental_treaty.pdf` | `golden_continental_treaty_parsed.json` | 3 | Prose-phrased (cedent Continental Assurance Partners), a third distinct style (`USD 750,000.00`-style formatting, different exclusion set) — also part of the eval suite's golden dataset |
