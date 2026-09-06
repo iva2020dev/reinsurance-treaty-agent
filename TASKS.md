@@ -26,6 +26,8 @@
      ✅ 2026-09-04 19:02:30 Deploy to Production / Cloud (deploy-to-production)
      ✅ 2026-09-05 15:37:13 Build the Fuzzy Treaty Fixture (build-fuzzy-treaty-fixture)
      ✅ 2026-09-05 16:30:02 Implement the LLM Extraction Fallback Node (implement-llm-fallback-node)
+     ✅ 2026-09-06 14:03:25 Surface LLM Extraction Fallback Status in the UI (update-ui-llm-fallback)
+     ✅ 2026-09-06 14:11:27 End-to-End Test the Hybrid Flow and Document Deployment Config (integration-test-llm-fallback-deploy-config)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -36,6 +38,96 @@
 ## P1
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
+
+- [ ] Retry/Backoff Resilience for the LLM Call
+  - **ID**: llm-fallback-retry-backoff
+  - **Tags**: reliability, extraction, llm
+  - **Details**: Graduated from `CANDIDATE_TASKS.md` (`A1`, Priority 1
+    of 10 in the Harness list). In `src/workflow.py`'s
+    `llm_extraction_fallback`, add bounded retry-with-backoff for
+    *transient* failures only (`anthropic.APITimeoutError`,
+    `anthropic.APIConnectionError`, `anthropic.RateLimitError`,
+    `anthropic.InternalServerError`) before falling through to today's
+    graceful-degradation path (`extraction_method="none"`, `llm_error`
+    set). Non-transient failures (auth errors, a malformed tool
+    response, a `TreatyTerms` validation error) must NOT be retried —
+    they should fail straight to degradation exactly as today. Log
+    each retry attempt (attempt number, backoff delay, exception) via
+    the existing `"src.workflow"` logger so retries are visible in the
+    debug panel like every other event. Cap total retries/backoff so a
+    single upload can't hang indefinitely.
+  - **Files**: `src/workflow.py`, `tests/test_workflow.py`
+  - **Acceptance**: A mocked transient failure followed by a
+    successful retry produces a correct `extraction_method="llm"`
+    result, with retry attempts visible in captured log lines. A
+    mocked non-transient failure (e.g. invalid API key) fails
+    immediately with no retry, unchanged from today. A mocked failure
+    that exhausts all retries degrades gracefully
+    (`extraction_method="none"`, `llm_error` set) exactly like today,
+    never crashing. `pytest tests/` passes.
+
+- [ ] Grounding/Assurance Check on LLM Output
+  - **ID**: llm-fallback-grounding-check
+  - **Tags**: quality, extraction, llm
+  - **Details**: Graduated from `CANDIDATE_TASKS.md` (`A2`, Priority 2
+    of 10 in the Harness list). After `llm_extraction_fallback`
+    successfully extracts `TreatyTerms`, add a deterministic
+    verification pass: for each extracted field with a
+    `page_citations` entry, confirm the cited page's raw text actually
+    supports the extracted value (exact match for `cedent_name`/
+    `exclusions`; numeric-equivalence match for `attachment_point`/
+    `limit`/`reinsurance_premium`, tolerating formatting differences
+    like `"$200,000"` vs `200000`). If a field fails grounding, flag it
+    (e.g. a new state field such as `ungrounded_fields`) rather than
+    silently trusting it, and surface the flag in the UI/debug panel.
+  - **Files**: `src/workflow.py`, `src/app.py`,
+    `tests/test_workflow.py`, `tests/test_app.py`
+  - **Acceptance**: A mocked LLM response whose `page_citations` point
+    to text that doesn't actually support the claimed value is flagged
+    as ungrounded (visible in the debug panel), while a normal,
+    correctly-grounded response (e.g. today's fuzzy fixture) is not
+    flagged. `pytest tests/` passes.
+
+- [ ] Extraction Accuracy Eval Suite (Golden Dataset)
+  - **ID**: extraction-accuracy-eval-suite
+  - **Tags**: evaluation, extraction, llm
+  - **Details**: Graduated from `CANDIDATE_TASKS.md` (`A3`, Priority 3
+    of 10 in the Harness list). Build a small labeled golden dataset
+    of treaty documents (the three existing fixtures plus at least 2-3
+    new prose/fuzzy variants with more realistic real-world phrasing
+    than today's) with known-correct `TreatyTerms`, plus an automated
+    scorer that runs each document through the full extraction
+    pipeline (regex, falling back to the LLM Extraction Fallback where
+    triggered) and reports field-level precision/recall — not just
+    pass/fail — against the known-correct values. This is the harness
+    that would catch a prompt or model-version regression before it
+    reaches production, and is a prerequisite for `extraction-eval-ci-gate`.
+  - **Files**: new golden-fixture + scorer location (e.g. `tests/eval/`),
+    `README.md` (documents how to run the eval suite)
+  - **Acceptance**: Running the eval suite locally produces a
+    field-level accuracy report for every golden document, and a
+    deliberately-broken extraction (e.g. a corrupted
+    `_TREATY_EXTRACTION_TOOL` schema) is caught by a drop in scored
+    accuracy. The existing `pytest tests/` suite still passes.
+
+- [ ] CI-Integrated Regression Eval Gate
+  - **ID**: extraction-eval-ci-gate
+  - **Tags**: ci, evaluation, extraction, llm
+  - **Blocked by**: extraction-accuracy-eval-suite
+  - **Details**: Graduated from `CANDIDATE_TASKS.md` (`A4`, Priority 4
+    of 10 in the Harness list). Run `extraction-accuracy-eval-suite`'s
+    scorer automatically in CI (GitHub Actions) so a prompt/model/
+    schema change that regresses extraction accuracy below an agreed
+    threshold fails the build rather than shipping unnoticed. Needs a
+    real `ANTHROPIC_API_KEY` available in CI to exercise the LLM path
+    — this repo's CI currently lacks that secret (same gap tracked
+    separately in the P2 `fix-claude-review-ci-secret` admin task,
+    which also requires repo admin access this agent doesn't have).
+  - **Files**: `.github/workflows/` (new or modified workflow),
+    `README.md`
+  - **Acceptance**: A CI run on a PR that regresses extraction
+    accuracy below the agreed threshold fails the build with a clear
+    message; a PR that doesn't regress passes.
 
 
 ## P2

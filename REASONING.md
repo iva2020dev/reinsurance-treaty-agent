@@ -1968,3 +1968,33 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `fix-claude-review-ci-secret` (P2) remains in `TASKS.md`. **Outcome**:
   `python -m pytest tests/ -q` — 46 passed (confirms acceptance holds
   before closing).
+
+- **2026-09-06 14:18:16 (graduate)**: Continued the candidate-tasks
+  prioritization discussion. Recommended a harness-first sequence
+  (A1 -> A2 -> A3 -> A4, matching the Harness table's existing
+  priority order), corrected after the human asked why A2 (grounding
+  check) was initially skipped in a hastily-stated "A1 then A3 then
+  A4" — no good reason; A2 catches a live run producing a confidently
+  wrong, ungrounded extraction, which matters more immediately than
+  a not-yet-existing regression-eval suite. Human approved graduating
+  all four (A1-A4) into `TASKS.md`. **Action**: added four new P1
+  entries — `llm-fallback-retry-backoff` (A1), `llm-fallback-grounding-check`
+  (A2), `extraction-accuracy-eval-suite` (A3), `extraction-eval-ci-gate`
+  (A4, `Blocked by: extraction-accuracy-eval-suite`) — each with
+  Details/Files/Acceptance derived from the candidate entry's
+  description plus the actual `src/workflow.py` code (confirmed
+  `llm_extraction_fallback`'s current broad `except Exception` has no
+  retry logic today, and `anthropic.Anthropic(timeout=...)` is
+  constructed with no explicit `max_retries`). None are claimed yet —
+  graduating to the backlog isn't the same as picking up work. Also
+  added the two most recently closed tasks (`update-ui-llm-fallback`,
+  `integration-test-llm-fallback-deploy-config`) to `TASKS.md`'s
+  "Recently completed" comment block, which had fallen behind.
+  Updated `CANDIDATE_TASKS.md`: marked A1-A4's Status as
+  "📋 In TASKS.md" in the Harness summary table and each detailed
+  entry (pointing at their new `TASKS.md` IDs), and added this Status
+  value's meaning to the intro paragraph — the candidate list keeps
+  these entries for historical/planning context rather than deleting
+  them, since `TASKS.md` is now the live source of truth for their
+  actual status. **Outcome**: `python -m pytest tests/ -q` — 46 passed
+  (docs-only change, unaffected).
