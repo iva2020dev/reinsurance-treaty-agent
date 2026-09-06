@@ -2181,3 +2181,62 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `Closing task as "Done": Retry/Backoff Resilience for the LLM Call`.
   **Outcome**: `python -m pytest tests/ -q` — 49 passed (confirms
   acceptance holds before closing).
+
+- **2026-09-06 15:46:01 (chore)**: Human asked why `src/llm_client.py`'s
+  tests weren't isolated — confirmed via `ls tests/` that no
+  `test_llm_client.py` existed; its retry/backoff logic was only ever
+  tested indirectly, as a side effect of `tests/test_workflow.py`'s
+  tests for `llm_extraction_fallback`. Asked for three things: (1) add
+  direct isolated unit tests for all of `src/llm_client.py`'s logic,
+  (2) write a repo-agnostic instruction that tests must be split
+  alongside a code split, tagged as a "harness" (generic) type of
+  instruction, (3) audit existing instructions in `CLAUDE.md`/
+  `AGENTS.md` and mark which ones are repo-agnostic ("harness") vs.
+  specific to this repo. **Action**:
+  1. Added `tests/test_llm_client.py` (10 tests) exercising
+     `get_client()`/`call_with_retry()` directly against a fake
+     zero-arg callable — no `src.workflow` involved at all: client
+     construction passes `max_retries=0`; first-try success; single
+     retry then success; exponential backoff across multiple retries;
+     custom `max_retries`/`base_delay_seconds`; exhausting retries
+     re-raises the last exception; a non-retryable Anthropic exception
+     and a plain `ValueError` both propagate on the first attempt; all
+     six `RETRYABLE_EXCEPTIONS` types actually trigger a retry (not
+     just the one or two exercised elsewhere); attempt/description
+     logging (via `caplog`).
+  2. Trimmed `tests/test_workflow.py`'s two remaining retry-adjacent
+     tests to business-outcome assertions only (extraction succeeds/
+     degrades correctly), removing the now-duplicated exact
+     attempt-count/backoff-delay assertions; deleted the third
+     ("does_not_retry_non_transient_failure") test entirely as fully
+     redundant with both the pre-existing `degrades_gracefully_on_failure`
+     test and `test_llm_client.py`'s own non-retryable-exception tests.
+  3. Added a new "Test Isolation Follows Code Split" subsection to
+     `CLAUDE.md`'s "Key Architectural Patterns", tagged
+     **🔧 Harness (repo-agnostic)**, generalizing beyond just this
+     incident (also citing `check_treaty_grounding()` in
+     `src/tools.py` as a positive example that was already isolated
+     correctly, since its tests were added directly in
+     `tests/test_tools.py`).
+  4. Established a `🔧 Harness (repo-agnostic)` tag with a one-line
+     legend in both files' intros, then audited every section: tagged
+     `CLAUDE.md`'s "Task Management & Reasoning" and the general
+     principle within "LLM-Calling Harness Pattern" (distinguishing it
+     from the repo-specific `src/llm_client.py` file); tagged
+     `AGENTS.md`'s "Mandatory Workflow", "Branch and PR Discipline",
+     "Priority Levels", "Task Dependencies", "Task Format",
+     "Reasoning Transcript", "Timestamp Format", and the "one agent per
+     task/working tree" bullet within "Working with multiple agents"
+     (left that section's header and the Junie-specific bullets
+     untagged, since those are repo-specific agent-coordination
+     choices, not a generic practice). Left "Keeping tasks.md tooling
+     current" and "Commands" untagged (tied to this repo's specific
+     tool/package-manager choices, not the underlying practice).
+     Noted separately to the human (not fixed, out of this task's
+     scope): `AGENTS.md`'s "Suggested Skills for reinsurance-treaty-agent"
+     list names completely unrelated tech (Radius, Socket.io, Mapbox,
+     Redis, Django) that doesn't match this repo at all — apparent
+     leftover template content worth a human decision, not a silent
+     rewrite.
+  **Outcome**: `python -m pytest tests/ -q` — 58 passed (49 prior +
+  10 new in `test_llm_client.py` − 1 removed from `test_workflow.py`).
