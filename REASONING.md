@@ -2117,3 +2117,23 @@ This file contains the reasoning transcript of the AI agent for the current sess
   **Outcome**: `python -m pytest tests/ -q` — 49 passed, including the
   real-API integration test, confirming the refactor is behavior-
   preserving.
+
+- **2026-09-06 14:51:53 (docs)**: Human asked whether `src/llm_client.py`
+  is repo-agnostic and, on hearing it's tied to the Anthropic SDK
+  specifically (not vendor-agnostic, though feature-agnostic within
+  this repo), asked to write down instructions for this
+  "Anthropic-calling harness" pattern so future work follows it.
+  **Action**: filled in `CLAUDE.md`'s previously-empty
+  "Key Architectural Patterns" section with a new
+  "LLM-Calling Harness Pattern" subsection: any Anthropic API call
+  MUST go through `src/llm_client.py`'s `get_client()`/
+  `call_with_retry()` rather than constructing `anthropic.Anthropic()`
+  directly or reimplementing retry logic inline; extend
+  `src/llm_client.py` itself for new harness behavior rather than each
+  call site; documented the logger-propagation convention
+  (`logging.getLogger(__name__)` per module, captured by `src/app.py`'s
+  parent `"src"` logger handler) so a future harness module doesn't
+  need special debug-panel wiring. Also filled in `CLAUDE.md`'s
+  previously-empty "Key Files" table with the actual `src/` modules,
+  including the new `src/llm_client.py`. **Outcome**: `python -m
+  pytest tests/ -q` — 49 passed (docs-only, unaffected).

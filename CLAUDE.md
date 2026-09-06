@@ -8,6 +8,38 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Key Architectural Patterns
 
+### LLM-Calling Harness Pattern
+
+Any code that calls the Anthropic API — client construction, timeouts,
+retry/backoff — **MUST** go through `src/llm_client.py`
+(`get_client(timeout=...)`, `call_with_retry(fn, ...)`) rather than
+constructing `anthropic.Anthropic(...)` directly or re-implementing
+retry logic inline at the call site. This keeps the harness concern
+("how to call an LLM reliably") separate from business logic ("what
+to ask for, how to parse the response, how to degrade on failure"),
+which stays in the feature's own module (e.g. `src/workflow.py`).
+
+- `get_client(timeout=...)` returns an `anthropic.Anthropic` client
+  with the SDK's own silent retries disabled (`max_retries=0`) — this
+  harness owns retries instead, so the two mechanisms don't stack.
+- `call_with_retry(fn, ...)` takes any zero-arg callable, retries
+  `src.llm_client.RETRYABLE_EXCEPTIONS` (timeout, connection error,
+  rate limit, 5xx/overloaded/unavailable) with exponential backoff,
+  logs every attempt, and re-raises the last exception on exhaustion
+  so the caller decides how to degrade — it never swallows a failure
+  itself.
+- When adding a new LLM-calling feature (e.g. a future `B6`-`B8`/`C4`
+  task from `CANDIDATE_TASKS.md`), reuse `call_with_retry()` rather
+  than duplicating retry logic; extend `src/llm_client.py` itself (not
+  each call site) if new harness behavior is needed (e.g. a different
+  retry policy, request-level cost/latency tracking).
+- Any module logs via its own `logging.getLogger(__name__)`; the
+  Streamlit debug panel (`src/app.py`) attaches its handler to the
+  parent `"src"` logger, so every `src.*` submodule's log lines
+  (workflow nodes, this harness, or a future one) show up there
+  automatically via normal logger propagation — no per-module wiring
+  needed in `src/app.py`.
+
 ## Task Management & Reasoning
 
 **🚨 MANDATORY: Always use TASKS.md and REASONING.md. No exceptions.**
@@ -60,5 +92,11 @@ See `AGENTS.md` for full task format, reasoning transcript examples, branch/PR d
 
 | File | Purpose |
 |------|---------|
+| `src/workflow.py` | LangGraph state machine & node business logic (Extractor, LLM Extraction Fallback, Verifier, Analyst) |
+| `src/llm_client.py` | LLM-calling harness (Anthropic client construction, retry/backoff) — see "LLM-Calling Harness Pattern" above |
+| `src/app.py` | Streamlit UI |
+| `src/tools.py` | Deterministic tools (historical claims lookup, loss-ratio calculation) |
+| `src/models.py` | Pydantic data schemas |
+| `src/parser.py` | PDF parsing into page sections |
 
 ## Deployment (Railway)
