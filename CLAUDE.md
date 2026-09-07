@@ -85,6 +85,39 @@ effect of testing whatever still calls it.
   now-redundant mechanics assertions out of the workflow tests (see
   `REASONING.md`'s 2026-09-06 entry for that specific fix).
 
+### Extraction Accuracy Eval Suite Pattern — 🔧 Harness (repo-agnostic)
+
+🔧 Harness principle (repo-agnostic): scoring the *accuracy* of an
+extraction/agent pipeline against a labeled golden dataset — not just
+whether it runs without error — is a general evaluation pattern.
+`tests/eval/` (walked through in `README.md`'s "Running the Extraction
+Accuracy Eval Suite") is this repo's instance of that principle,
+specific to treaty-terms extraction — a different repo would apply the
+same scoring methodology to whatever it extracts or generates.
+
+- **Repo-agnostic (the harness):** the golden-case dataset design
+  (`tests/eval/golden_dataset.py`'s `GoldenCase` shape, and the
+  principle of covering every code path the pipeline can take — here,
+  regex vs. LLM fallback); `tests/eval/scorer.py`'s scoring functions
+  (`_numeric_match` for exact/numeric scalar fields,
+  `_score_exclusions` for set-based precision/recall over normalized
+  substring containment on list-valued fields, since a generative step
+  can phrase a correct fact differently each run) and its treatment of
+  a pipeline exception or missing output as a scored failure rather
+  than a crash; `tests/eval/run_eval.py`'s skip-rather-than-fail
+  handling of cases needing credentials that aren't configured, and
+  its aggregate per-field/overall accuracy reporting.
+- **Repo-specific (the content):** the fields actually being scored
+  (`cedent_name`, `attachment_point`, `limit`, `reinsurance_premium`,
+  `exclusions` — this repo's `TreatyTerms` schema), the golden PDFs and
+  their hand-verified expected values, the domain exclusion keywords,
+  and the `run_workflow_from_pdf()` call the scorer drives.
+- When adding new eval cases or fields, extend `golden_dataset.py`'s
+  dataset and, if needed, `scorer.py`'s per-field comparisons — reuse
+  the existing scoring functions' approach (exact match for scalars,
+  precision/recall for lists) rather than inventing a new comparison
+  style per field.
+
 ## Task Management & Reasoning — 🔧 Harness (repo-agnostic)
 
 This whole section is a repo-agnostic task-tracking convention (claim/
