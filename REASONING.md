@@ -2547,3 +2547,9 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `REASONING.md` log line remains, as expected. Awaiting human
   review/approval before this task is marked done and removed from
   `TASKS.md`.
+- **2026-09-08 (closing)**: PR #52 merged into `main` at `e17f35b`.
+  Human explicitly approved marking `remove-radius-template-leftovers`
+  done. Removing it from `TASKS.md`'s P2 section on this
+  `close/remove-radius-template-leftovers` branch/PR, titled
+  `Closing task as "Done": Remove leftover "Radius" template content`,
+  per the mandatory task-closing workflow.
