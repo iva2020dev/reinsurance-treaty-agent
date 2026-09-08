@@ -2451,6 +2451,12 @@ This file contains the reasoning transcript of the AI agent for the current sess
   session as a baseline, no re-run needed since no source files
   changed. Awaiting human review/approval before this task is marked
   done and removed from `TASKS.md`.
+- **2026-09-08 (closing)**: PR #48 merged into `main` at `019728c`.
+  Human explicitly approved marking `tag-eval-suite-harness` done.
+  Removing it from `TASKS.md`'s P2 section on this
+  `close/tag-eval-suite-harness` branch/PR, titled `Closing task as
+  "Done": Tag Extraction Accuracy Eval Suite Pattern as 🔧 Harness
+  (repo-agnostic)`, per the mandatory task-closing workflow.
 
 ## 2026-09-08 — Task: Sync CANDIDATE_TASKS.md's Harness statuses with TASKS.md (sync-candidate-tasks-harness-status)
 
