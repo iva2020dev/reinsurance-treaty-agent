@@ -2408,3 +2408,46 @@ This file contains the reasoning transcript of the AI agent for the current sess
   branch/PR, titled `Closing task as "Done": Extraction Accuracy Eval
   Suite (Golden Dataset)`, per the mandatory task-closing workflow.
   Unblocks `extraction-eval-ci-gate`, which depended on this.
+
+## 2026-09-07 12:00:00 — Task: Tag Extraction Accuracy Eval Suite Pattern as 🔧 Harness (repo-agnostic) (tag-eval-suite-harness)
+
+- **Goal**: Give the Extraction Accuracy Eval Suite (`tests/eval/`)
+  the same `🔧 Harness (repo-agnostic)` tagging treatment `CLAUDE.md`
+  already gives the LLM-Calling Harness and Test Isolation sections,
+  and explicitly separate its repo-agnostic scoring mechanics from its
+  reinsurance-specific content. Requested directly by the human after
+  discussing what the golden dataset is and running the suite.
+- **Analysis**: `CLAUDE.md` had no dedicated section for the eval
+  suite — only a one-line `Key Files` table row pointing to
+  `README.md`'s "Running the Extraction Accuracy Eval Suite". Reviewed
+  `tests/eval/golden_dataset.py`, `scorer.py`, and `run_eval.py`:
+  the dataset-design principle (cover every code path — regex vs. LLM
+  fallback), the scoring functions (`_numeric_match` exact/numeric
+  match for scalars, `_score_exclusions` precision/recall over
+  normalized substring containment for list fields), the
+  exception-as-scored-failure handling in `score_case`, and the
+  skip-on-missing-`ANTHROPIC_API_KEY` behavior in `run_eval.py` are
+  all generic to any extraction/agent pipeline. Only the `TreatyTerms`
+  fields being scored, the golden PDFs/expected values, and the
+  domain exclusion keywords are reinsurance-specific.
+- **Decision**: Add a new `###` subsection to `CLAUDE.md` under "Key
+  Architectural Patterns" (after "Test Isolation Follows Code Split",
+  before "Task Management & Reasoning"), tagged `🔧 Harness
+  (repo-agnostic)` in its heading, mirroring the existing sections'
+  style: an intro paragraph naming the general principle, then two
+  bullet lists explicitly splitting repo-agnostic mechanics from
+  repo-specific content. Chose a new section over retrofitting the tag
+  onto the one-line `Key Files` row, since a table cell can't carry
+  the explanatory split the human asked for. Left `README.md`'s
+  existing walkthrough untouched — it's already accurate; only
+  `CLAUDE.md`'s convention-level view needed the tag.
+- **Action**: Added task entry to `TASKS.md` P2 (`tag-eval-suite-
+  harness`) per the "no exceptions" TASKS.md/REASONING.md mandate,
+  branched `task/tag-eval-suite-harness` off `main`, added the new
+  tagged `### Extraction Accuracy Eval Suite Pattern — 🔧 Harness
+  (repo-agnostic)` section to `CLAUDE.md`.
+- **Outcome**: Documentation-only change — no code/tests affected;
+  `python -m pytest -q` already ran clean (73 passed) earlier this
+  session as a baseline, no re-run needed since no source files
+  changed. Awaiting human review/approval before this task is marked
+  done and removed from `TASKS.md`.
