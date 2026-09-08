@@ -31,6 +31,7 @@
      ✅ 2026-09-06 15:14:46 Retry/Backoff Resilience for the LLM Call (llm-fallback-retry-backoff)
      ✅ 2026-09-06 15:29:45 Grounding/Assurance Check on LLM Output (llm-fallback-grounding-check)
      ✅ 2026-09-06 16:05:00 Extraction Accuracy Eval Suite (Golden Dataset) (extraction-accuracy-eval-suite)
+     ✅ 2026-09-08 12:15:00 Tag Extraction Accuracy Eval Suite Pattern as 🔧 Harness (repo-agnostic) (tag-eval-suite-harness)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -68,33 +69,6 @@
 ## P2
 
 <!-- policy: P2 tasks are valuable but not blocking. Do after P0 and P1 are clear. -->
-
-- [ ] Tag Extraction Accuracy Eval Suite Pattern as 🔧 Harness (repo-agnostic) (@claude)
-  - **ID**: tag-eval-suite-harness
-  - **Tags**: docs, evaluation
-  - **Candidate ID**: N/A (requested directly by the human in
-    conversation, not graduated from `CANDIDATE_TASKS.md`)
-  - **Details**: `CLAUDE.md` tags sections as `🔧 Harness
-    (repo-agnostic)` when their instructions are general
-    engineering-process practices reusable across repos, separate from
-    this repo's reinsurance-specific content (see `LLM-Calling Harness
-    Pattern` and `Test Isolation Follows Code Split`). The Extraction
-    Accuracy Eval Suite (`tests/eval/`, documented in `README.md`'s
-    "Running the Extraction Accuracy Eval Suite") was never given this
-    tag even though its scoring methodology (golden-case dataset
-    design, exact-match vs. precision/recall scoring, skip-on-missing-
-    credentials, exception-as-scored-failure handling) is reusable in
-    any extraction/agent repo — only the specific fields/PDFs/keywords
-    are reinsurance-specific. Add a new `###`-level section to
-    `CLAUDE.md` under "Key Architectural Patterns", tagged `🔧 Harness
-    (repo-agnostic)`, that explicitly separates the repo-agnostic
-    harness mechanics from the repo-specific domain content, mirroring
-    the style of the existing tagged sections.
-  - **Files**: `CLAUDE.md`
-  - **Acceptance**: `CLAUDE.md` has a section covering the Extraction
-    Accuracy Eval Suite tagged `🔧 Harness (repo-agnostic)`, and that
-    section lists which parts of `tests/eval/`'s logic are
-    repo-agnostic vs. repo-specific.
 
 - [ ] Sync CANDIDATE_TASKS.md's Harness statuses with TASKS.md (@claude)
   - **ID**: sync-candidate-tasks-harness-status
