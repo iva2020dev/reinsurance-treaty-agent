@@ -24,12 +24,19 @@ discussion in `REASONING.md` for the fuller cost/effort comparison
 this list was drafted from.
 
 Every table below also has a **Status** column: **✅ Done** marks
-capability already shipped in the app today (currently just the
-Treaty **Burn-Cost Check**, `B0`); **📋 In TASKS.md** marks an item
-that's graduated into the real backlog (with its own ID/Details/Files/
-Acceptance there) but isn't done yet — see `TASKS.md` for its current
-status, not here; everything else is **Proposed** — not started, not
-scoped, not approved.
+capability already shipped in the app today (the Treaty **Burn-Cost
+Check**, `B0`, plus any candidate that graduated into `TASKS.md` and
+was later completed and removed from it there — e.g. Harness's `A1`-
+`A3`); **📋 In TASKS.md** marks an item that's graduated into the real
+backlog (with its own ID/Details/Files/Acceptance there) but isn't
+done yet — see `TASKS.md` for its current status, not here; everything
+else is **Proposed** — not started, not scoped, not approved.
+
+**Keeping this in sync**: this file is not auto-updated when `TASKS.md`
+changes — whoever graduates a candidate into `TASKS.md`, or completes/
+removes one from it, must also update that candidate's row (and its
+detailed entry below) here in the same PR. See `AGENTS.md`'s "Keeping
+CANDIDATE_TASKS.md in Sync" for the exact rule.
 
 IDs are scoped per category (`A` = Harness, `B` = Treaty, `F` =
 Facultative, `C` = Claims) and numbered by current priority position,
@@ -64,9 +71,9 @@ discussion on how document quality drives task shape (see
 
 | Pri | ID | Task | Status | Shape | Answer Type | Effort | Depends on |
 |---|---|---|---|---|---|---|---|
-| 1 | A1 | Retry/backoff resilience for the LLM call | 📋 In TASKS.md | Deterministic | N/A | S | — |
-| 2 | A2 | Grounding/assurance check on LLM output | 📋 In TASKS.md | Hybrid | Both | M | — |
-| 3 | A3 | Extraction accuracy eval suite (golden dataset) | 📋 In TASKS.md | Hybrid | N/A | M | — |
+| 1 | A1 | Retry/backoff resilience for the LLM call | ✅ Done | Deterministic | N/A | S | — |
+| 2 | A2 | Grounding/assurance check on LLM output | ✅ Done | Hybrid | Both | M | — |
+| 3 | A3 | Extraction accuracy eval suite (golden dataset) | ✅ Done | Hybrid | N/A | M | — |
 | 4 | A4 | CI-integrated regression eval gate | 📋 In TASKS.md | Deterministic | N/A | S | A3 |
 | 5 | A5 | Structured observability upgrade | Proposed | Deterministic | N/A | M | — |
 | 6 | A6 | Cost & latency observability + guardrails | Proposed | Deterministic | N/A | M | — |
@@ -113,14 +120,14 @@ discussion on how document quality drives task shape (see
 
 ## A. Technical / AI Engineering & Production Harness
 
-### A1. Retry/backoff resilience for the LLM call — Priority 1 — 📋 In TASKS.md as `llm-fallback-retry-backoff`
+### A1. Retry/backoff resilience for the LLM call — Priority 1 — ✅ Done (shipped as `llm-fallback-retry-backoff`)
 Today's `llm_extraction_fallback` catches all exceptions broadly and
 degrades gracefully (a good baseline) but never retries a transient
 failure (timeout, 5xx, rate limit) — add bounded retry-with-backoff
 before falling through to the graceful-degradation path.
 *Effort: S. Answer type: N/A (infrastructure, not a content-answering task).*
 
-### A2. Grounding/assurance check on LLM output — Priority 2 — 📋 In TASKS.md as `llm-fallback-grounding-check`
+### A2. Grounding/assurance check on LLM output — Priority 2 — ✅ Done (shipped as `llm-fallback-grounding-check`)
 Before trusting an LLM-extracted value, verify it's actually
 supported by the cited page's text (e.g. does the cited page contain
 this dollar figure or a numerically-equivalent phrase?). Flag
@@ -130,7 +137,7 @@ tool-use output as-is.
 Answer type: Both — extracts the cited source text, then interprets
 whether it's numerically/semantically equivalent to the claimed value.*
 
-### A3. Extraction accuracy eval suite (golden dataset) — Priority 3 — 📋 In TASKS.md as `extraction-accuracy-eval-suite`
+### A3. Extraction accuracy eval suite (golden dataset) — Priority 3 — ✅ Done (shipped as `extraction-accuracy-eval-suite`)
 Build a labeled set of treaty documents (regex-friendly and
 prose/fuzzy variants, across more realistic real-world phrasings than
 today's two fixtures) with known-correct `TreatyTerms`, plus an
