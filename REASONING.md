@@ -2496,3 +2496,10 @@ This file contains the reasoning transcript of the AI agent for the current sess
 - **Outcome**: Documentation-only change — no code/tests affected;
   no test re-run needed. Awaiting human review/approval before this
   task is marked done and removed from `TASKS.md`.
+- **2026-09-08 (closing)**: PR #49 merged into `main` at `ecdb37a`.
+  Human explicitly approved marking
+  `sync-candidate-tasks-harness-status` done. Removing it from
+  `TASKS.md`'s P2 section on this `close/sync-candidate-tasks-harness-
+  status` branch/PR, titled `Closing task as "Done": Sync
+  CANDIDATE_TASKS.md's Harness statuses with TASKS.md`, per the
+  mandatory task-closing workflow.

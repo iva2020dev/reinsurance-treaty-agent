@@ -31,6 +31,7 @@
      ✅ 2026-09-06 15:14:46 Retry/Backoff Resilience for the LLM Call (llm-fallback-retry-backoff)
      ✅ 2026-09-06 15:29:45 Grounding/Assurance Check on LLM Output (llm-fallback-grounding-check)
      ✅ 2026-09-06 16:05:00 Extraction Accuracy Eval Suite (Golden Dataset) (extraction-accuracy-eval-suite)
+     ✅ 2026-09-08 12:20:00 Sync CANDIDATE_TASKS.md's Harness statuses with TASKS.md (sync-candidate-tasks-harness-status)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -95,28 +96,6 @@
     Accuracy Eval Suite tagged `🔧 Harness (repo-agnostic)`, and that
     section lists which parts of `tests/eval/`'s logic are
     repo-agnostic vs. repo-specific.
-
-- [ ] Sync CANDIDATE_TASKS.md's Harness statuses with TASKS.md (@claude)
-  - **ID**: sync-candidate-tasks-harness-status
-  - **Tags**: docs, maintenance
-  - **Candidate ID**: N/A (requested directly by the human in
-    conversation, not itself a `CANDIDATE_TASKS.md` candidate)
-  - **Details**: `CANDIDATE_TASKS.md`'s Harness summary table and
-    detailed entries still showed `A1` (`llm-fallback-retry-backoff`),
-    `A2` (`llm-fallback-grounding-check`), and `A3`
-    (`extraction-accuracy-eval-suite`) as `📋 In TASKS.md`, even though
-    all three were completed and removed from `TASKS.md` on
-    2026-09-06 (see `TASKS.md`'s "Recently completed" list). Flip
-    those three to `✅ Done` in both the summary table and their
-    detailed `###` entries. Also add a documented rule (in `AGENTS.md`)
-    that graduating/completing a candidate must update
-    `CANDIDATE_TASKS.md` in the same PR, so this doesn't drift again.
-    The human confirmed the Treaty (`B`) table needed no change — no
-    `B`-series candidate has graduated yet.
-  - **Files**: `CANDIDATE_TASKS.md`, `AGENTS.md`
-  - **Acceptance**: `CANDIDATE_TASKS.md` shows `A1`-`A3` as `✅ Done`
-    (summary table + detailed entries); `AGENTS.md` documents the
-    sync-on-graduate/complete rule.
 
 - [ ] Fix Claude Code Review CI Check (missing API key secret)
   - **ID**: fix-claude-review-ci-secret
