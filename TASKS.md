@@ -71,6 +71,28 @@
 
 <!-- policy: P2 tasks are valuable but not blocking. Do after P0 and P1 are clear. -->
 
+- [ ] Remove leftover "Radius" template content (@claude)
+  - **ID**: remove-radius-template-leftovers
+  - **Tags**: docs, cleanup
+  - **Candidate ID**: N/A (requested directly by the human in
+    conversation)
+  - **Details**: `AGENTS.md`'s "Suggested Skills for
+    reinsurance-treaty-agent (RTA)" list and `.agents/skills/README.md`
+    were leftover boilerplate from an unrelated project named "Radius"
+    (Socket.io/Mapbox/Redis/Django tech this repo doesn't use at all,
+    and a `radius-socketio` skill that doesn't exist in this repo).
+    Already flagged as a known gap in `REASONING.md`'s 2026-09-06
+    entry ("worth a human decision, not a silent rewrite") but left
+    unfixed at the time. Human confirmed via `AskUserQuestion`:
+    remove the whole bogus "Suggested Skills" list (not just the
+    Radius line), and delete `.agents/skills/README.md` entirely since
+    it duplicates `AGENTS.md`'s own accurate "Skills" section with
+    zero real content for this repo.
+  - **Files**: `AGENTS.md`, `.agents/skills/README.md` (deleted)
+  - **Acceptance**: No live "Radius" (or Socket.io/Mapbox/Redis/Django)
+    mentions remain outside REASONING.md's historical log entries;
+    `python -m pytest -q` still passes.
+
 - [ ] Fix Claude Code Review CI Check (missing API key secret)
   - **ID**: fix-claude-review-ci-secret
   - **Tags**: ci, github-actions, maintenance

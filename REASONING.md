@@ -2509,3 +2509,41 @@ This file contains the reasoning transcript of the AI agent for the current sess
   status` branch/PR, titled `Closing task as "Done": Sync
   CANDIDATE_TASKS.md's Harness statuses with TASKS.md`, per the
   mandatory task-closing workflow.
+
+## 2026-09-08 — Task: Remove leftover "Radius" template content (remove-radius-template-leftovers)
+
+- **Goal**: Human asked (investigation mode) to remove all mentions of
+  a side/unrelated repo called "Radius" from this repo, verify nothing
+  breaks, and open a PR to wait for approval.
+- **Analysis**: `grep -rniI "radius"` across `*.md`/`*.py`/`*.json`/
+  `*.toml`/`*.yml`/`*.yaml`/`*.txt` found four live hits: `AGENTS.md`'s
+  "Suggested Skills for reinsurance-treaty-agent (RTA)" list (naming
+  Radius, Socket.io, Mapbox, Redis, Django — none used by this repo),
+  and `.agents/skills/README.md` (titled "Radius Project Skills",
+  claiming a `radius-socketio` skill that doesn't exist anywhere in
+  this repo — confirmed via `find .agents -type f`: only `README.md`
+  is git-tracked there, no such skill file). A fifth hit in
+  `REASONING.md`'s 2026-09-06 entry is a historical log record of
+  discovering this exact gap at the time — left untouched, since
+  `REASONING.md` is an append-only transcript, not something to
+  rewrite. Confirmed via `grep` that no other file references
+  `.agents/skills/README.md` by path, so deleting it is safe.
+- **Decision**: Asked the human via `AskUserQuestion` whether to (a)
+  strip only the literal "Radius" line, (b) remove the whole bogus
+  list, or (c) replace it with real RTA-relevant suggestions — chose
+  (a) would leave equally-irrelevant Socket.io/Mapbox/Redis/Django
+  behind, so didn't default to it. Human picked (b): remove the whole
+  list. Deleted `.agents/skills/README.md` outright rather than
+  rewriting it, since it duplicates `AGENTS.md`'s own accurate
+  "Skills" section (`## Skills`, already correct for this repo) with
+  zero real content of its own.
+- **Action**: Branched `task/remove-radius-template-leftovers` off
+  `main`. `git rm .agents/skills/README.md`. Removed the "Suggested
+  Skills for reinsurance-treaty-agent (RTA)" section from `AGENTS.md`
+  entirely (5 bullet lines + heading). Added task entry to `TASKS.md`
+  P2 (`remove-radius-template-leftovers`).
+- **Outcome**: `python -m pytest -q` — 73 passed (unaffected,
+  docs/cleanup only). Re-ran the `radius` grep — only the historical
+  `REASONING.md` log line remains, as expected. Awaiting human
+  review/approval before this task is marked done and removed from
+  `TASKS.md`.
