@@ -2451,3 +2451,48 @@ This file contains the reasoning transcript of the AI agent for the current sess
   session as a baseline, no re-run needed since no source files
   changed. Awaiting human review/approval before this task is marked
   done and removed from `TASKS.md`.
+
+## 2026-09-08 — Task: Sync CANDIDATE_TASKS.md's Harness statuses with TASKS.md (sync-candidate-tasks-harness-status)
+
+- **Goal**: Human asked to mark the Business Domain — Treaty candidate
+  tasks in `CANDIDATE_TASKS.md` as Done, "according to current TASKS
+  state," and to add an instruction keeping `CANDIDATE_TASKS.md` in
+  sync with `TASKS.md` going forward.
+- **Analysis**: Checked `TASKS.md` (current P0-P3 sections plus its
+  "Recently completed" list) and `REASONING.md` for any `B`-prefixed
+  (Treaty) candidate task IDs — none of `B1`-`B9` have ever graduated
+  into `TASKS.md`; `B0` (Burn-Cost Check) already correctly shows `✅
+  Done` in `CANDIDATE_TASKS.md` as the shipped baseline. So the Treaty
+  table was already accurate — there was nothing to flip there. What
+  *was* stale: the Harness table's `A1` (`llm-fallback-retry-backoff`),
+  `A2` (`llm-fallback-grounding-check`), and `A3`
+  (`extraction-accuracy-eval-suite`) were completed and removed from
+  `TASKS.md` on 2026-09-06 (per its "Recently completed" timestamps),
+  but `CANDIDATE_TASKS.md` still showed all three as `📋 In TASKS.md`.
+- **Decision**: Confirmed with the human via `AskUserQuestion` before
+  acting on a corrected premise (asked whether they meant the Harness
+  table instead of Treaty) — they confirmed. Fixed `A1`-`A3` to `✅
+  Done` in both the summary table and their detailed `###` entries
+  (mirroring `B0`'s existing "shipped as `<id>`" phrasing). For the
+  sync instruction, added a new (non-Harness-tagged, since
+  `CANDIDATE_TASKS.md` is specific to this repo) "Keeping
+  CANDIDATE_TASKS.md in Sync" subsection to `AGENTS.md`, placed after
+  "Branch and PR Discipline" — the natural home given `AGENTS.md` is
+  already the canonical multi-agent task-workflow doc `CLAUDE.md`
+  defers to — rather than inventing a separate doc or duplicating the
+  rule inside `CANDIDATE_TASKS.md` itself (which instead gets a short
+  pointer back to `AGENTS.md`).
+- **Action**: Added task entry to `TASKS.md` P2
+  (`sync-candidate-tasks-harness-status`), branched
+  `task/sync-candidate-tasks-harness-status` off `main`. Edited
+  `CANDIDATE_TASKS.md`: summary table rows for `A1`-`A3` →
+  `✅ Done`; detailed section headers for `A1`-`A3` →
+  `✅ Done (shipped as \`<id>\`)`; updated the Status-column legend
+  paragraph to stop saying "currently just... B0" (no longer true) and
+  added a "Keeping this in sync" note pointing at `AGENTS.md`. Edited
+  `AGENTS.md`: new "Keeping CANDIDATE_TASKS.md in Sync" subsection
+  documenting the graduate/complete-must-update-CANDIDATE_TASKS.md
+  rule, with this exact gap as its own dated example.
+- **Outcome**: Documentation-only change — no code/tests affected;
+  no test re-run needed. Awaiting human review/approval before this
+  task is marked done and removed from `TASKS.md`.

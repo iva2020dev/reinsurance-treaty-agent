@@ -109,6 +109,30 @@ which defeats the purpose of having it. If you find yourself about to
 run `git commit` while `git status`/`git branch` shows you're on
 `main`, stop and create the task branch first, even mid-task.
 
+### Keeping CANDIDATE_TASKS.md in Sync
+
+This one is specific to this repo, not the repo-agnostic checklist
+above — a different repo may not have a staging list like
+`CANDIDATE_TASKS.md` at all.
+
+`CANDIDATE_TASKS.md` is a staging list, not the backlog — but its
+per-item **Status** column (`Proposed` / `📋 In TASKS.md` / `✅ Done`)
+is a claim about `TASKS.md`'s current state, and nothing updates it
+automatically. Whoever changes a candidate's status in `TASKS.md` MUST
+update `CANDIDATE_TASKS.md` to match, in the same PR:
+
+- **Graduating** a candidate into `TASKS.md` (giving it a real
+  ID/Details/Files/Acceptance there) — set its `CANDIDATE_TASKS.md`
+  row and detailed entry to `📋 In TASKS.md as \`<id>\``.
+- **Completing** a graduated candidate (approved done, removed from
+  `TASKS.md` per step 11 above) — set its `CANDIDATE_TASKS.md` row and
+  detailed entry to `✅ Done (shipped as \`<id>\`)`.
+- Discovered as a gap on 2026-09-08: `A1`-`A3` were completed and
+  removed from `TASKS.md` on 2026-09-06, but `CANDIDATE_TASKS.md` kept
+  showing them as `📋 In TASKS.md` for two days — fixed as its own
+  task (`sync-candidate-tasks-harness-status`); see that entry in
+  `REASONING.md`.
+
 ### Priority Levels — 🔧 Harness (repo-agnostic)
 
 - **P0** = Critical, urgent, blocks other work
