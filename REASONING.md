@@ -2667,3 +2667,22 @@ This file contains the reasoning transcript of the AI agent for the current sess
   sync per the file's own "Keeping this in sync" rule.
 - **Outcome**: Scope updated on both files; no implementation started
   yet, so no test/behavior change to verify.
+
+## 2026-09-09 10:30:50 — Update: treaty-sample-selection-ui scope change (gate Analyze on selection)
+
+- **Change**: Human requested that "Analyze" render blurred/inactive
+  until a treaty is selected (via either the sample selector or the
+  uploader), as a further addition to the in-progress
+  `treaty-sample-selection-ui` (P0) task / `A11` candidate (still not
+  started implementation).
+- **Action**: Updated `TASKS.md`'s `treaty-sample-selection-ui`
+  Details and Acceptance to require "Analyze" be disabled/blurred on
+  initial load and whenever no document is selected, becoming
+  clickable only once a sample or uploaded file is selected, and
+  disabled again if the selection is cleared — reusing the same
+  disabled-state styling pattern already planned for not-implemented
+  tasks elsewhere (`S6` in `DOMAIN_TASK_SELECTION_PLAN.md`, kept
+  outside this repo). Mirrored the same addition into
+  `CANDIDATE_TASKS.md`'s `A11` detailed entry to keep the two in sync.
+- **Outcome**: Scope updated on both files; no implementation started
+  yet, so no test/behavior change to verify.

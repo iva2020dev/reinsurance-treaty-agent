@@ -67,6 +67,15 @@
     text) before the user commits to running "Analyze" — lets the user
     confirm they picked the right document without leaving the page or
     running the full analysis first.
+    Also gate the "Analyze" action itself: it must render
+    blurred/disabled (matching the existing not-implemented-task
+    disabled-state styling pattern elsewhere in the app, e.g. `S6`'s
+    disabled tasks in `DOMAIN_TASK_SELECTION_PLAN.md`) until a treaty
+    is selected via either the sample selector or the uploader — no
+    click should be able to trigger analysis with nothing selected.
+    Once a document is selected (sample or upload), "Analyze" becomes
+    active; clearing the selection (e.g. removing the uploaded file)
+    disables it again.
   - **Files**: `src/app.py`, a new small sample registry (e.g.
     `src/sample_treaties.py`), `data/*.pdf` (existing fixtures, read
     not moved)
@@ -78,9 +87,12 @@
     the Railway deployment. A "Review treaty" action opens the
     currently selected document (sample or uploaded) in a modal
     window displaying its content, for both the sample-selector and
-    uploader paths, without triggering analysis; `python -m pytest -q`
-    passes with new coverage for both the sample-selection and
-    review-modal paths.
+    uploader paths, without triggering analysis. "Analyze" is
+    blurred/inactive whenever no treaty is selected (initial page
+    load, or after a selection is cleared) and becomes clickable only
+    once a sample or uploaded file is selected; `python -m pytest -q`
+    passes with new coverage for the sample-selection, review-modal,
+    and Analyze-gating paths.
 
 ## P1
 

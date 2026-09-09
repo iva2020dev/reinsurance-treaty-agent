@@ -221,7 +221,9 @@ workflow change. Also adds a "Review treaty" action that opens the
 currently selected document (sample or uploaded) in a modal window
 (`st.dialog`) showing its content, so the user can confirm they picked
 the right document before running "Analyze" — applies to both the
-sample-selector and uploader paths.
+sample-selector and uploader paths. "Analyze" itself is gated: rendered
+blurred/disabled until a treaty is selected (sample or upload), and
+disabled again if the selection is cleared.
 *Deterministic (UI + static sample registry, no new analysis logic).
 Effort: S/M. Answer type: N/A (infrastructure/UX, not itself a
 content-answering task) — this is app-generic UX unrelated to which
