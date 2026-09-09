@@ -2901,3 +2901,27 @@ This file contains the reasoning transcript of the AI agent for the current sess
   review modal happy+error paths, Close button, re-Analyze
   replacement) now has direct test coverage, not just "doesn't crash"
   checks.
+
+## 2026-09-09 12:46:55 — Add automatic coverage reporting on every test run (treaty-sample-selection-ui)
+
+- **Goal**: Human asked to make coverage generate/update automatically
+  every time tests run, following the manual `coverage run`/`coverage
+  report` check done in the previous verification step, and asked how
+  to open `.coverage` in an IDE.
+- **Analysis**: `.coverage` (coverage.py's own data file) and
+  `htmlcov/` were already in `.gitignore` from the repo's original
+  template, so no gitignore change needed. No `pytest.ini`/
+  `pyproject.toml` existed yet to hold pytest config.
+- **Decision**: Add `pytest-cov` to `requirements.txt` and a new
+  `pytest.ini` with `addopts = --cov=src --cov-report=term-missing
+  --cov-report=html`, so a plain `python -m pytest` (locally or in any
+  future CI step) always regenerates both the `.coverage` data file
+  and a browsable `htmlcov/index.html` report, without needing a
+  separate manual coverage invocation.
+- **Action**: Edited `requirements.txt`, added `pytest.ini`.
+- **Outcome**: `python -m pytest -q` now prints a per-file
+  term-missing coverage table and writes `htmlcov/` automatically —
+  verified: 79 passed, coverage summary shown for all `src/*` modules
+  (98% overall, matching the manual check from the prior entry).
+  `.coverage`/`htmlcov/` correctly stay untracked (`git status`
+  confirmed).
