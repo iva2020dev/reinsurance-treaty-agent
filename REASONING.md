@@ -2956,3 +2956,59 @@ This file contains the reasoning transcript of the AI agent for the current sess
   detailed heading) from `📋 In TASKS.md` to `✅ Done (shipped as
   \`treaty-sample-selection-ui\`)`, matching the pattern used for
   `A1`-`A3`.
+
+## 2026-09-09 13:29:37 — Task: Fix treaty-source input layout twitch (fix-source-input-height-twitch)
+
+- **Goal**: Human asked to make "Treaty PDF" (`st.file_uploader`) and
+  "Choose a reinsurance treaty" (`st.selectbox`) render at the same
+  height, so toggling the "Treaty source" radio doesn't shift the UI
+  elements below it.
+- **Analysis**: `st.file_uploader` renders a much taller drag-and-drop
+  box than `st.selectbox`'s single-line dropdown; since `main()`
+  renders exactly one of the two depending on `source_mode`, switching
+  the radio changes the page's total height, visibly shifting the
+  Review/Analyze buttons and anything below.
+- **Decision**: Wrap both branches in a shared
+  `st.container(height=SOURCE_INPUT_HEIGHT, border=False)`, a new
+  module-level constant (180px — enough to fit the uploader's box
+  without clipping); the selectbox branch just leaves the remaining
+  space blank, so both paths occupy the identical fixed height and
+  nothing below ever moves.
+- **Action**: Branched `task/fix-source-input-height-twitch` off
+  `main`. Added `fix-source-input-height-twitch` to `TASKS.md`'s P1.
+  Edited `src/app.py`.
+- **Outcome**: `python -m pytest -q` — 79 passed (unaffected; widgets
+  unchanged, only wrapped in a container). Manually booted `streamlit
+  run src/app.py` — healthy, no server-log errors. Awaiting human
+  review/approval before this task is marked done and removed from
+  `TASKS.md`.
+
+## 2026-09-09 13:38:19 — Update: bordered box so inputs match visually (fix-source-input-height-twitch)
+
+- **Change**: Human confirmed the page-shift/twitch was fixed
+  (Review/Analyze buttons stay put), but pointed out the two inputs
+  themselves still look visibly different in height (the uploader's
+  drag-and-drop `section` vs. the selectbox's own short input) — the
+  ask was for the two input *boxes* to visually match, not just for
+  the overall page height to stay constant with blank space under the
+  shorter one.
+- **Action**: Changed the shared `st.container(height=SOURCE_INPUT_
+  HEIGHT, ...)` from `border=False` to `border=True`, so both the
+  uploader and the selectbox render inside a visibly bordered box of
+  the same fixed height — presenting as two equal-height boxes rather
+  than one widget floating in blank space next to a differently-sized
+  one.
+- **Outcome**: `python -m pytest -q` — 79 passed (unaffected). Manually
+  booted `streamlit run src/app.py` — healthy, no server-log errors.
+
+## 2026-09-09 13:40:49 — Update: tune SOURCE_INPUT_HEIGHT (fix-source-input-height-twitch)
+
+- **Change**: Human iterated on `SOURCE_INPUT_HEIGHT` live against the
+  running local app (no browser available in this environment to
+  verify visually myself): 180 left too much blank space under the
+  bordered selectbox; 110 was too small and caused the file uploader's
+  own content to clip into an internal vertical scrollbar. Settled on
+  140, confirmed good.
+- **Action**: Set `SOURCE_INPUT_HEIGHT = 140` in `src/app.py`.
+- **Outcome**: `python -m pytest -q` — 79 passed (unaffected, constant
+  value only). Confirmed working by the human against the live app.
