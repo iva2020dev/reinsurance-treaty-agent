@@ -132,7 +132,7 @@ discussion on how document quality drives task shape (see
 
 | Pri | ID | Task | Status | Shape | Answer Type | Effort | Depends on |
 |---|---|---|---|---|---|---|---|
-| 1 | S1 | Domain task registry & metadata | Proposed | Deterministic | N/A | S | — |
+| 1 | S1 | Domain task registry & metadata | 📋 In TASKS.md | Deterministic | N/A | S | — |
 | 2 | S2 | Workflow refactor: split shared pipeline from per-task analysis nodes | Proposed | Deterministic | N/A | L | S1 |
 | 3 | S3 | Multi-task result aggregation & state schema | Proposed | Deterministic | N/A | M | S2 |
 | 4 | S4 | Per-task cost estimation (pre-run) & actual cost tracking (post-run) | Proposed | Hybrid | N/A | M | S1 |
@@ -439,7 +439,7 @@ by the *actual* measured cost after; and `S1`'s registry as the single
 source of truth both the backend graph builder and the frontend
 selector read from).
 
-- **S1. Domain task registry & metadata** — Priority 1 — a small
+- **S1. Domain task registry & metadata** — Priority 1 — 📋 In TASKS.md as `domain-task-registry` — a small
   catalog (e.g. `src/domain_tasks.py`) listing every candidate domain
   task: id, title, its `CANDIDATE_TASKS.md` ID (`B0`, `B1`, ...),
   implementation status (`implemented` / `not_implemented`), shape,

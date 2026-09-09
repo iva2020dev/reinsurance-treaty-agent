@@ -3330,3 +3330,32 @@ This file contains the reasoning transcript of the AI agent for the current sess
   multi-domain-task-selection` branch/PR, titled `Closing task as
   "Done": Add Multi Domain-Task Selection (S) candidates to
   CANDIDATE_TASKS.md`, per the mandatory task-closing workflow.
+
+## 2026-09-09 17:15:50 — Task: Graduate S1 (Domain task registry & metadata) into TASKS.md as P1 (domain-task-registry)
+
+- **Goal**: Human asked to graduate `S1` from `CANDIDATE_TASKS.md`
+  into the real backlog in `TASKS.md`, at P1 priority. (This is the
+  graduation step only — scoping the work for later pickup, not
+  implementing it now; explained the distinction to the human before
+  they confirmed.)
+- **Analysis**: Checked `src/workflow.py` for the actual node function
+  names (`extractor_node`, `verifier_node`, `analyst_node`) to make
+  the registry's planned "which workflow node(s) it needs" field
+  concrete and accurate (`B0` → `analyst_node`) rather than vague.
+  Counted `CANDIDATE_TASKS.md`'s Business Domain tables precisely
+  (`B0`-`B9`: 10, one shipped; `C1`-`C5`: 5; `F1`-`F4`: 4 — 19 total)
+  so the acceptance criteria's "one entry per candidate" claim is
+  verifiably correct, not just plausible-sounding.
+- **Decision**: Scoped `domain-task-registry` narrowly to just
+  building the catalog module and its own tests — explicitly *not*
+  wiring it into `src/workflow.py` or `src/app.py` yet (that's `S2`/
+  `S6`'s job), so this graduated task has no behavior-changing blast
+  radius on the shipped app when picked up.
+- **Action**: Branched `feature/graduate-s1-domain-task-registry` off
+  `main`. Added `domain-task-registry` to `TASKS.md`'s P1. Updated
+  `CANDIDATE_TASKS.md`'s `S1` Status (summary row + detailed heading)
+  from `Proposed` to `📋 In TASKS.md`, per the file's own sync
+  convention.
+- **Outcome**: Documentation/backlog change only — no source files
+  touched yet; `python -m pytest -q` expected unaffected (verifying
+  before commit).
