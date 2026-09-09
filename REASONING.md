@@ -3012,3 +3012,12 @@ This file contains the reasoning transcript of the AI agent for the current sess
 - **Action**: Set `SOURCE_INPUT_HEIGHT = 140` in `src/app.py`.
 - **Outcome**: `python -m pytest -q` — 79 passed (unaffected, constant
   value only). Confirmed working by the human against the live app.
+
+## 2026-09-09 13:42:47 — Closing task: Fix treaty-source input layout twitch (fix-source-input-height-twitch)
+
+- PR #57 merged into `main` at `1868322`. Human explicitly approved
+  marking `fix-source-input-height-twitch` done. Removing it from
+  `TASKS.md`'s P1 section (and adding it to the "Recently completed"
+  list) on this `close/fix-source-input-height-twitch` branch/PR,
+  titled `Closing task as "Done": Fix treaty-source input layout
+  twitch on source toggle`, per the mandatory task-closing workflow.
