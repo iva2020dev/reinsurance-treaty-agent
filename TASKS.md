@@ -46,6 +46,92 @@
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
+- [ ] Auto-clear Analysis Results when a new treaty is selected (@claude)
+  - **ID**: auto-clear-results-on-new-selection
+  - **Tags**: ui, streamlit, ux
+  - **Candidate ID**: N/A (not graduated from `CANDIDATE_TASKS.md`;
+    a small follow-up UX fix on `treaty-sample-selection-ui`'s
+    already-shipped results container, requested directly)
+  - **Details**: Today, once "Analyze" produces a result, the bordered
+    "Analysis Results" container (`st.session_state["workflow_run"]`)
+    stays visible until the user explicitly clicks "Close" or
+    "Analyze" again — if they instead pick a *different* treaty
+    (upload a new file, choose a different sample, clear the upload,
+    or switch source mode) without re-clicking "Analyze", the
+    container keeps showing the stale prior report, now describing a
+    document that's no longer selected. Auto-clear (and effectively
+    auto-close) the results container as soon as the current selection
+    no longer matches the one the shown result was produced from.
+  - **Files**: `src/app.py`
+  - **Acceptance**: After analyzing one treaty, uploading a different
+    file, choosing a different sample, or switching source mode (all
+    without clicking "Analyze" again) immediately hides the results
+    container; `python -m pytest -q` passes with new coverage for
+    both cases.
+
+- [ ] Save analysis results to a file (@claude)
+  - **ID**: save-analysis-results-to-file
+  - **Tags**: ui, streamlit, ux
+  - **Candidate ID**: N/A (not graduated from `CANDIDATE_TASKS.md`;
+    a small follow-up feature on `treaty-sample-selection-ui`'s
+    already-shipped results container, requested directly)
+  - **Details**: Add a "Save analysis results" button next to the
+    rendered report (inside the "Analysis Results" container, only
+    when a report was actually produced) that writes the report to a
+    new file under `results/` (new dir, gitignored like `logs/`),
+    **organized per-treaty**: `results/<treaty-slug>/<datetime
+    stamp>_<highest severity>.<extension>`, e.g.
+    `results/acme_insurance_co/20260909_140530_high.md` — the cedent
+    name slugified (lowercased, non-alphanumeric runs collapsed to
+    `_`, truncated to 40 chars) is the *subdirectory*, not repeated in
+    the filename, so a treaty's saved history stays together as it
+    accumulates over time; datetime as `YYYYmmdd_HHMMSS`
+    (filesystem-safe, no colons); the highest-severity finding's label
+    (`low`/`medium`/`high`, or `clean` if there are no findings) so a
+    folder of saved reports can be scanned for risk at a glance. Each
+    save always creates a new file (no append/overwrite choice, unlike
+    the existing "Save to logs file" control) — timestamped to the
+    second, so collisions are effectively impossible in normal use.
+    The saved/downloaded content itself (not the on-screen report,
+    which is about the treaty, not this run) is prefixed with an
+    "## Analysis Results" header (matching the on-screen container's
+    own title), a `Generated: <timestamp>` line, and, only when the
+    LLM Extraction Fallback actually ran, an `LLM usage: input
+    tokens: N, output tokens: N` line parsed from that run's own log
+    lines.
+    Also add a "Download analysis results" button (`st.download_button`)
+    right beside it, offering the same content/filename as a
+    browser download — needed because Streamlit Community Cloud's
+    filesystem is ephemeral with no file browser, so the server-side
+    save alone isn't actually retrievable by a user in production; the
+    download button works identically local and in production since it
+    streams straight to the user's own machine.
+    Both Save and Download support two file formats, chosen once via a
+    "Result file format" radio (Markdown / PDF) placed right above
+    them — confirmed with the human via `AskUserQuestion` — so a
+    single selection drives both actions consistently rather than
+    offering four separate buttons. PDF rendering
+    (`render_report_pdf`, via the new `fpdf2` dependency) mirrors the
+    same content with Markdown syntax stripped (headers/bold/italic-
+    citation markers) and any character fpdf2's core Latin-1 fonts
+    can't encode (e.g. the severity emoji) silently dropped, since the
+    `[HIGH]`/`[MEDIUM]`/`[LOW]` text label already carries that
+    information.
+  - **Files**: `src/app.py`, `requirements.txt` (new `fpdf2`
+    dependency), `.gitignore` (new `results/` entry)
+  - **Acceptance**: After a successful analysis, choosing "PDF (.pdf)"
+    or "Markdown (.md)" and clicking "Save analysis results" writes a
+    new file under `results/<treaty-slug>/` in the chosen format,
+    named per the rule above, containing a generation timestamp (and
+    LLM usage line, if the LLM ran), and shows a success message
+    naming the saved path; clicking "Download analysis results"
+    downloads the same content/format to the browser; a saved/
+    downloaded PDF's text is extractable and contains the treaty's
+    cedent name, findings, and generation timestamp; `python -m
+    pytest -q` passes with new unit tests for the naming/slugify/
+    severity/subdirectory/LLM-usage/PDF-rendering helpers and
+    app-level tests confirming both buttons work in both formats and
+    that a real LLM-fallback run's usage appears in the saved file.
 
 
 - [ ] CI-Integrated Regression Eval Gate

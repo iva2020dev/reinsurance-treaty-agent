@@ -1,6 +1,8 @@
 """Streamlit UI / FastAPI endpoints."""
 
+import hashlib
 import logging
+import re
 import sys
 import tempfile
 from dataclasses import asdict
@@ -15,6 +17,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 import streamlit as st
+from fpdf import FPDF
 
 from src.models import AnomalyReport
 from src.parser import ParserError, extract_treaty_sections
@@ -23,6 +26,8 @@ from src.workflow import WorkflowState, run_workflow_from_pdf
 
 SEVERITY_ICONS = {"low": "ℹ️", "medium": "⚠️", "high": "🚨"}
 DEFAULT_LOG_FILE = Path("logs/workflow.log")
+DEFAULT_RESULTS_DIR = Path("results")
+_SEVERITY_RANK = {"low": 0, "medium": 1, "high": 2}
 # Tall enough to fit st.file_uploader's drag-and-drop box (the taller of the
 # two treaty-source inputs) without clipping. Both the uploader and the
 # selectbox render inside a bordered container of this same fixed height, so
@@ -164,6 +169,137 @@ def format_report_markdown(report: AnomalyReport) -> str:
     return "\n".join(lines)
 
 
+def slugify_treaty_name(name: str, max_length: int = 40) -> str:
+    """Turn a treaty/cedent name into a short, filesystem-safe slug."""
+    slug = re.sub(r"[^A-Za-z0-9]+", "_", name).strip("_").lower()
+    return (slug or "treaty")[:max_length]
+
+
+def highest_severity_label(findings: list) -> str:
+    """The highest-severity finding's label, or "clean" if there are none."""
+    if not findings:
+        return "clean"
+    return max(findings, key=lambda f: _SEVERITY_RANK[f.severity]).severity.value
+
+
+_LLM_USAGE_RE = re.compile(r"input_tokens=(\d+), output_tokens=(\d+)")
+
+
+def extract_llm_usage_summary(log_lines: list[str] | None) -> str | None:
+    """Pull input/output token counts from the LLM Extraction Fallback's log
+    line, if the LLM was actually invoked for this run -- None otherwise
+    (e.g. the regex Extractor found every field, so no LLM call was made).
+    """
+    for line in log_lines or []:
+        match = _LLM_USAGE_RE.search(line)
+        if match:
+            input_tokens, output_tokens = match.groups()
+            return f"input tokens: {input_tokens}, output tokens: {output_tokens}"
+    return None
+
+
+def results_subdirectory(report: AnomalyReport, base: Path = DEFAULT_RESULTS_DIR) -> Path:
+    """The per-treaty subdirectory saved results for this cedent are organized under."""
+    return base / slugify_treaty_name(report.treaty.cedent_name)
+
+
+def format_results_filename(report: AnomalyReport, extension: str, when: datetime | None = None) -> str:
+    """Build the saved-results filename: <timestamp>_<severity>.<extension>.
+
+    The treaty name isn't repeated here -- it's the containing subdirectory
+    (see results_subdirectory()), since results are organized per-treaty.
+    """
+    timestamp = (when or datetime.now()).strftime("%Y%m%d_%H%M%S")
+    severity = highest_severity_label(report.findings)
+    return f"{timestamp}_{severity}.{extension}"
+
+
+def format_results_document(
+    report: AnomalyReport, log_lines: list[str] | None = None, when: datetime | None = None
+) -> str:
+    """format_report_markdown's content, for a saved/downloaded file: prefixed
+    with an "Analysis Results" header (matching the on-screen container's own
+    title), the run's generation timestamp, and (only if the LLM Extraction
+    Fallback actually ran) its token usage -- none of these three are part of
+    the on-screen report itself, which describes the treaty, not this run.
+    """
+    timestamp = (when or datetime.now()).strftime("%Y-%m-%d %H:%M:%S")
+    lines = ["## Analysis Results", f"Generated: {timestamp}"]
+    llm_usage = extract_llm_usage_summary(log_lines)
+    if llm_usage:
+        lines.append(f"LLM usage: {llm_usage}")
+    lines.append("")
+    lines.append(format_report_markdown(report))
+    return "\n".join(lines)
+
+
+def render_report_pdf(report: AnomalyReport, log_lines: list[str] | None = None, when: datetime | None = None) -> bytes:
+    """Render an AnomalyReport as PDF bytes, mirroring format_results_document's content.
+
+    Uses fpdf2's core (Latin-1-only) fonts, so this strips Markdown syntax
+    and drops any character that can't be encoded (e.g. the severity emoji)
+    rather than crashing -- the `[HIGH]`/`[MEDIUM]`/`[LOW]` label already
+    carries that information in plain text.
+    """
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+
+    for raw_line in format_results_document(report, log_lines=log_lines, when=when).split("\n"):
+        line = raw_line.strip()
+        if not line:
+            pdf.ln(4)
+            continue
+        is_heading = line.startswith("#")
+        line = re.sub(r"^#+\s*", "", line)
+        line = line.replace("**", "")
+        line = line.replace("_(", "(").replace(")_", ")")
+        line = line.encode("latin-1", "ignore").decode("latin-1")
+        line = re.sub(r"\s+", " ", line).strip()
+        if not line:
+            continue
+        pdf.set_font("Helvetica", style="B" if is_heading else "", size=13 if is_heading else 11)
+        # multi_cell defaults to leaving the cursor at the right edge of the
+        # last rendered line (new_x="RIGHT") rather than the next line's left
+        # margin -- without resetting it, the next call gets ~0 width and
+        # raises "Not enough horizontal space to render a single character".
+        pdf.multi_cell(0, 7, line, new_x="LMARGIN", new_y="NEXT")
+
+    return bytes(pdf.output())
+
+
+def render_report_bytes(
+    report: AnomalyReport, extension: str, log_lines: list[str] | None = None, when: datetime | None = None
+) -> bytes:
+    """Render report as bytes in the given format ("md" or "pdf")."""
+    if extension == "pdf":
+        return render_report_pdf(report, log_lines=log_lines, when=when)
+    return format_results_document(report, log_lines=log_lines, when=when).encode("utf-8")
+
+
+def save_analysis_result_to_file(
+    report: AnomalyReport,
+    extension: str,
+    log_lines: list[str] | None = None,
+    directory: Path = DEFAULT_RESULTS_DIR,
+    when: datetime | None = None,
+) -> Path:
+    """Write report to a new timestamped file (under a per-treaty subdirectory
+    of directory) in the given format, returning its path.
+    """
+    when = when or datetime.now()
+    target_dir = results_subdirectory(report, directory)
+    target_dir.mkdir(parents=True, exist_ok=True)
+    path = target_dir / format_results_filename(report, extension, when=when)
+    path.write_bytes(render_report_bytes(report, extension, log_lines=log_lines, when=when))
+    return path
+
+
+def _fingerprint(file_bytes: bytes) -> str:
+    """A cheap content fingerprint used to detect a changed treaty selection."""
+    return hashlib.sha256(file_bytes).hexdigest()
+
+
 def _run_workflow_with_logging(file_bytes: bytes, display_name: str) -> dict:
     """Run the full workflow on file_bytes, capturing its log lines.
 
@@ -196,6 +332,7 @@ def _run_workflow_with_logging(file_bytes: bytes, display_name: str) -> dict:
         "log_lines": log_lines,
         "parser_error": parser_error,
         "selected_name": display_name,
+        "fingerprint": _fingerprint(file_bytes),
     }
 
 
@@ -261,6 +398,7 @@ def main() -> None:
                 selected_name = sample.filename
 
     has_selection = selected_bytes is not None
+    selected_fingerprint = _fingerprint(selected_bytes) if selected_bytes is not None else None
 
     review_col, analyze_col = st.columns(2)
     with review_col:
@@ -275,6 +413,12 @@ def main() -> None:
         st.session_state["workflow_run"] = _run_workflow_with_logging(selected_bytes, selected_name)
 
     run_result = st.session_state.get("workflow_run")
+    if run_result is not None and run_result.get("fingerprint") != selected_fingerprint:
+        # The treaty selection changed (new upload, different sample, cleared
+        # upload, or switched source) since this result was produced -- clear
+        # and close the results container rather than showing a stale report.
+        del st.session_state["workflow_run"]
+        run_result = None
     if run_result is None:
         return
 
@@ -319,6 +463,36 @@ def main() -> None:
                         f"values before relying on this report."
                     )
                 st.markdown(format_report_markdown(report))
+
+                format_choice = st.radio(
+                    "Result file format",
+                    ["Markdown (.md)", "PDF (.pdf)"],
+                    horizontal=True,
+                    key="results_format_choice",
+                )
+                extension = "pdf" if format_choice.startswith("PDF") else "md"
+
+                save_col, download_col = st.columns(2)
+                with save_col:
+                    if st.button("Save analysis results", icon=":material/save:"):
+                        saved_path = save_analysis_result_to_file(report, extension, log_lines=log_lines)
+                        st.success(f"Saved analysis results to {saved_path}.")
+                with download_col:
+                    # Streamlit Community Cloud's filesystem is ephemeral and
+                    # has no file browser, so the server-side save above isn't
+                    # actually retrievable in production -- this downloads the
+                    # same content straight to the user's own machine instead,
+                    # which works identically locally and in production.
+                    # A single `when` for both the filename and the content, so
+                    # they always agree even at a second boundary.
+                    download_when = datetime.now()
+                    st.download_button(
+                        "Download analysis results",
+                        data=render_report_bytes(report, extension, log_lines=log_lines, when=download_when),
+                        file_name=format_results_filename(report, extension, when=download_when),
+                        mime="application/pdf" if extension == "pdf" else "text/markdown",
+                        icon=":material/download:",
+                    )
 
         with st.expander("Analysis Workflow execution"):
             if state is None:

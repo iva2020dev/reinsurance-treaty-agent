@@ -3021,3 +3021,215 @@ This file contains the reasoning transcript of the AI agent for the current sess
   list) on this `close/fix-source-input-height-twitch` branch/PR,
   titled `Closing task as "Done": Fix treaty-source input layout
   twitch on source toggle`, per the mandatory task-closing workflow.
+
+## 2026-09-09 15:48:58 — Task: Auto-clear Analysis Results on new treaty selection (auto-clear-results-on-new-selection)
+
+- **Goal**: Human asked for the "Analysis Results" container to clear
+  and close automatically once a new treaty is chosen, rather than
+  requiring an explicit "Close" click or a re-"Analyze" click first.
+- **Analysis**: `st.session_state["workflow_run"]` previously only
+  changed on an explicit "Analyze" click or "Close" click — nothing
+  detected that the underlying selection (uploaded file / chosen
+  sample / source mode) had since changed, so the container could show
+  a report for a document that's no longer selected.
+- **Decision**: Store a content fingerprint (`hashlib.sha256` of the
+  analyzed bytes) alongside each `workflow_run` result. On every
+  render, compare it against a fingerprint of the *currently* selected
+  bytes (`None` if nothing is selected); a mismatch means the
+  selection changed since that result was produced, so drop
+  `workflow_run` and skip rendering — same effect as clicking "Close",
+  but automatic. A cheap hash rather than object identity/name
+  comparison, since two different samples could coincidentally share a
+  filename structure and a name-only check felt less certain to catch
+  every real change.
+- **Action**: Branched `task/auto-clear-results-on-new-selection` off
+  `main`. Added `auto-clear-results-on-new-selection` to `TASKS.md`'s
+  P1. Edited `src/app.py` (`_fingerprint()` helper,
+  `_run_workflow_with_logging()` now stores it, main() compares and
+  clears). Added
+  `test_app_results_auto_clear_when_a_new_file_is_uploaded_without_re_analyzing`
+  and `test_app_results_auto_clear_when_switching_to_sample_selector`
+  to `tests/test_app.py`.
+- **Outcome**: `python -m pytest -q` — 81 passed (79 previously + 2
+  new). Manually booted `streamlit run src/app.py` — healthy, no
+  server-log errors. Awaiting human review/approval before this task
+  is marked done and removed from `TASKS.md`.
+
+## 2026-09-09 15:55:45 — Task: Save analysis results to a file (save-analysis-results-to-file)
+
+- **Goal**: Human asked for a "Save analysis results" feature, with a
+  naming rule of datetime stamp + treaty short name + one more
+  component the human wanted my input on.
+- **Decision (asked via AskUserQuestion)**: For the third naming
+  component, offered highest-severity / loss-ratio / extraction-method
+  / none — human picked highest severity (lets a folder of saved
+  reports be scanned for risk at a glance). For file format, offered
+  Markdown / JSON / both — human picked Markdown, matching what's
+  already rendered on screen (`format_report_markdown`), so the saved
+  file is exactly what a reviewer already saw.
+- **Analysis**: `_sample_report()`'s severity is a `Severity(str,
+  Enum)` member — discovered while testing that Python's default
+  `Enum.__str__` (`"Severity.HIGH"`) is used inside an f-string, not
+  the plain string value, even though `Severity` inherits `str`;
+  fixed by taking `.value` explicitly. Also had to read
+  `MINIMAL_TREATY_PATH`'s bytes *before* `monkeypatch.chdir(tmp_path)`
+  in the app-level test — a relative path breaks after the chdir,
+  same pattern as the existing `test_app_save_button_writes_default_
+  log_file`.
+- **Action**: Branched `task/save-analysis-results-to-file` off
+  `main`. Added `save-analysis-results-to-file` to `TASKS.md`'s P1.
+  Edited `src/app.py`: `DEFAULT_RESULTS_DIR`, `_SEVERITY_RANK`,
+  `slugify_treaty_name()`, `highest_severity_label()`,
+  `format_results_filename()`, `save_analysis_result_to_file()`, and a
+  "Save analysis results" button inside the successful-report branch
+  of the results container. Added `results/` to `.gitignore` (mirrors
+  `logs/`). Added 9 new tests to `tests/test_app.py` covering the
+  naming/slugify/severity helpers directly plus an app-level test
+  confirming the button writes a real file.
+- **Outcome**: `python -m pytest -q` — 90 passed (81 previously + 9
+  new). Coverage: `src/app.py` 99%.
+  Manually booted `streamlit run src/app.py` — healthy, no server-log
+  errors. Awaiting human review/approval before this task is marked
+  done and removed from `TASKS.md`.
+
+## 2026-09-09 16:03:23 — Update: add Download button for production (save-analysis-results-to-file)
+
+- **Change**: Human asked whether saved results are visible in
+  production. Explained the two real limitations: Streamlit Community
+  Cloud's filesystem is ephemeral (a server-side save doesn't survive
+  redeploy/restart/sleep) and there's no file browser exposed to the
+  user anyway, even within the same session — the same pre-existing
+  limitation the "Save to logs file" button already has. Offered three
+  options via `AskUserQuestion` (switch to download-only, keep
+  server-side + add download, or leave as-is); human chose to keep
+  the server-side save (useful for local dev) and add a download
+  button alongside it.
+- **Action**: Added a "Download analysis results" `st.download_button`
+  next to "Save analysis results" in `src/app.py`, offering the same
+  `format_report_markdown()` content and `format_results_filename()`
+  name as a direct browser download — works identically locally and
+  in production since it needs no server-side persistence. Updated
+  `TASKS.md`'s `save-analysis-results-to-file` entry to cover both
+  buttons. Added
+  `test_app_download_analysis_results_button_is_offered_after_analysis`
+  to `tests/test_app.py` — discovered along the way that `AppTest`'s
+  `DownloadButton.proto` only exposes a mock media URL, not the raw
+  bytes/filename passed to `st.download_button`, so the test checks
+  what's actually observable (button exists, `.md` extension) rather
+  than re-asserting content/filename already covered by the naming
+  helpers' own direct unit tests.
+- **Outcome**: `python -m pytest -q` — 91 passed (90 previously + 1
+  new). Coverage: `src/app.py` 99%. Manually booted `streamlit run
+  src/app.py` — healthy, no server-log errors.
+
+## 2026-09-09 16:13:48 — Update: add PDF format with a format selector (save-analysis-results-to-file)
+
+- **Change**: Human asked to save results in both `.md` and `.pdf`
+  formats. Mid-implementation, human further specified: let the user
+  select the format *before* saving, rather than always producing
+  both or offering separate per-format buttons.
+- **Decision**: Added a "Result file format" `st.radio` (Markdown /
+  PDF) right above the Save/Download buttons; both buttons now act on
+  whichever format is currently selected, rather than one button per
+  format. `format_results_filename()` and `save_analysis_result_to_file()`
+  gained a required `extension` parameter; a new `render_report_bytes()`
+  dispatches to either `format_report_markdown().encode()` or the new
+  `render_report_pdf()`.
+- **Analysis**: No existing PDF-writing dependency in the repo
+  (`pypdf` only *reads*/parses PDFs). Chose `fpdf2` — pure Python, no
+  system binary/library dependency (unlike `weasyprint`/`wkhtmltopdf`),
+  so it installs cleanly on Streamlit Community Cloud's free tier.
+  `render_report_pdf()` walks `format_report_markdown()`'s lines,
+  strips Markdown syntax (headers/bold/italic-citation parens) and
+  drops any character fpdf2's core Helvetica font (Latin-1 only) can't
+  encode — covers the severity emoji, whose information already
+  exists as a plain-text `[HIGH]`/`[MEDIUM]`/`[LOW]` label in the same
+  line. Hit and fixed a real bug: `multi_cell()`'s default
+  `new_x=XPos.RIGHT` leaves the cursor at the right edge of the last
+  rendered line rather than resetting to the left margin, so every
+  call after the first heading got ~0 available width and raised
+  `FPDFException: Not enough horizontal space to render a single
+  character` — fixed by passing `new_x="LMARGIN", new_y="NEXT"`
+  explicitly. Verified the fix by reproducing standalone (not just
+  reading fpdf2's docs) and confirming via `pypdf.PdfReader` that the
+  generated PDF's text is actually extractable and correct, not just
+  "no exception raised."
+- **Action**: Added `fpdf2` to `requirements.txt`. Edited `src/app.py`:
+  `render_report_pdf()`, `render_report_bytes()`, updated
+  `format_results_filename()`/`save_analysis_result_to_file()`
+  signatures, added the format radio and wired both buttons to it.
+  Updated `TASKS.md`'s `save-analysis-results-to-file` entry.
+  Updated/added tests in `tests/test_app.py` for the new signatures,
+  PDF content extraction, and format-selection behavior for both
+  buttons.
+- **Outcome**: `python -m pytest -q` — 96 passed (91 previously, some
+  updated + net new for PDF coverage). Coverage: `src/app.py` 98%.
+  Manually booted `streamlit run src/app.py` — healthy, no server-log
+  errors.
+
+## 2026-09-09 16:22:39 — Update: per-treaty folders, generation timestamp, LLM usage in content (save-analysis-results-to-file)
+
+- **Goal**: Three follow-up requests from the human, folded into one
+  pass: (1) "name and organise analysis results" — clarified via
+  `AskUserQuestion` to mean the `results/` folder structure; (2) "add
+  datetime stamp in content" — inside the saved/downloaded file, not
+  just the filename; (3) "add LLM usage data results if any" — the
+  LLM Extraction Fallback's token counts, when it actually ran.
+- **Decision (1 — organization)**: Results now live under
+  `results/<treaty-slug>/<timestamp>_<severity>.<ext>` — a
+  subdirectory per treaty (`results_subdirectory()`), rather than one
+  flat directory. `format_results_filename()` dropped the treaty slug
+  (now redundant with the containing folder), keeping just
+  `<timestamp>_<severity>.<extension>`.
+- **Decision (2 — timestamp in content)**: New
+  `format_results_document()` wraps `format_report_markdown()`'s
+  content with a `Generated: <timestamp>` line, used only for saved/
+  downloaded output (not the on-screen `st.markdown` render, which
+  describes the treaty, not this specific run).
+- **Decision (3 — LLM usage)**: `src/workflow.py`'s
+  `llm_extraction_fallback` only *logs* `input_tokens`/`output_tokens`
+  (`src/workflow.py:226-234`) — never stores them in `WorkflowState`.
+  Rather than changing the workflow's state schema (a bigger, riskier
+  change touching the harness), added
+  `extract_llm_usage_summary(log_lines)` to parse that exact log
+  line's token counts back out of the already-captured `log_lines`
+  (the same list the debug expander already displays) — `None` when
+  the LLM never ran (regex succeeded), so the saved content only
+  mentions LLM usage when it's actually relevant.
+- **Action**: Edited `src/app.py`: `results_subdirectory()`,
+  `extract_llm_usage_summary()`, `format_results_document()`; threaded
+  `log_lines`/`when` through `render_report_pdf()`,
+  `render_report_bytes()`, `save_analysis_result_to_file()`; `main()`
+  now passes `log_lines` to both Save and Download, and computes a
+  single `when` per Download click so its filename and content always
+  agree. Updated `TASKS.md`'s `save-analysis-results-to-file` entry.
+  Updated/added tests in `tests/test_app.py`: new filename format, new
+  `results_subdirectory`/`extract_llm_usage_summary`/
+  `format_results_document` unit tests, and a full app-level test
+  (`test_app_save_analysis_results_includes_llm_usage_when_fallback_ran`)
+  that actually mocks the LLM path and asserts the token-usage line
+  lands in the real saved file — not just that the helper function
+  works in isolation.
+- **Outcome**: `python -m pytest -q` — 102 passed (96 previously + 6
+  new). Coverage: `src/app.py` 99%. Manually booted `streamlit run
+  src/app.py` — healthy, no server-log errors.
+
+## 2026-09-09 16:27:52 — Update: add "Analysis Results" header to saved content (save-analysis-results-to-file)
+
+- **Change**: Human asked to add an "Analysis Results" header to the
+  saved/downloaded results file content, matching the on-screen
+  container's own title.
+- **Action**: `format_results_document()` now starts with
+  `"## Analysis Results"` before the `Generated:`/`LLM usage:` lines.
+  `render_report_pdf()`'s heading detection (previously
+  `line.startswith("###")`, matching only `format_report_markdown`'s
+  own `### Treaty: ...` heading) generalized to `line.startswith("#")`
+  so the new `##`-level header is also bolded/sized as a heading in
+  the PDF, not rendered as plain body text. Updated `TASKS.md`'s
+  entry and the relevant tests in `tests/test_app.py`
+  (`format_results_document`'s and `render_report_pdf`'s content
+  assertions).
+- **Outcome**: `python -m pytest -q` — 102 passed (unaffected count;
+  existing tests updated, no net-new). Coverage: `src/app.py` 99%.
+  Manually booted `streamlit run src/app.py` — healthy, no server-log
+  errors.

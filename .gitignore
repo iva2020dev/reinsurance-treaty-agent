@@ -230,3 +230,6 @@ __marimo__/
 
 # App-generated runtime logs (workflow.log and any other saved run output)
 logs/
+
+# App-generated saved analysis result files (Save analysis results button)
+results/
