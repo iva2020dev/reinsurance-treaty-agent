@@ -3418,3 +3418,46 @@ This file contains the reasoning transcript of the AI agent for the current sess
   Status (summary row + detailed heading) from `📋 In TASKS.md` to
   `✅ Done (shipped as \`domain-task-registry\`)`, matching the pattern
   used for `A1`-`A3`/`A11`.
+
+## 2026-09-09 22:36:13 — Task: Graduate S2-S8 into TASKS.md as P1 (Multi Domain-Task Selection)
+
+- **Goal**: Human asked to graduate all remaining `S`-series
+  candidates (`S2`-`S8`) into `TASKS.md` at once, to then pick them up
+  and implement one at a time in later sessions.
+- **Decision**: Used P1 for all seven, matching `S1`'s priority
+  (`domain-task-registry`) — the human didn't specify a level, and
+  keeping the whole chain visibly at the same priority as the already-
+  shipped first piece felt like the least surprising default; easy to
+  re-prioritize individual entries later if needed.
+- **Analysis**: Checked `src/models.py`/`src/workflow.py` for the
+  exact current schema (`WorkflowState.report: AnomalyReport | None`,
+  `class WorkflowState(TypedDict, total=False)`) so `S3`'s planned
+  `task_results: dict[str, TaskResult]` replacement is described
+  precisely, not vaguely. Reused each candidate's `CANDIDATE_TASKS.md`
+  writeup as the base `Details` text, but added concrete `Files`/
+  `Acceptance` sections scoped against this repo's actual file/
+  function names (e.g. `S2`'s `analyst_node` → `burn_cost_check_node`
+  rename, `S4`'s reuse of `src/app.py`'s already-shipped
+  `extract_llm_usage_summary()` log-parsing pattern for the actual-
+  cost side) — CANDIDATE_TASKS.md entries don't carry that level of
+  implementation detail, but a real `TASKS.md` entry needs enough to
+  be picked up and started without re-deriving scope from scratch.
+  Added `Blocked by` fields reflecting the dependency chain already
+  documented in `CANDIDATE_TASKS.md`'s Depends-on column (`S3`→`S2`;
+  `S5`→`S2`,`S3`; `S6`→`S4`; `S7`→`S3`,`S5`; `S8`→ all of `S2`-`S7`)
+  so picking the wrong one out of order is caught by the task list
+  itself, not just tribal knowledge.
+- **Action**: Branched `feature/graduate-s2-s8-multi-domain-task-
+  selection` off `main`. Added 7 new `TASKS.md` P1 entries:
+  `workflow-refactor-multi-task-pipeline` (`S2`),
+  `multi-task-result-aggregation-schema` (`S3`),
+  `per-task-cost-estimation` (`S4`), `multi-task-messaging-logging`
+  (`S5`), `multi-task-selection-ui` (`S6`), `multi-task-results-ui`
+  (`S7`), `multi-task-e2e-test-coverage` (`S8`). Updated
+  `CANDIDATE_TASKS.md`'s `S2`-`S8` Status (summary rows + detailed
+  headings) from `Proposed` to `📋 In TASKS.md`, per the file's sync
+  convention.
+- **Outcome**: `python -m pytest -q` — 107 passed, unaffected
+  (docs-only change, no source files touched). Awaiting human review/
+  approval before this graduates for real (task-by-task pickup starts
+  after that, per the human's stated plan).
