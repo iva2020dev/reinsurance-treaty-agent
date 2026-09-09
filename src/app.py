@@ -24,8 +24,10 @@ from src.workflow import WorkflowState, run_workflow_from_pdf
 SEVERITY_ICONS = {"low": "ℹ️", "medium": "⚠️", "high": "🚨"}
 DEFAULT_LOG_FILE = Path("logs/workflow.log")
 # Tall enough to fit st.file_uploader's drag-and-drop box (the taller of the
-# two treaty-source inputs) without clipping; the selectbox path just leaves
-# the remainder blank, so both sides render at the same fixed height.
+# two treaty-source inputs) without clipping. Both the uploader and the
+# selectbox render inside a bordered container of this same fixed height, so
+# they present as equal-height boxes -- not just equal *page* height with the
+# shorter selectbox floating in blank space.
 SOURCE_INPUT_HEIGHT = 180
 
 
@@ -243,7 +245,7 @@ def main() -> None:
     # Fixed height so switching between "Upload" and "Choose a sample" doesn't
     # shift the rest of the page -- st.file_uploader is much taller than
     # st.selectbox on its own, which would otherwise make the layout twitch.
-    with st.container(height=SOURCE_INPUT_HEIGHT, border=False):
+    with st.container(height=SOURCE_INPUT_HEIGHT, border=True):
         if source_mode == "Upload a treaty PDF":
             uploaded_file = st.file_uploader("Treaty PDF", type="pdf")
             if uploaded_file is not None:

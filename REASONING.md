@@ -2982,3 +2982,21 @@ This file contains the reasoning transcript of the AI agent for the current sess
   run src/app.py` — healthy, no server-log errors. Awaiting human
   review/approval before this task is marked done and removed from
   `TASKS.md`.
+
+## 2026-09-09 13:38:19 — Update: bordered box so inputs match visually (fix-source-input-height-twitch)
+
+- **Change**: Human confirmed the page-shift/twitch was fixed
+  (Review/Analyze buttons stay put), but pointed out the two inputs
+  themselves still look visibly different in height (the uploader's
+  drag-and-drop `section` vs. the selectbox's own short input) — the
+  ask was for the two input *boxes* to visually match, not just for
+  the overall page height to stay constant with blank space under the
+  shorter one.
+- **Action**: Changed the shared `st.container(height=SOURCE_INPUT_
+  HEIGHT, ...)` from `border=False` to `border=True`, so both the
+  uploader and the selectbox render inside a visibly bordered box of
+  the same fixed height — presenting as two equal-height boxes rather
+  than one widget floating in blank space next to a differently-sized
+  one.
+- **Outcome**: `python -m pytest -q` — 79 passed (unaffected). Manually
+  booted `streamlit run src/app.py` — healthy, no server-log errors.
