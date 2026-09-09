@@ -40,7 +40,7 @@
 
 <!-- policy: P0 tasks are critical, urgent, blocks other work. Tasks that should ship ASAP. -->
 
-- [ ] Treaty Sample Selection UI (prepared/golden samples, no local disk)
+- [ ] Treaty Sample Selection UI (prepared/golden samples, no local disk) (@claude)
   - **ID**: treaty-sample-selection-ui
   - **Tags**: ui, streamlit, ux, harness
   - **Candidate ID**: A11 (`CANDIDATE_TASKS.md`)

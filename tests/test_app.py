@@ -25,6 +25,19 @@ MINIMAL_TREATY_PATH = "data/sample_treaty.pdf"
 FUZZY_TREATY_PATH = "data/sample_rich_fuzzy_treaty.pdf"
 
 
+def _click_button(at: AppTest, label: str) -> AppTest:
+    """Click the first button with the given label and rerun."""
+    button = next(b for b in at.button if b.label == label)
+    return button.click().run()
+
+
+def _upload_and_click_analyze(at: AppTest, filename: str, file_bytes: bytes) -> AppTest:
+    """Upload a PDF via the uploader path and click Analyze, returning the rerun app."""
+    at.file_uploader[0].set_value([(filename, file_bytes, "application/pdf")])
+    at.run()
+    return _click_button(at, "Analyze")
+
+
 def _mock_llm_client(*, input_data: dict | None = None, error: Exception | None = None) -> MagicMock:
     """A mock anthropic.Anthropic() client for patching src.llm_client.anthropic.Anthropic."""
     mock_client = MagicMock()
@@ -104,7 +117,110 @@ def test_analyze_uploaded_pdf_malformed_raises_parser_error():
         analyze_uploaded_pdf(b"not a pdf at all")
 
 
+def test_app_analyze_button_disabled_until_treaty_selected():
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    review_button = next(b for b in at.button if b.label == "Review treaty")
+    analyze_button = next(b for b in at.button if b.label == "Analyze")
+    assert review_button.disabled
+    assert analyze_button.disabled
+
+    with open(MINIMAL_TREATY_PATH, "rb") as f:
+        at.file_uploader[0].set_value([("sample_treaty.pdf", f.read(), "application/pdf")])
+    at.run()
+
+    review_button = next(b for b in at.button if b.label == "Review treaty")
+    analyze_button = next(b for b in at.button if b.label == "Analyze")
+    assert not review_button.disabled
+    assert not analyze_button.disabled
+
+
 def test_app_upload_and_render_success():
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    with open(MINIMAL_TREATY_PATH, "rb") as f:
+        at = _upload_and_click_analyze(at, "sample_treaty.pdf", f.read())
+
+    assert not at.exception
+    markdown_text = "\n".join(m.value for m in at.markdown)
+    assert "Acme Insurance Co." in markdown_text
+
+
+def test_app_close_button_clears_results():
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    with open(MINIMAL_TREATY_PATH, "rb") as f:
+        at = _upload_and_click_analyze(at, "sample_treaty.pdf", f.read())
+
+    assert not at.exception
+    assert any(b.label == "Close" for b in at.button)
+    markdown_text = "\n".join(m.value for m in at.markdown)
+    assert "Acme Insurance Co." in markdown_text
+
+    at = _click_button(at, "Close")
+
+    assert not at.exception
+    assert not any(b.label == "Close" for b in at.button)
+    markdown_text = "\n".join(m.value for m in at.markdown)
+    assert "Acme Insurance Co." not in markdown_text
+
+
+def test_app_re_analyzing_replaces_previous_results():
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    with open(MINIMAL_TREATY_PATH, "rb") as f:
+        at = _upload_and_click_analyze(at, "sample_treaty.pdf", f.read())
+
+    assert not at.exception
+    markdown_text = "\n".join(m.value for m in at.markdown)
+    assert "Acme Insurance Co." in markdown_text
+
+    with open(RICH_TREATY_PATH, "rb") as f:
+        at = _upload_and_click_analyze(at, "sample_rich_treaty.pdf", f.read())
+
+    assert not at.exception
+    markdown_text = "\n".join(m.value for m in at.markdown)
+    assert "Meridian Insurance Group, Inc." in markdown_text
+    assert "Acme Insurance Co." not in markdown_text
+    # Exactly one results container's worth of content — not stacked/duplicated.
+    assert sum("Treaty:" in m.value for m in at.markdown) == 1
+
+
+def test_app_upload_malformed_pdf_shows_error_not_crash():
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    at = _upload_and_click_analyze(at, "bad.pdf", b"not a pdf at all")
+
+    assert not at.exception
+    assert len(at.error) == 1
+    assert "Could not read this PDF" in at.error[0].value
+
+
+def test_app_sample_selector_lists_all_golden_samples_and_runs_analysis():
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    at.radio[0].set_value("Choose a reinsurance treaty").run()
+    sample_select = at.selectbox[0]
+    labels = sample_select.options
+    assert len(labels) == 6  # placeholder + 5 golden samples
+
+    acme_label = next(label for label in labels if label.startswith("Acme Insurance Co."))
+    sample_select.set_value(acme_label).run()
+
+    at = _click_button(at, "Analyze")
+
+    assert not at.exception
+    markdown_text = "\n".join(m.value for m in at.markdown)
+    assert "Acme Insurance Co." in markdown_text
+
+
+def test_app_review_treaty_shows_selected_document_text_in_modal():
     at = AppTest.from_file("../src/app.py")
     at.run()
 
@@ -112,17 +228,23 @@ def test_app_upload_and_render_success():
         at.file_uploader[0].set_value([("sample_treaty.pdf", f.read(), "application/pdf")])
     at.run()
 
+    at = _click_button(at, "Review treaty")
+
     assert not at.exception
     markdown_text = "\n".join(m.value for m in at.markdown)
-    assert "Acme Insurance Co." in markdown_text
+    assert "Page 1" in markdown_text
+    text_values = "\n".join(t.value for t in at.text)
+    assert "Acme Insurance Co." in text_values
 
 
-def test_app_upload_malformed_pdf_shows_error_not_crash():
+def test_app_review_treaty_shows_error_for_malformed_pdf():
     at = AppTest.from_file("../src/app.py")
     at.run()
 
     at.file_uploader[0].set_value([("bad.pdf", b"not a pdf at all", "application/pdf")])
     at.run()
+
+    at = _click_button(at, "Review treaty")
 
     assert not at.exception
     assert len(at.error) == 1
@@ -152,8 +274,7 @@ def test_app_debug_panel_shows_log_lines_and_state_on_success():
     at.run()
 
     with open(MINIMAL_TREATY_PATH, "rb") as f:
-        at.file_uploader[0].set_value([("sample_treaty.pdf", f.read(), "application/pdf")])
-    at.run()
+        at = _upload_and_click_analyze(at, "sample_treaty.pdf", f.read())
 
     assert not at.exception
     assert len(at.expander) == 1
@@ -171,8 +292,7 @@ def test_app_debug_panel_shows_log_lines_on_parser_failure():
     at = AppTest.from_file("../src/app.py")
     at.run()
 
-    at.file_uploader[0].set_value([("bad.pdf", b"not a pdf at all", "application/pdf")])
-    at.run()
+    at = _upload_and_click_analyze(at, "bad.pdf", b"not a pdf at all")
 
     assert not at.exception
     log_text = "\n".join(c.value for c in at.code)
@@ -196,8 +316,7 @@ def test_app_shows_llm_extraction_fallback_note_and_state_on_success(monkeypatch
     at = AppTest.from_file("../src/app.py")
     at.run()
     with open(FUZZY_TREATY_PATH, "rb") as f:
-        at.file_uploader[0].set_value([("sample_rich_fuzzy_treaty.pdf", f.read(), "application/pdf")])
-    at.run()
+        at = _upload_and_click_analyze(at, "sample_rich_fuzzy_treaty.pdf", f.read())
 
     assert not at.exception
     assert any("LLM Extraction Fallback" in w.value for w in at.warning)
@@ -221,8 +340,7 @@ def test_app_shows_ungrounded_field_warning_when_grounding_check_fails(monkeypat
     at = AppTest.from_file("../src/app.py")
     at.run()
     with open(FUZZY_TREATY_PATH, "rb") as f:
-        at.file_uploader[0].set_value([("sample_rich_fuzzy_treaty.pdf", f.read(), "application/pdf")])
-    at.run()
+        at = _upload_and_click_analyze(at, "sample_rich_fuzzy_treaty.pdf", f.read())
 
     assert not at.exception
     assert any("could not be verified" in w.value and "cedent_name" in w.value for w in at.warning)
@@ -238,8 +356,7 @@ def test_app_shows_llm_error_when_both_extraction_paths_fail(monkeypatch):
     at = AppTest.from_file("../src/app.py")
     at.run()
     with open(FUZZY_TREATY_PATH, "rb") as f:
-        at.file_uploader[0].set_value([("sample_rich_fuzzy_treaty.pdf", f.read(), "application/pdf")])
-    at.run()
+        at = _upload_and_click_analyze(at, "sample_rich_fuzzy_treaty.pdf", f.read())
 
     assert not at.exception
     assert len(at.error) == 1
@@ -289,11 +406,10 @@ def test_app_save_button_writes_default_log_file(tmp_path, monkeypatch):
 
     at = AppTest.from_file("../src/app.py")
     at.run()
-    at.file_uploader[0].set_value([("sample_treaty.pdf", pdf_bytes, "application/pdf")])
-    at.run()
+    at = _upload_and_click_analyze(at, "sample_treaty.pdf", pdf_bytes)
 
     at.segmented_control[0].set_value("Overwrite").run()
-    at.button[0].click().run()
+    at = _click_button(at, "Save to logs file")
 
     assert not at.exception
     log_file = tmp_path / "logs" / "workflow.log"

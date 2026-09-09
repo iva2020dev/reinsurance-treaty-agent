@@ -2686,3 +2686,260 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `CANDIDATE_TASKS.md`'s `A11` detailed entry to keep the two in sync.
 - **Outcome**: Scope updated on both files; no implementation started
   yet, so no test/behavior change to verify.
+
+## 2026-09-09 12:06:06 — Task: Treaty Sample Selection UI (treaty-sample-selection-ui)
+
+- **Goal**: Implement `treaty-sample-selection-ui` (P0, graduated from
+  `A11`): let the user pick a prepared/golden treaty sample directly
+  in the Streamlit UI (bundled from the repo, no local-disk path),
+  review the currently selected document (sample or uploaded) in a
+  modal before running analysis, and gate the "Analyze" action so it's
+  blurred/disabled until a treaty is selected.
+- **Analysis**:
+  - `src/app.py`'s `main()` today has **no explicit "Analyze" action**
+    — `st.file_uploader` alone triggers the full workflow immediately
+    on upload (`if uploaded_file is None: return`, then it runs).
+    `TASKS.md`'s Details describe the sample-selector path "surfacing
+    the same explicit Analyze action the uploader path uses today,"
+    which assumes an action that doesn't actually exist yet. Since the
+    Analyze-gating requirement is meaningless without an explicit
+    action to gate, introducing an explicit "Analyze" button (replacing
+    today's upload-triggers-immediately behavior) is in scope here,
+    not a separate task — confirmed by re-reading the full Details,
+    which also require gating to apply to "either the sample selector
+    or the uploader," implying one shared action for both paths.
+  - `data/*.pdf` already holds all 5 golden-dataset PDFs referenced by
+    id in `tests/eval/golden_dataset.py`
+    (`acme_minimal`/`meridian_rich`/`sentinel_fuzzy`/
+    `harborlight_prose`/`continental_prose`). Not importing that
+    module from `src/` (tests importing from `src` is fine; the
+    reverse isn't) — instead adding a small, independent
+    `src/sample_treaties.py` registry with its own labels, per
+    `TASKS.md`'s suggested `Files` list.
+  - `src/parser.extract_treaty_sections(path)` already returns
+    per-page text with page numbers — reusable as-is for the review
+    modal's content (no new PDF-rendering dependency needed).
+  - Verified `st.dialog` (Streamlit 1.63, installed) is fully
+    exercisable under `streamlit.testing.v1.AppTest`: a manual probe
+    script confirmed calling a `@st.dialog`-decorated function after a
+    button click renders its content into `at.markdown` with no
+    exception, so the modal can get real automated test coverage, not
+    just a "doesn't crash" check.
+- **Decision**: Add a `st.radio` treaty-source toggle ("Upload a
+  treaty PDF" vs. "Choose a reinsurance treaty") so exactly one
+  selection mechanism is active at a time (avoids ambiguity between a
+  stale upload and a newly chosen sample). Both paths resolve to a
+  single `(bytes, display_name)` pair. Add "Review treaty" and
+  "Analyze" buttons side by side, both `disabled=` when no document is
+  selected; "Review treaty" opens an `st.dialog` showing the selected
+  PDF's per-page text via `extract_treaty_sections`; "Analyze" runs
+  the existing workflow exactly as today once clicked.
+- **Action**: Branched `task/treaty-sample-selection-ui` off `main`.
+  Implementing `src/sample_treaties.py` + `src/app.py` changes next,
+  with new/updated tests in `tests/test_app.py` (existing upload-tests
+  need updating since upload no longer auto-runs analysis).
+
+- **Outcome**: Implemented in `src/app.py`:
+  - `src/sample_treaties.py` (new): `SampleTreaty` dataclass + `SAMPLE_TREATIES`
+    (5 golden samples) + `get_sample_bytes()`, all reading from `data/`.
+  - `main()` now shows an `st.radio` "Treaty source" toggle (Upload vs.
+    Choose a reinsurance treaty), resolving to one `(selected_bytes,
+    selected_name)` pair regardless of path.
+  - Introduced explicit "Review treaty" and "Analyze" buttons, both
+    `disabled=` until a treaty is selected (satisfies the gating
+    requirement; also replaces the old upload-triggers-immediately
+    behavior, per the corrected understanding logged above).
+  - "Review treaty" opens `_show_review_dialog` (`@st.dialog`), which
+    writes the selected bytes to a temp file, runs
+    `extract_treaty_sections`, and renders each page's text.
+  - Analysis results now persist in `st.session_state["workflow_run"]`
+    (set only when "Analyze" is clicked) rather than being recomputed
+    on every rerun — needed because, once gated behind a button, a
+    `st.button`'s return value is only `True` on the exact rerun it was
+    clicked; without session-state persistence, any later widget
+    interaction (e.g. the save-log form) would silently wipe the
+    rendered report. Caught this via `test_app_save_button_writes_
+    default_log_file` failing with `StopIteration` (the Save button
+    disappeared because `main()` returned early on that rerun).
+  - `tests/test_app.py`: added `_click_button`/`_upload_and_click_analyze`
+    helpers (byproduct of buttons no longer being at fixed indices);
+    updated the 6 pre-existing upload-flow tests to click "Analyze"
+    after uploading (upload alone no longer auto-runs); added 3 new
+    tests: Analyze/Review disabled-until-selected, sample selector
+    lists all 5 golden cases and runs analysis end-to-end, and the
+    review modal shows the selected document's page text.
+  - Verified `st.dialog` is fully exercisable under `AppTest` via a
+    throwaway probe script (see Analysis above) before relying on it
+    for real test coverage.
+- **Verification**: `python -m pytest -q` — 76 passed (73 previously +
+  3 new). Manually booted `streamlit run src/app.py` headlessly —
+  health check OK, no exceptions in the server log; full interactive
+  click-through wasn't done in a real browser (none available in this
+  environment), so behavior confidence rests on the `AppTest` suite
+  (which does exercise real button clicks, selection, and the dialog's
+  rendered content, not just "doesn't crash").
+  Awaiting human review/approval before this task is marked done and
+  removed from `TASKS.md`.
+
+## 2026-09-09 12:20:20 — Update: Analyze button color (treaty-sample-selection-ui)
+
+- **Change**: Human asked to change the "Analyze" button's color from
+  red (Streamlit's default `type="primary"` color) to blue, since it
+  reads as a proceed/confirm action.
+- **Analysis**: Streamlit has no per-button color override — a
+  button's `type="primary"` styling is driven entirely by the app-wide
+  theme's `primaryColor`. "Analyze" is the app's only primary-styled
+  button today, so a theme-wide change has the same visible effect as
+  a per-button one would, with no other element affected.
+- **Action**: Added `.streamlit/config.toml` with
+  `[theme] primaryColor = "#1E88E5"` (a standard blue), on the same
+  `task/treaty-sample-selection-ui` branch since it directly follows
+  from the "Analyze" button just added there.
+- **Outcome**: `python -m pytest -q` — 76 passed (unaffected, styling
+  only). Manually booted `streamlit run src/app.py` — healthy, no
+  server-log errors.
+
+## 2026-09-09 12:23:15 — Update: review modal size/position (treaty-sample-selection-ui)
+
+- **Change**: Human asked to make the "Review treaty" modal narrower
+  (sized to the sample content rather than full width), centered in
+  the main window, and shorter.
+- **Analysis**: `st.dialog`'s only sizing control is `width`, a
+  `"small"` (default) or `"large"` preset — no arbitrary width/height.
+  `st.dialog` is always centered over the whole viewport already, so
+  no change was needed for centering. There's no dialog-level max-
+  height option, but `st.container(height=...)` creates a fixed-height
+  scrollable region, which caps the modal's effective height
+  regardless of how many pages a document has.
+- **Action**: Switched `_show_review_dialog`'s `@st.dialog` from
+  `width="large"` to `width="small"` (narrower, Streamlit's default
+  preset). Wrapped the per-page text loop in
+  `st.container(height=350)` so the modal's content area scrolls
+  internally past that height instead of growing the dialog.
+- **Outcome**: `python -m pytest -q` — 76 passed (unaffected, no new
+  elements added/removed, just a container wrapper). Manually booted
+  `streamlit run src/app.py` — healthy, no server-log errors.
+
+## 2026-09-09 12:26:02 — Update: review modal height increase (treaty-sample-selection-ui)
+
+- **Change**: Human confirmed the modal's top position is good and
+  asked to move the bottom border lower by ~20-25% (i.e. increase
+  height), after the previous 350px cap.
+- **Action**: Increased `_show_review_dialog`'s `st.container` height
+  from 350 to 440 (~26% increase).
+- **Outcome**: `python -m pytest -q` — 76 passed (unaffected, height
+  value only).
+
+## 2026-09-09 12:29:58 — Update: label renames (treaty-sample-selection-ui)
+
+- **Change**: Human asked to rename two labels in `src/app.py`:
+  the debug expander from "Debug: workflow execution" to "Analysis
+  Workflow execution", and the save-log button from "Save logs to
+  file" to "Save to logs file".
+- **Action**: Renamed both in `src/app.py`; updated
+  `tests/test_app.py`'s `_click_button(at, "Save logs to file")` call
+  to match the new label.
+- **Outcome**: `python -m pytest -q` — 76 passed.
+
+## 2026-09-09 12:39:17 — Update: bordered results container with Close (treaty-sample-selection-ui)
+
+- **Change**: Human asked to wrap the analysis results (report +
+  warnings + debug expander) in a bordered container with a "Close"
+  button, and confirmed that clicking "Analyze" again should clear the
+  results container and restart the workflow from the beginning.
+- **Analysis**: The "start from the beginning on re-Analyze" part was
+  already correct by construction — `st.session_state["workflow_run"]`
+  is fully overwritten (not merged/appended) inside the
+  `if analyze_clicked:` block, which runs *before* `run_result` is
+  read for rendering, so a second "Analyze" click always replaces the
+  prior run's state/log_lines/report wholesale. Verified this with a
+  new test (`test_app_re_analyzing_replaces_previous_results`) rather
+  than assuming it, since the ordering it depends on isn't obvious
+  from a a glance. For "Close", the natural mechanism is removing
+  `st.session_state["workflow_run"]` and calling `st.rerun()`
+  immediately (rather than just setting a flag and letting the normal
+  end-of-script rerun happen) so the stale content doesn't flash for
+  one frame before disappearing.
+- **Decision**: Wrapped everything from the results section onward
+  (error/warning/report markdown through the debug expander and
+  save-log form) in a single `st.container(border=True)`, with a
+  "Analysis Results" subheader and a "Close" button (✕ icon) in a
+  narrow column beside it, for a self-contained, clearly-scoped
+  results panel that's easy to dismiss without affecting the
+  selection controls above it.
+- **Action**: Edited `src/app.py`'s `main()`. Added
+  `test_app_close_button_clears_results` and
+  `test_app_re_analyzing_replaces_previous_results` to
+  `tests/test_app.py`.
+- **Outcome**: `python -m pytest -q` — 78 passed (76 previously + 2
+  new). Manually booted `streamlit run src/app.py` — healthy, no
+  server-log errors.
+
+## 2026-09-09 12:43:58 — Verification: full test suite + coverage of new functionality (treaty-sample-selection-ui)
+
+- **Goal**: Human asked to test everything and check coverage of the
+  new functionality before considering this task complete.
+- **Action**: Ran `python -m pytest -q` (full suite) and, since
+  `pytest-cov`/`coverage` weren't installed, temporarily `pip install
+  coverage`ed (not added to `requirements.txt` — dev-only, local
+  check) and ran `python -m coverage run -m pytest -q` +
+  `coverage report -m --include="src/app.py,src/sample_treaties.py"`.
+- **Findings**: Initial coverage was 97% on `src/app.py` (100% on the
+  new `src/sample_treaties.py`), with one real gap in the new
+  functionality: `_show_review_dialog`'s `ParserError` branch (a
+  malformed/unreadable PDF opened via "Review treaty") was untested —
+  the happy path had a test, the error path didn't. Added
+  `test_app_review_treaty_shows_error_for_malformed_pdf` to close it.
+  The 3 remaining uncovered lines (`sys.path` bootstrap guard, an
+  unreachable-in-practice `save_logs_to_file` mode validation, and the
+  "no log lines to save" branch) are pre-existing, unrelated to this
+  task's new code, and not worth chasing here.
+- **Outcome**: `python -m pytest -q` — 79 passed (78 previously + 1
+  new). Coverage on the touched/new files: `src/app.py` 98%,
+  `src/sample_treaties.py` 100%. All new functionality from this
+  task's work (sample registry, source toggle, Review/Analyze gating,
+  review modal happy+error paths, Close button, re-Analyze
+  replacement) now has direct test coverage, not just "doesn't crash"
+  checks.
+
+## 2026-09-09 12:46:55 — Add automatic coverage reporting on every test run (treaty-sample-selection-ui)
+
+- **Goal**: Human asked to make coverage generate/update automatically
+  every time tests run, following the manual `coverage run`/`coverage
+  report` check done in the previous verification step, and asked how
+  to open `.coverage` in an IDE.
+- **Analysis**: `.coverage` (coverage.py's own data file) and
+  `htmlcov/` were already in `.gitignore` from the repo's original
+  template, so no gitignore change needed. No `pytest.ini`/
+  `pyproject.toml` existed yet to hold pytest config.
+- **Decision**: Add `pytest-cov` to `requirements.txt` and a new
+  `pytest.ini` with `addopts = --cov=src --cov-report=term-missing
+  --cov-report=html`, so a plain `python -m pytest` (locally or in any
+  future CI step) always regenerates both the `.coverage` data file
+  and a browsable `htmlcov/index.html` report, without needing a
+  separate manual coverage invocation.
+- **Action**: Edited `requirements.txt`, added `pytest.ini`.
+- **Outcome**: `python -m pytest -q` now prints a per-file
+  term-missing coverage table and writes `htmlcov/` automatically —
+  verified: 79 passed, coverage summary shown for all `src/*` modules
+  (98% overall, matching the manual check from the prior entry).
+  `.coverage`/`htmlcov/` correctly stay untracked (`git status`
+  confirmed).
+
+## 2026-09-09 12:51:37 — Document test coverage in README.md (treaty-sample-selection-ui)
+
+- **Goal**: Human asked to add README documentation explaining how
+  coverage is generated, what it is, and how to see/interact with it.
+- **Action**: Added a "### Test Coverage" subsection to
+  `README.md`'s "## Running Tests" section (right before "## Running
+  the Extraction Accuracy Eval Suite"), covering: what coverage means
+  and its limits, what `pytest.ini`'s `addopts` auto-generates on every
+  `pytest` run (`.coverage`, `htmlcov/`, the terminal summary table),
+  how to view it (browser via `htmlcov/index.html`, or PyCharm's
+  native "Run with Coverage" for in-editor gutters — explicitly noting
+  `.coverage` itself isn't meant to be opened directly, since a user
+  asked exactly that in this session), and that neither output is
+  committed (already gitignored).
+- **Outcome**: `python -m pytest -q` — 79 passed, coverage table
+  printed as expected (98% overall). Docs-only change, no code
+  touched.
