@@ -1,0 +1,6 @@
+[theme]
+# Streamlit's default primaryColor is red; the app's only primary-styled
+# element (the "Analyze" button in src/app.py) reads better as a
+# proceed/confirm action, so use blue instead. This is theme-wide, not
+# per-widget -- Streamlit has no per-button color override.
+primaryColor = "#1E88E5"

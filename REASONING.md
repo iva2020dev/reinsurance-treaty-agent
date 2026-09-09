@@ -2780,3 +2780,21 @@ This file contains the reasoning transcript of the AI agent for the current sess
   rendered content, not just "doesn't crash").
   Awaiting human review/approval before this task is marked done and
   removed from `TASKS.md`.
+
+## 2026-09-09 12:20:20 — Update: Analyze button color (treaty-sample-selection-ui)
+
+- **Change**: Human asked to change the "Analyze" button's color from
+  red (Streamlit's default `type="primary"` color) to blue, since it
+  reads as a proceed/confirm action.
+- **Analysis**: Streamlit has no per-button color override — a
+  button's `type="primary"` styling is driven entirely by the app-wide
+  theme's `primaryColor`. "Analyze" is the app's only primary-styled
+  button today, so a theme-wide change has the same visible effect as
+  a per-button one would, with no other element affected.
+- **Action**: Added `.streamlit/config.toml` with
+  `[theme] primaryColor = "#1E88E5"` (a standard blue), on the same
+  `task/treaty-sample-selection-ui` branch since it directly follows
+  from the "Analyze" button just added there.
+- **Outcome**: `python -m pytest -q` — 76 passed (unaffected, styling
+  only). Manually booted `streamlit run src/app.py` — healthy, no
+  server-log errors.
