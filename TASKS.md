@@ -127,27 +127,6 @@
     comment posted (summary/bugs/security/suggestions), not an
     environment-variable validation failure.
 
-
-- [ ] Add Treaty Sample Selection UI to CANDIDATE_TASKS.md (@claude)
-  - **ID**: candidate-a11-sample-selection-ui
-  - **Tags**: docs, candidate-tasks, ui, harness
-  - **Candidate ID**: A11 (`CANDIDATE_TASKS.md`)
-  - **Details**: Docs-only task tracking the addition of a new `A11`
-    candidate ("Treaty sample selection UI (prepared/golden samples,
-    no local disk)") to `CANDIDATE_TASKS.md`'s Harness summary table
-    and detailed entries. Surfaced while planning the separate Multi
-    Domain-Task Selection (`S`) feature (drafted in
-    `DOMAIN_TASK_SELECTION_PLAN.md`, kept outside this repo per the
-    human's request) — the human determined sample selection is
-    app-generic UX, not a domain-task-selection concern, so it's
-    tracked here as its own Harness candidate instead of folded into
-    that `S` plan.
-  - **Files**: `CANDIDATE_TASKS.md`
-  - **Acceptance**: `CANDIDATE_TASKS.md`'s Harness summary table and
-    detailed-entries section list `A11` consistently with the existing
-    `A1`-`A10` format (Status `Proposed`, Priority 11); no other file
-    changed; `python -m pytest -q` unaffected.
-
 ## P3
 
 <!-- policy: P3 tasks are "someday/maybe". Kept for reference, not actively worked. -->

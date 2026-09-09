@@ -2622,3 +2622,32 @@ This file contains the reasoning transcript of the AI agent for the current sess
   P2 entry is now fully superseded by this graduation and left as-is
   pending the human's explicit go-ahead to close it out, per the
   "never self-approve/remove a task" rule.
+
+## 2026-09-09 10:20:39 — Task: Close out candidate-a11-sample-selection-ui (superseded, never merged)
+
+- **Goal**: Human approved closing out the `candidate-a11-sample-
+  selection-ui` P2 entry now that it's fully superseded by the
+  `treaty-sample-selection-ui` P0 graduation.
+- **Analysis**: The repo's normal task-closing convention (see e.g.
+  `remove-radius-template-leftovers`'s and `sync-candidate-tasks-
+  harness-status`'s closing entries above) is a dedicated
+  `close/<id>` branch off `main`, titled `Closing task as "Done":
+  <task title>`, because those tasks had already been merged into
+  `main` and needed their own removal PR there. `candidate-a11-
+  sample-selection-ui` never reached `main` — it was added and
+  completed entirely within this still-open
+  `feature/domain-task-selection-candidates` branch (commit
+  `b257d4d`). Branching off `main` to "close" it would diff against a
+  version of `TASKS.md` that never had the entry, producing a no-op/
+  confusing PR. (Briefly created such a branch, recognized this, and
+  discarded it before making any commit there.)
+- **Decision**: Remove the `candidate-a11-sample-selection-ui` entry
+  directly on this same feature branch instead — its work (adding
+  `A11` to `CANDIDATE_TASKS.md`) is already committed here, and its
+  tracking entry is redundant with `treaty-sample-selection-ui` now
+  that `A11` has graduated.
+- **Action**: Deleted the `candidate-a11-sample-selection-ui` entry
+  from `TASKS.md`'s P2 section.
+- **Outcome**: `TASKS.md` no longer lists it; `treaty-sample-
+  selection-ui` (P0) remains as the single live tracking entry for
+  this work going forward.
