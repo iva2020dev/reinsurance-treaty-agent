@@ -3242,3 +3242,32 @@ This file contains the reasoning transcript of the AI agent for the current sess
   list) on this `close/save-analysis-results-to-file` branch/PR,
   titled `Closing task as "Done": Save analysis results to a file`,
   per the mandatory task-closing workflow.
+
+## 2026-09-09 16:48:06 — Closing task: Auto-clear Analysis Results on new treaty selection (auto-clear-results-on-new-selection), PR #59 closed unmerged
+
+- **Goal**: Human asked to resolve PR #59's merge conflict with `main`.
+- **Analysis**: Investigating the conflict revealed its real cause:
+  `task/save-analysis-results-to-file` (PR #60, merged via PR #61) was
+  accidentally branched off `task/auto-clear-results-on-new-selection`
+  instead of off `main` — confirmed via `gh pr view 60 --json commits`,
+  whose first commit is `588727d`, the exact commit that *is* PR #59.
+  So `main` already contains this feature's fingerprint-based
+  auto-clear logic byte-for-byte (verified: `git show
+  df354dc:src/app.py` already has `selected_fingerprint` and the
+  `run_result.get("fingerprint") != selected_fingerprint` check).
+  Attempting the merge confirmed this: the only real conflicts were
+  adjacent-insertion whitespace/ordering, not logic differences,
+  because both sides already held identical code.
+- **Decision (asked via AskUserQuestion)**: Since merging PR #59 would
+  be a no-op, closed it without merging rather than force a redundant
+  merge commit — offered both options, human chose closing.
+- **Action**: `gh pr close 59` with an explanatory comment. Branched
+  `close/auto-clear-results-on-new-selection` off `main`. Removed
+  `auto-clear-results-on-new-selection` from `TASKS.md`'s P1 (its
+  content already shipped, so this is a same-content closure, not a
+  new merge) and added it to "Recently completed".
+- **Outcome**: PR #59 closed (not merged) on GitHub. `TASKS.md` no
+  longer lists the task, since its functionality is confirmed already
+  live on `main`. Local `task/auto-clear-results-on-new-selection`
+  branch left as-is for now (safe to delete later — its content is
+  fully superseded).
