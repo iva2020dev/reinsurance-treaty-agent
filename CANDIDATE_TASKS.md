@@ -6,7 +6,8 @@ together before anything graduates into `TASKS.md` with a real
 ID/Details/Files/Acceptance per the usual convention (see
 `AGENTS.md`).
 
-Two categories, per discussion on 2026-09-06:
+Three categories, per discussion on 2026-09-06 (`A`/`B`) and
+2026-09-09 (`S`):
 
 - **A. Technical / AI Engineering & Production Harness** — validating
   model behavior, evaluation frameworks, agent-behavior quality
@@ -14,6 +15,16 @@ Two categories, per discussion on 2026-09-06:
 - **B. Business Domain** — grounded in everyday Treaty, Facultative,
   and Claims reinsurance practice, extending what the app already does
   for Treaty underwriting review.
+- **S. Multi Domain-Task Selection** — cross-cutting harness/UI work
+  that lets a user choose which `B`-series (and eventually `C`/
+  `F`-series) domain task(s) to run against a given treaty, with
+  per-task cost visibility, rather than every future domain task
+  becoming another thing that always runs on every upload. Not itself
+  a business-domain content task (so it doesn't belong under `B`), and
+  substantial enough (FE+BE+new cost-estimation harness) to warrant
+  its own category rather than being squeezed into `A`. See
+  `REASONING.md`'s 2026-09-09 entries for the fuller design writeup
+  this section was drafted from.
 
 Each item: a short description, a rough shape (deterministic / LLM /
 hybrid, and rough dev-effort S/M/L), and why it matters. Items within
@@ -39,10 +50,10 @@ detailed entry below) here in the same PR. See `AGENTS.md`'s "Keeping
 CANDIDATE_TASKS.md in Sync" for the exact rule.
 
 IDs are scoped per category (`A` = Harness, `B` = Treaty, `F` =
-Facultative, `C` = Claims) and numbered by current priority position,
-starting at 1 in each — so the ID itself tells you the category and
-current rank. `B0` is the exception: it's the shipped baseline, not a
-ranked candidate.
+Facultative, `C` = Claims, `S` = Multi Domain-Task Selection) and
+numbered by current priority position, starting at 1 in each — so the
+ID itself tells you the category and current rank. `B0` is the
+exception: it's the shipped baseline, not a ranked candidate.
 
 Every table also has an **Answer Type** column, per the 2026-09-06
 discussion on how document quality drives task shape (see
@@ -116,6 +127,19 @@ discussion on how document quality drives task shape (see
 | 2 | F2 | Facultative vs. treaty overlap check | Proposed | Deterministic | Extraction | M | F1 |
 | 3 | F3 | Cat/peril exposure geocoding | Proposed | Hybrid | Extraction | M | — |
 | 4 | F4 | Risk accumulation/PML aggregation check | Proposed | Deterministic | Extraction | L | — |
+
+### Multi Domain-Task Selection
+
+| Pri | ID | Task | Status | Shape | Answer Type | Effort | Depends on |
+|---|---|---|---|---|---|---|---|
+| 1 | S1 | Domain task registry & metadata | Proposed | Deterministic | N/A | S | — |
+| 2 | S2 | Workflow refactor: split shared pipeline from per-task analysis nodes | Proposed | Deterministic | N/A | L | S1 |
+| 3 | S3 | Multi-task result aggregation & state schema | Proposed | Deterministic | N/A | M | S2 |
+| 4 | S4 | Per-task cost estimation (pre-run) & actual cost tracking (post-run) | Proposed | Hybrid | N/A | M | S1 |
+| 5 | S5 | Multi-task messaging & logging | Proposed | Deterministic | N/A | S/M | S2, S3 |
+| 6 | S6 | Task selection UI (checkboxes, disabled/blurred not-implemented tasks, live cost readout) | Proposed | Deterministic | N/A | M | S1, S4 |
+| 7 | S7 | Multi-task results UI (per-task sections + combined summary) | Proposed | Deterministic | N/A | M | S3, S5 |
+| 8 | S8 | End-to-end test coverage for multi-task selection | Proposed | Deterministic | N/A | M | S2-S7 |
 
 ---
 
@@ -389,6 +413,103 @@ coverage — a genuinely different document shape and workflow.
   across previously-accepted risks.
   *Deterministic. Effort: L — needs persistent aggregation state, not
   just single-document analysis. Answer type: Extraction.*
+
+---
+
+## S. Multi Domain-Task Selection
+
+Today the app runs exactly one hard-coded analysis per uploaded
+treaty: `Extractor → [LLM Extraction Fallback] → Verifier → Analyst`,
+where `analyst_node` in `src/workflow.py` *is* the Burn-Cost Check
+(`B0`) — it's the only domain task that exists, and it always runs.
+`B1`-`B9` above list eight more candidate domain tasks, none
+implemented yet. As more of these get built, the app needs a way for
+the user to **choose which domain task(s) to run** against a given
+treaty, see what each one will cost before/after running it, and see
+results per task plus a combined total — rather than every future
+task becoming another thing that always runs on every upload (which
+would make cost/latency balloon uncontrollably as `B1`-`B9` get
+implemented). This section is cross-cutting harness/UI work in
+service of that, not a business-domain content task itself, so it's
+its own category rather than nested under `A` or `B` — see
+`REASONING.md`'s 2026-09-09 entries for the fuller design writeup
+(current architecture facts gathered, and the two confirmed design
+decisions: a per-task cost *estimate* shown before running, replaced
+by the *actual* measured cost after; and `S1`'s registry as the single
+source of truth both the backend graph builder and the frontend
+selector read from).
+
+- **S1. Domain task registry & metadata** — Priority 1 — a small
+  catalog (e.g. `src/domain_tasks.py`) listing every candidate domain
+  task: id, title, its `CANDIDATE_TASKS.md` ID (`B0`, `B1`, ...),
+  implementation status (`implemented` / `not_implemented`), shape,
+  and which workflow node(s) it needs. This is the single source of
+  truth both the backend graph builder (`S2`) and the frontend
+  selector (`S6`) read from, so the two can't drift.
+  *Deterministic. Effort: S. Answer type: N/A (infrastructure).*
+- **S2. Workflow refactor: split shared pipeline from per-task
+  analysis nodes** — Priority 2 — today's `Extractor → [LLM Fallback]
+  → Verifier` stays a shared pipeline every domain task needs
+  (produces `TreatyTerms` + `claims`); `analyst_node` gets renamed/
+  scoped to a `burn_cost_check_node` (`B0`'s logic, unchanged), and
+  `build_workflow_graph()` becomes parameterized by a set of selected
+  task IDs — it always runs the shared pipeline, then only the
+  analysis node(s) for implemented+selected tasks.
+  *Deterministic. Effort: L — likely its own multi-task chain once
+  graduated (same pattern as `B4`). Answer type: N/A (infrastructure).*
+- **S3. Multi-task result aggregation & state schema** — Priority 3 —
+  replace `WorkflowState.report: AnomalyReport | None` with a
+  `task_results: dict[str, TaskResult]` (one entry per selected task:
+  status `ran`/`skipped_not_implemented`/`failed`, findings, cost,
+  latency), so the UI can render N independent results instead of one.
+  *Deterministic, depends on S2. Effort: M. Answer type: N/A
+  (infrastructure).*
+- **S4. Per-task cost estimation (pre-run) & actual cost tracking
+  (post-run)** — Priority 4 — the first real $-cost logic in this
+  app. Pre-run: a rough per-task estimate from document page/token
+  count × task shape (near-zero for deterministic tasks, a
+  model-price-based estimate for LLM/hybrid tasks) plus a live
+  cumulative total as checkboxes toggle. Post-run: convert
+  `llm_extraction_fallback`'s already-logged `input_tokens`/
+  `output_tokens` (and any future task's own LLM calls) into an actual
+  $ figure via the model's published per-token price, replacing the
+  estimate once a task completes. Narrower/scoped version of `A6`
+  ("Cost & latency observability"), specific to per-task estimate/
+  actual display rather than the broader always-on observability `A6`
+  covers.
+  *Hybrid: deterministic estimate math + real LLM usage for the
+  actual. Effort: M, depends on S1. Answer type: N/A
+  (infrastructure/cost-control).*
+- **S5. Multi-task messaging & logging** — Priority 5 — every node's
+  log line gains a task-id tag; a combined-run summary message (which
+  tasks ran, which were skipped as not-implemented, which failed)
+  drives both the UI banner and the saved log file, replacing today's
+  single-task-only `format_extraction_status`.
+  *Deterministic, depends on S2, S3. Effort: S/M. Answer type: N/A
+  (infrastructure).*
+- **S6. Task selection UI** — Priority 6 — a checkbox/multiselect
+  control listing every task from `S1`'s registry; only tasks marked
+  `implemented` (today: just `B0`) are enabled, every other task
+  rendered visually disabled/blurred with a "Not implemented" badge;
+  selecting an enabled task shows its live cost estimate from `S4`,
+  plus a running cumulative total across all checked tasks.
+  *Deterministic, depends on S1, S4. Effort: M. Answer type: N/A
+  (infrastructure/UX).*
+- **S7. Multi-task results UI** — Priority 7 — one expandable section
+  per selected+implemented task (its own findings/log/actual cost),
+  plus a combined header (total findings across tasks, total actual
+  cost, which tasks were skipped and why), replacing today's single
+  `format_report_markdown` call.
+  *Deterministic, depends on S3, S5. Effort: M. Answer type: N/A
+  (infrastructure/UX).*
+- **S8. End-to-end test coverage** — Priority 8 — verifies: selecting
+  only `B0` behaves exactly like today (regression safety net),
+  selecting a mix of implemented + not-implemented tasks skips the
+  latter gracefully with a clear per-task message, cost estimates/
+  actuals round-trip correctly, and the new `task_results` schema
+  serializes correctly for the debug panel.
+  *Deterministic, depends on S2-S7. Effort: M. Answer type: N/A
+  (infrastructure).*
 
 ---
 
