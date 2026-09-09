@@ -91,13 +91,21 @@
     save always creates a new file (no append/overwrite choice, unlike
     the existing "Save to logs file" control) — timestamped to the
     second, so collisions are effectively impossible in normal use.
+    Also add a "Download analysis results" button (`st.download_button`)
+    right beside it, offering the same Markdown content/filename as a
+    browser download — needed because Streamlit Community Cloud's
+    filesystem is ephemeral with no file browser, so the server-side
+    save alone isn't actually retrievable by a user in production; the
+    download button works identically local and in production since it
+    streams straight to the user's own machine.
   - **Files**: `src/app.py`, `.gitignore` (new `results/` entry)
   - **Acceptance**: After a successful analysis, clicking "Save
     analysis results" writes a new file under `results/` named per the
     rule above and shows a success message naming the saved path;
-    `python -m pytest -q` passes with new unit tests for the naming/
-    slugify/severity helpers and an app-level test confirming the
-    button writes the file.
+    clicking "Download analysis results" downloads the same content to
+    the browser; `python -m pytest -q` passes with new unit tests for
+    the naming/slugify/severity helpers and app-level tests confirming
+    both buttons work.
 
 
 - [ ] CI-Integrated Regression Eval Gate

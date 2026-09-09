@@ -3091,3 +3091,33 @@ This file contains the reasoning transcript of the AI agent for the current sess
   Manually booted `streamlit run src/app.py` — healthy, no server-log
   errors. Awaiting human review/approval before this task is marked
   done and removed from `TASKS.md`.
+
+## 2026-09-09 16:03:23 — Update: add Download button for production (save-analysis-results-to-file)
+
+- **Change**: Human asked whether saved results are visible in
+  production. Explained the two real limitations: Streamlit Community
+  Cloud's filesystem is ephemeral (a server-side save doesn't survive
+  redeploy/restart/sleep) and there's no file browser exposed to the
+  user anyway, even within the same session — the same pre-existing
+  limitation the "Save to logs file" button already has. Offered three
+  options via `AskUserQuestion` (switch to download-only, keep
+  server-side + add download, or leave as-is); human chose to keep
+  the server-side save (useful for local dev) and add a download
+  button alongside it.
+- **Action**: Added a "Download analysis results" `st.download_button`
+  next to "Save analysis results" in `src/app.py`, offering the same
+  `format_report_markdown()` content and `format_results_filename()`
+  name as a direct browser download — works identically locally and
+  in production since it needs no server-side persistence. Updated
+  `TASKS.md`'s `save-analysis-results-to-file` entry to cover both
+  buttons. Added
+  `test_app_download_analysis_results_button_is_offered_after_analysis`
+  to `tests/test_app.py` — discovered along the way that `AppTest`'s
+  `DownloadButton.proto` only exposes a mock media URL, not the raw
+  bytes/filename passed to `st.download_button`, so the test checks
+  what's actually observable (button exists, `.md` extension) rather
+  than re-asserting content/filename already covered by the naming
+  helpers' own direct unit tests.
+- **Outcome**: `python -m pytest -q` — 91 passed (90 previously + 1
+  new). Coverage: `src/app.py` 99%. Manually booted `streamlit run
+  src/app.py` — healthy, no server-log errors.

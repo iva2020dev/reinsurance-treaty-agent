@@ -479,6 +479,25 @@ def test_app_save_analysis_results_button_writes_file(tmp_path, monkeypatch):
     assert len(saved_files) == 1
 
 
+def test_app_download_analysis_results_button_is_offered_after_analysis():
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    with open(MINIMAL_TREATY_PATH, "rb") as f:
+        at = _upload_and_click_analyze(at, "sample_treaty.pdf", f.read())
+
+    assert not at.exception
+    download_buttons = [b for b in at.download_button if b.label == "Download analysis results"]
+    assert len(download_buttons) == 1
+    # AppTest's DownloadButton only exposes a mock media URL, not the raw
+    # bytes/filename passed to st.download_button -- so this only checks
+    # what's actually observable here (the button exists, offering a
+    # Markdown file); format_results_filename()'s naming and
+    # format_report_markdown()'s content are covered by their own direct
+    # unit tests above.
+    assert download_buttons[0].proto.url.endswith(".md")
+
+
 def test_format_log_header_includes_timestamp_and_filename():
     header = format_log_header("sample_treaty.pdf", when=datetime(2026, 9, 4, 10, 15, 32))
 

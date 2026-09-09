@@ -366,10 +366,27 @@ def main() -> None:
                         f"{', '.join(ungrounded_fields)}. Double-check these "
                         f"values before relying on this report."
                     )
-                st.markdown(format_report_markdown(report))
-                if st.button("Save analysis results", icon=":material/save:"):
-                    saved_path = save_analysis_result_to_file(report)
-                    st.success(f"Saved analysis results to {saved_path}.")
+                report_markdown = format_report_markdown(report)
+                st.markdown(report_markdown)
+
+                save_col, download_col = st.columns(2)
+                with save_col:
+                    if st.button("Save analysis results", icon=":material/save:"):
+                        saved_path = save_analysis_result_to_file(report)
+                        st.success(f"Saved analysis results to {saved_path}.")
+                with download_col:
+                    # Streamlit Community Cloud's filesystem is ephemeral and
+                    # has no file browser, so the server-side save above isn't
+                    # actually retrievable in production -- this downloads the
+                    # same content straight to the user's own machine instead,
+                    # which works identically locally and in production.
+                    st.download_button(
+                        "Download analysis results",
+                        data=report_markdown,
+                        file_name=format_results_filename(report),
+                        mime="text/markdown",
+                        icon=":material/download:",
+                    )
 
         with st.expander("Analysis Workflow execution"):
             if state is None:
