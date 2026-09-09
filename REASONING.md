@@ -2553,3 +2553,40 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `close/remove-radius-template-leftovers` branch/PR, titled
   `Closing task as "Done": Remove leftover "Radius" template content`,
   per the mandatory task-closing workflow.
+
+## 2026-09-09 10:12:34 — Task: Add Treaty Sample Selection UI to CANDIDATE_TASKS.md (candidate-a11-sample-selection-ui)
+
+- **Goal**: While planning the separate Multi Domain-Task Selection
+  (`S`) feature with the human (drafted in `DOMAIN_TASK_SELECTION_PLAN.md`,
+  which the human asked to keep outside this repo, in their PyCharm
+  Scratches folder, once approved), the human requested a new task:
+  let a user select a prepared/golden treaty sample directly in the
+  Streamlit UI (not from local disk) to start analysis. Human then
+  flagged that this item (originally drafted as `S9`) is not a
+  domain-task-selection concern — it's generic app/harness UX — and
+  asked for it to be moved into `CANDIDATE_TASKS.md`'s Harness
+  section instead, as `A1`.
+- **Analysis**: `A1` is already taken (`✅ Done`, "Retry/backoff
+  resilience for the LLM call") and Harness IDs are numbered by
+  current priority rank, not reused/inserted — asked the human via
+  `AskUserQuestion` whether to append as the next free ID (`A11`,
+  no disruption to `A1`-`A10`) or literally renumber everything to
+  make it `A1`. Human chose `A11`.
+- **Decision**: `A11` — "Treaty sample selection UI (prepared/golden
+  samples, no local disk)" — added to the Harness section only, with
+  a cross-reference note left in `DOMAIN_TASK_SELECTION_PLAN.md`
+  (kept outside this repo) pointing to it instead of duplicating it
+  as an `S`-series item.
+- **Action**: Branched `feature/domain-task-selection-candidates` off
+  `main`. Edited `CANDIDATE_TASKS.md`: added `A11` row to the Harness
+  summary table (Priority 11, Status `Proposed`, Deterministic, N/A,
+  S/M, no dependencies) and its detailed `###` entry, referencing the
+  5 golden cases in `tests/eval/golden_dataset.py`
+  (`acme_minimal`, `meridian_rich`, `sentinel_fuzzy`,
+  `harborlight_prose`, `continental_prose`) as the samples this UI
+  would surface. Added `candidate-a11-sample-selection-ui` to
+  `TASKS.md`'s P2 section.
+- **Outcome**: Documentation-only change — no source files touched.
+  `python -m pytest -q` expected unaffected (verifying before commit).
+  Awaiting human review/approval before this task is marked done and
+  removed from `TASKS.md`.
