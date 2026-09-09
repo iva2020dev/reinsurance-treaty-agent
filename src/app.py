@@ -193,9 +193,14 @@ def _run_workflow_with_logging(file_bytes: bytes, display_name: str) -> dict:
     }
 
 
-@st.dialog("Review treaty", width="large")
+@st.dialog("Review treaty", width="small")
 def _show_review_dialog(pdf_bytes: bytes, display_name: str) -> None:
-    """Modal preview of the currently selected treaty's page-by-page text."""
+    """Modal preview of the currently selected treaty's page-by-page text.
+
+    Uses the "small" dialog width (Streamlit's narrower preset, centered
+    over the main window) and a fixed-height scrollable content area, so
+    a multi-page document doesn't grow the modal past a fixed footprint.
+    """
     st.caption(display_name)
     with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp:
         tmp.write(pdf_bytes)
@@ -206,9 +211,10 @@ def _show_review_dialog(pdf_bytes: bytes, display_name: str) -> None:
             st.error(f"Could not read this PDF: {exc}")
             return
 
-    for section in sections:
-        st.markdown(f"**Page {section.page_number}**")
-        st.text(section.text)
+    with st.container(height=350):
+        for section in sections:
+            st.markdown(f"**Page {section.page_number}**")
+            st.text(section.text)
 
 
 def main() -> None:

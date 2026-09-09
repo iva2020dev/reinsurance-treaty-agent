@@ -2798,3 +2798,24 @@ This file contains the reasoning transcript of the AI agent for the current sess
 - **Outcome**: `python -m pytest -q` — 76 passed (unaffected, styling
   only). Manually booted `streamlit run src/app.py` — healthy, no
   server-log errors.
+
+## 2026-09-09 12:23:15 — Update: review modal size/position (treaty-sample-selection-ui)
+
+- **Change**: Human asked to make the "Review treaty" modal narrower
+  (sized to the sample content rather than full width), centered in
+  the main window, and shorter.
+- **Analysis**: `st.dialog`'s only sizing control is `width`, a
+  `"small"` (default) or `"large"` preset — no arbitrary width/height.
+  `st.dialog` is always centered over the whole viewport already, so
+  no change was needed for centering. There's no dialog-level max-
+  height option, but `st.container(height=...)` creates a fixed-height
+  scrollable region, which caps the modal's effective height
+  regardless of how many pages a document has.
+- **Action**: Switched `_show_review_dialog`'s `@st.dialog` from
+  `width="large"` to `width="small"` (narrower, Streamlit's default
+  preset). Wrapped the per-page text loop in
+  `st.container(height=350)` so the modal's content area scrolls
+  internally past that height instead of growing the dialog.
+- **Outcome**: `python -m pytest -q` — 76 passed (unaffected, no new
+  elements added/removed, just a container wrapper). Manually booted
+  `streamlit run src/app.py` — healthy, no server-log errors.
