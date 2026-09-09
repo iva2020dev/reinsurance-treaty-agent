@@ -17,7 +17,8 @@ if str(_REPO_ROOT) not in sys.path:
 import streamlit as st
 
 from src.models import AnomalyReport
-from src.parser import ParserError
+from src.parser import ParserError, extract_treaty_sections
+from src.sample_treaties import SAMPLE_TREATIES, get_sample_bytes
 from src.workflow import WorkflowState, run_workflow_from_pdf
 
 SEVERITY_ICONS = {"low": "ℹ️", "medium": "⚠️", "high": "🚨"}
@@ -157,18 +158,13 @@ def format_report_markdown(report: AnomalyReport) -> str:
     return "\n".join(lines)
 
 
-def main() -> None:
-    st.set_page_config(page_title="Reinsurance Treaty Agent", page_icon="📄")
-    st.title("Reinsurance Treaty Agent")
-    st.write(
-        "Upload a treaty PDF to extract its terms, compare them against "
-        "historical claims, and flag anomalies."
-    )
+def _run_workflow_with_logging(file_bytes: bytes, display_name: str) -> dict:
+    """Run the full workflow on file_bytes, capturing its log lines.
 
-    uploaded_file = st.file_uploader("Treaty PDF", type="pdf")
-    if uploaded_file is None:
-        return
-
+    Returned as a plain dict suitable for `st.session_state`, so the
+    result survives reruns triggered by other widgets (e.g. the save-log
+    form) after the "Analyze" click that produced it.
+    """
     log_lines: list[str] = []
     handler = _ListLogHandler(log_lines)
     # "src" (not "src.workflow") so this also captures logging from
@@ -179,38 +175,124 @@ def main() -> None:
     src_logger.setLevel(logging.INFO)
 
     state: WorkflowState | None = None
+    parser_error: str | None = None
     try:
         with st.spinner("Running agent workflow..."):
             try:
-                state = run_workflow_on_bytes(uploaded_file.getvalue())
+                state = run_workflow_on_bytes(file_bytes)
             except ParserError as exc:
-                st.error(f"Could not read this PDF: {exc}")
-            else:
-                try:
-                    report = extract_report(state)
-                except ValueError as exc:
-                    message = str(exc)
-                    llm_error = state.get("llm_error")
-                    if llm_error:
-                        message += f" (LLM Extraction Fallback also failed: {llm_error})"
-                    st.error(message)
-                else:
-                    if state.get("extraction_method") == "llm":
-                        st.warning(
-                            "Extracted via **LLM Extraction Fallback** — this "
-                            "treaty's format didn't match the regex extractor."
-                        )
-                    ungrounded_fields = state.get("ungrounded_fields", [])
-                    if ungrounded_fields:
-                        st.warning(
-                            f"⚠️ {len(ungrounded_fields)} field(s) could not be "
-                            f"verified against the cited source text: "
-                            f"{', '.join(ungrounded_fields)}. Double-check these "
-                            f"values before relying on this report."
-                        )
-                    st.markdown(format_report_markdown(report))
+                parser_error = str(exc)
     finally:
         src_logger.removeHandler(handler)
+
+    return {
+        "state": state,
+        "log_lines": log_lines,
+        "parser_error": parser_error,
+        "selected_name": display_name,
+    }
+
+
+@st.dialog("Review treaty", width="large")
+def _show_review_dialog(pdf_bytes: bytes, display_name: str) -> None:
+    """Modal preview of the currently selected treaty's page-by-page text."""
+    st.caption(display_name)
+    with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp:
+        tmp.write(pdf_bytes)
+        tmp.flush()
+        try:
+            sections = extract_treaty_sections(Path(tmp.name))
+        except ParserError as exc:
+            st.error(f"Could not read this PDF: {exc}")
+            return
+
+    for section in sections:
+        st.markdown(f"**Page {section.page_number}**")
+        st.text(section.text)
+
+
+def main() -> None:
+    st.set_page_config(page_title="Reinsurance Treaty Agent", page_icon="📄")
+    st.title("Reinsurance Treaty Agent")
+    st.write(
+        "Upload a treaty PDF, or choose one of the prepared sample "
+        "treaties, to extract its terms, compare them against "
+        "historical claims, and flag anomalies."
+    )
+
+    source_mode = st.radio(
+        "Treaty source",
+        ["Upload a treaty PDF", "Choose a reinsurance treaty"],
+        horizontal=True,
+        key="treaty_source_mode",
+    )
+
+    selected_bytes: bytes | None = None
+    selected_name: str | None = None
+
+    if source_mode == "Upload a treaty PDF":
+        uploaded_file = st.file_uploader("Treaty PDF", type="pdf")
+        if uploaded_file is not None:
+            selected_bytes = uploaded_file.getvalue()
+            selected_name = uploaded_file.name
+    else:
+        placeholder = "— Select a sample —"
+        labels = [placeholder] + [sample.label for sample in SAMPLE_TREATIES]
+        choice = st.selectbox("Choose a reinsurance treaty", labels, key="sample_treaty_choice")
+        if choice != placeholder:
+            sample = next(s for s in SAMPLE_TREATIES if s.label == choice)
+            selected_bytes = get_sample_bytes(sample)
+            selected_name = sample.filename
+
+    has_selection = selected_bytes is not None
+
+    review_col, analyze_col = st.columns(2)
+    with review_col:
+        review_clicked = st.button("Review treaty", disabled=not has_selection)
+    with analyze_col:
+        analyze_clicked = st.button("Analyze", type="primary", disabled=not has_selection)
+
+    if review_clicked and selected_bytes is not None and selected_name is not None:
+        _show_review_dialog(selected_bytes, selected_name)
+
+    if analyze_clicked and selected_bytes is not None and selected_name is not None:
+        st.session_state["workflow_run"] = _run_workflow_with_logging(selected_bytes, selected_name)
+
+    run_result = st.session_state.get("workflow_run")
+    if run_result is None:
+        return
+
+    state: WorkflowState | None = run_result["state"]
+    log_lines: list[str] = run_result["log_lines"]
+    parser_error: str | None = run_result["parser_error"]
+    result_name: str = run_result["selected_name"]
+
+    if parser_error is not None:
+        st.error(f"Could not read this PDF: {parser_error}")
+    else:
+        try:
+            report = extract_report(state)
+        except ValueError as exc:
+            message = str(exc)
+            llm_error = state.get("llm_error")
+            if llm_error:
+                message += f" (LLM Extraction Fallback also failed: {llm_error})"
+            st.error(message)
+        else:
+            if state.get("extraction_method") == "llm":
+                st.warning(
+                    "Extracted via **LLM Extraction Fallback** — this "
+                    "treaty's format didn't match the regex extractor."
+                )
+            ungrounded_fields = state.get("ungrounded_fields", [])
+            if ungrounded_fields:
+                st.warning(
+                    f"⚠️ {len(ungrounded_fields)} field(s) could not be "
+                    f"verified against the cited source text: "
+                    f"{', '.join(ungrounded_fields)}. Double-check these "
+                    f"values before relying on this report."
+                )
+            st.markdown(format_report_markdown(report))
 
     with st.expander("Debug: workflow execution"):
         if state is None:
@@ -239,7 +321,7 @@ def main() -> None:
             submitted = st.form_submit_button("Save logs to file", icon=":material/save:")
         if submitted:
             if log_lines:
-                header = format_log_header(uploaded_file.name)
+                header = format_log_header(result_name)
                 save_logs_to_file([header, *log_lines, ""], mode=save_mode.lower())
                 st.success(f"Saved {len(log_lines)} log line(s) to {DEFAULT_LOG_FILE} ({save_mode.lower()}).")
             else:

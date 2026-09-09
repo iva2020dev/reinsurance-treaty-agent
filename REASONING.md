@@ -2686,3 +2686,97 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `CANDIDATE_TASKS.md`'s `A11` detailed entry to keep the two in sync.
 - **Outcome**: Scope updated on both files; no implementation started
   yet, so no test/behavior change to verify.
+
+## 2026-09-09 12:06:06 — Task: Treaty Sample Selection UI (treaty-sample-selection-ui)
+
+- **Goal**: Implement `treaty-sample-selection-ui` (P0, graduated from
+  `A11`): let the user pick a prepared/golden treaty sample directly
+  in the Streamlit UI (bundled from the repo, no local-disk path),
+  review the currently selected document (sample or uploaded) in a
+  modal before running analysis, and gate the "Analyze" action so it's
+  blurred/disabled until a treaty is selected.
+- **Analysis**:
+  - `src/app.py`'s `main()` today has **no explicit "Analyze" action**
+    — `st.file_uploader` alone triggers the full workflow immediately
+    on upload (`if uploaded_file is None: return`, then it runs).
+    `TASKS.md`'s Details describe the sample-selector path "surfacing
+    the same explicit Analyze action the uploader path uses today,"
+    which assumes an action that doesn't actually exist yet. Since the
+    Analyze-gating requirement is meaningless without an explicit
+    action to gate, introducing an explicit "Analyze" button (replacing
+    today's upload-triggers-immediately behavior) is in scope here,
+    not a separate task — confirmed by re-reading the full Details,
+    which also require gating to apply to "either the sample selector
+    or the uploader," implying one shared action for both paths.
+  - `data/*.pdf` already holds all 5 golden-dataset PDFs referenced by
+    id in `tests/eval/golden_dataset.py`
+    (`acme_minimal`/`meridian_rich`/`sentinel_fuzzy`/
+    `harborlight_prose`/`continental_prose`). Not importing that
+    module from `src/` (tests importing from `src` is fine; the
+    reverse isn't) — instead adding a small, independent
+    `src/sample_treaties.py` registry with its own labels, per
+    `TASKS.md`'s suggested `Files` list.
+  - `src/parser.extract_treaty_sections(path)` already returns
+    per-page text with page numbers — reusable as-is for the review
+    modal's content (no new PDF-rendering dependency needed).
+  - Verified `st.dialog` (Streamlit 1.63, installed) is fully
+    exercisable under `streamlit.testing.v1.AppTest`: a manual probe
+    script confirmed calling a `@st.dialog`-decorated function after a
+    button click renders its content into `at.markdown` with no
+    exception, so the modal can get real automated test coverage, not
+    just a "doesn't crash" check.
+- **Decision**: Add a `st.radio` treaty-source toggle ("Upload a
+  treaty PDF" vs. "Choose a reinsurance treaty") so exactly one
+  selection mechanism is active at a time (avoids ambiguity between a
+  stale upload and a newly chosen sample). Both paths resolve to a
+  single `(bytes, display_name)` pair. Add "Review treaty" and
+  "Analyze" buttons side by side, both `disabled=` when no document is
+  selected; "Review treaty" opens an `st.dialog` showing the selected
+  PDF's per-page text via `extract_treaty_sections`; "Analyze" runs
+  the existing workflow exactly as today once clicked.
+- **Action**: Branched `task/treaty-sample-selection-ui` off `main`.
+  Implementing `src/sample_treaties.py` + `src/app.py` changes next,
+  with new/updated tests in `tests/test_app.py` (existing upload-tests
+  need updating since upload no longer auto-runs analysis).
+
+- **Outcome**: Implemented in `src/app.py`:
+  - `src/sample_treaties.py` (new): `SampleTreaty` dataclass + `SAMPLE_TREATIES`
+    (5 golden samples) + `get_sample_bytes()`, all reading from `data/`.
+  - `main()` now shows an `st.radio` "Treaty source" toggle (Upload vs.
+    Choose a reinsurance treaty), resolving to one `(selected_bytes,
+    selected_name)` pair regardless of path.
+  - Introduced explicit "Review treaty" and "Analyze" buttons, both
+    `disabled=` until a treaty is selected (satisfies the gating
+    requirement; also replaces the old upload-triggers-immediately
+    behavior, per the corrected understanding logged above).
+  - "Review treaty" opens `_show_review_dialog` (`@st.dialog`), which
+    writes the selected bytes to a temp file, runs
+    `extract_treaty_sections`, and renders each page's text.
+  - Analysis results now persist in `st.session_state["workflow_run"]`
+    (set only when "Analyze" is clicked) rather than being recomputed
+    on every rerun — needed because, once gated behind a button, a
+    `st.button`'s return value is only `True` on the exact rerun it was
+    clicked; without session-state persistence, any later widget
+    interaction (e.g. the save-log form) would silently wipe the
+    rendered report. Caught this via `test_app_save_button_writes_
+    default_log_file` failing with `StopIteration` (the Save button
+    disappeared because `main()` returned early on that rerun).
+  - `tests/test_app.py`: added `_click_button`/`_upload_and_click_analyze`
+    helpers (byproduct of buttons no longer being at fixed indices);
+    updated the 6 pre-existing upload-flow tests to click "Analyze"
+    after uploading (upload alone no longer auto-runs); added 3 new
+    tests: Analyze/Review disabled-until-selected, sample selector
+    lists all 5 golden cases and runs analysis end-to-end, and the
+    review modal shows the selected document's page text.
+  - Verified `st.dialog` is fully exercisable under `AppTest` via a
+    throwaway probe script (see Analysis above) before relying on it
+    for real test coverage.
+- **Verification**: `python -m pytest -q` — 76 passed (73 previously +
+  3 new). Manually booted `streamlit run src/app.py` headlessly —
+  health check OK, no exceptions in the server log; full interactive
+  click-through wasn't done in a real browser (none available in this
+  environment), so behavior confidence rests on the `AppTest` suite
+  (which does exercise real button clicks, selection, and the dialog's
+  rendered content, not just "doesn't crash").
+  Awaiting human review/approval before this task is marked done and
+  removed from `TASKS.md`.
