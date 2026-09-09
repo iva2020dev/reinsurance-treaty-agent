@@ -207,7 +207,7 @@ golden cases in `tests/eval/golden_dataset.py`: `acme_minimal`,
 `continental_prose`) means manually finding the matching file under
 `data/*.pdf` on the local machine and re-uploading it — not viable for
 a reviewer/demo user without repo access. Add a second entry point
-alongside the uploader: a "Choose a sample treaty" selector (e.g.
+alongside the uploader: a "Choose a reinsurance treaty" selector (e.g.
 `st.selectbox` or a small button grid) listing every prepared sample
 by name/label, packaged with the PDF bytes shipped in the repo itself
 (bundled as package data / read from `data/` at app start — never a
