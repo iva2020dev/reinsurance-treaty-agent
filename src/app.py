@@ -268,70 +268,80 @@ def main() -> None:
     if run_result is None:
         return
 
-    state: WorkflowState | None = run_result["state"]
-    log_lines: list[str] = run_result["log_lines"]
-    parser_error: str | None = run_result["parser_error"]
-    result_name: str = run_result["selected_name"]
+    with st.container(border=True):
+        header_col, close_col = st.columns([6, 1])
+        with header_col:
+            st.subheader("Analysis Results")
+        with close_col:
+            close_clicked = st.button("Close", icon=":material/close:")
+        if close_clicked:
+            del st.session_state["workflow_run"]
+            st.rerun()
 
-    if parser_error is not None:
-        st.error(f"Could not read this PDF: {parser_error}")
-    else:
-        try:
-            report = extract_report(state)
-        except ValueError as exc:
-            message = str(exc)
-            llm_error = state.get("llm_error")
-            if llm_error:
-                message += f" (LLM Extraction Fallback also failed: {llm_error})"
-            st.error(message)
-        else:
-            if state.get("extraction_method") == "llm":
-                st.warning(
-                    "Extracted via **LLM Extraction Fallback** — this "
-                    "treaty's format didn't match the regex extractor."
-                )
-            ungrounded_fields = state.get("ungrounded_fields", [])
-            if ungrounded_fields:
-                st.warning(
-                    f"⚠️ {len(ungrounded_fields)} field(s) could not be "
-                    f"verified against the cited source text: "
-                    f"{', '.join(ungrounded_fields)}. Double-check these "
-                    f"values before relying on this report."
-                )
-            st.markdown(format_report_markdown(report))
+        state: WorkflowState | None = run_result["state"]
+        log_lines: list[str] = run_result["log_lines"]
+        parser_error: str | None = run_result["parser_error"]
+        result_name: str = run_result["selected_name"]
 
-    with st.expander("Analysis Workflow execution"):
-        if state is None:
-            st.caption(
-                "No workflow state was produced — the PDF could not be "
-                "parsed, so no node ran."
-            )
+        if parser_error is not None:
+            st.error(f"Could not read this PDF: {parser_error}")
         else:
-            st.caption(format_extraction_status(state))
-        if log_lines:
-            st.code("\n".join(log_lines), language="text")
-        else:
-            st.write("No log lines captured.")
-        if state is not None:
-            st.json(serialize_state_for_debug(state))
-
-        st.divider()
-        with st.form("save_logs_form"):
-            save_mode = st.segmented_control(
-                "Save mode",
-                ["Append", "Overwrite"],
-                default="Append",
-                required=True,
-                key="log_save_mode",
-            )
-            submitted = st.form_submit_button("Save to logs file", icon=":material/save:")
-        if submitted:
-            if log_lines:
-                header = format_log_header(result_name)
-                save_logs_to_file([header, *log_lines, ""], mode=save_mode.lower())
-                st.success(f"Saved {len(log_lines)} log line(s) to {DEFAULT_LOG_FILE} ({save_mode.lower()}).")
+            try:
+                report = extract_report(state)
+            except ValueError as exc:
+                message = str(exc)
+                llm_error = state.get("llm_error")
+                if llm_error:
+                    message += f" (LLM Extraction Fallback also failed: {llm_error})"
+                st.error(message)
             else:
-                st.warning("No log lines to save.")
+                if state.get("extraction_method") == "llm":
+                    st.warning(
+                        "Extracted via **LLM Extraction Fallback** — this "
+                        "treaty's format didn't match the regex extractor."
+                    )
+                ungrounded_fields = state.get("ungrounded_fields", [])
+                if ungrounded_fields:
+                    st.warning(
+                        f"⚠️ {len(ungrounded_fields)} field(s) could not be "
+                        f"verified against the cited source text: "
+                        f"{', '.join(ungrounded_fields)}. Double-check these "
+                        f"values before relying on this report."
+                    )
+                st.markdown(format_report_markdown(report))
+
+        with st.expander("Analysis Workflow execution"):
+            if state is None:
+                st.caption(
+                    "No workflow state was produced — the PDF could not be "
+                    "parsed, so no node ran."
+                )
+            else:
+                st.caption(format_extraction_status(state))
+            if log_lines:
+                st.code("\n".join(log_lines), language="text")
+            else:
+                st.write("No log lines captured.")
+            if state is not None:
+                st.json(serialize_state_for_debug(state))
+
+            st.divider()
+            with st.form("save_logs_form"):
+                save_mode = st.segmented_control(
+                    "Save mode",
+                    ["Append", "Overwrite"],
+                    default="Append",
+                    required=True,
+                    key="log_save_mode",
+                )
+                submitted = st.form_submit_button("Save to logs file", icon=":material/save:")
+            if submitted:
+                if log_lines:
+                    header = format_log_header(result_name)
+                    save_logs_to_file([header, *log_lines, ""], mode=save_mode.lower())
+                    st.success(f"Saved {len(log_lines)} log line(s) to {DEFAULT_LOG_FILE} ({save_mode.lower()}).")
+                else:
+                    st.warning("No log lines to save.")
 
 
 if __name__ == "__main__":

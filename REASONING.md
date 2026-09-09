@@ -2840,3 +2840,37 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `tests/test_app.py`'s `_click_button(at, "Save logs to file")` call
   to match the new label.
 - **Outcome**: `python -m pytest -q` — 76 passed.
+
+## 2026-09-09 12:39:17 — Update: bordered results container with Close (treaty-sample-selection-ui)
+
+- **Change**: Human asked to wrap the analysis results (report +
+  warnings + debug expander) in a bordered container with a "Close"
+  button, and confirmed that clicking "Analyze" again should clear the
+  results container and restart the workflow from the beginning.
+- **Analysis**: The "start from the beginning on re-Analyze" part was
+  already correct by construction — `st.session_state["workflow_run"]`
+  is fully overwritten (not merged/appended) inside the
+  `if analyze_clicked:` block, which runs *before* `run_result` is
+  read for rendering, so a second "Analyze" click always replaces the
+  prior run's state/log_lines/report wholesale. Verified this with a
+  new test (`test_app_re_analyzing_replaces_previous_results`) rather
+  than assuming it, since the ordering it depends on isn't obvious
+  from a a glance. For "Close", the natural mechanism is removing
+  `st.session_state["workflow_run"]` and calling `st.rerun()`
+  immediately (rather than just setting a flag and letting the normal
+  end-of-script rerun happen) so the stale content doesn't flash for
+  one frame before disappearing.
+- **Decision**: Wrapped everything from the results section onward
+  (error/warning/report markdown through the debug expander and
+  save-log form) in a single `st.container(border=True)`, with a
+  "Analysis Results" subheader and a "Close" button (✕ icon) in a
+  narrow column beside it, for a self-contained, clearly-scoped
+  results panel that's easy to dismiss without affecting the
+  selection controls above it.
+- **Action**: Edited `src/app.py`'s `main()`. Added
+  `test_app_close_button_clears_results` and
+  `test_app_re_analyzing_replaces_previous_results` to
+  `tests/test_app.py`.
+- **Outcome**: `python -m pytest -q` — 78 passed (76 previously + 2
+  new). Manually booted `streamlit run src/app.py` — healthy, no
+  server-log errors.
