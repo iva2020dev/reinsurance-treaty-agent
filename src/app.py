@@ -211,7 +211,7 @@ def _show_review_dialog(pdf_bytes: bytes, display_name: str) -> None:
             st.error(f"Could not read this PDF: {exc}")
             return
 
-    with st.container(height=350):
+    with st.container(height=440):
         for section in sections:
             st.markdown(f"**Page {section.page_number}**")
             st.text(section.text)

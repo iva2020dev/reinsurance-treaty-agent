@@ -2819,3 +2819,13 @@ This file contains the reasoning transcript of the AI agent for the current sess
 - **Outcome**: `python -m pytest -q` — 76 passed (unaffected, no new
   elements added/removed, just a container wrapper). Manually booted
   `streamlit run src/app.py` — healthy, no server-log errors.
+
+## 2026-09-09 12:26:02 — Update: review modal height increase (treaty-sample-selection-ui)
+
+- **Change**: Human confirmed the modal's top position is good and
+  asked to move the bottom border lower by ~20-25% (i.e. increase
+  height), after the previous 350px cap.
+- **Action**: Increased `_show_review_dialog`'s `st.container` height
+  from 350 to 440 (~26% increase).
+- **Outcome**: `python -m pytest -q` — 76 passed (unaffected, height
+  value only).
