@@ -182,16 +182,58 @@ def highest_severity_label(findings: list) -> str:
     return max(findings, key=lambda f: _SEVERITY_RANK[f.severity]).severity.value
 
 
+_LLM_USAGE_RE = re.compile(r"input_tokens=(\d+), output_tokens=(\d+)")
+
+
+def extract_llm_usage_summary(log_lines: list[str] | None) -> str | None:
+    """Pull input/output token counts from the LLM Extraction Fallback's log
+    line, if the LLM was actually invoked for this run -- None otherwise
+    (e.g. the regex Extractor found every field, so no LLM call was made).
+    """
+    for line in log_lines or []:
+        match = _LLM_USAGE_RE.search(line)
+        if match:
+            input_tokens, output_tokens = match.groups()
+            return f"input tokens: {input_tokens}, output tokens: {output_tokens}"
+    return None
+
+
+def results_subdirectory(report: AnomalyReport, base: Path = DEFAULT_RESULTS_DIR) -> Path:
+    """The per-treaty subdirectory saved results for this cedent are organized under."""
+    return base / slugify_treaty_name(report.treaty.cedent_name)
+
+
 def format_results_filename(report: AnomalyReport, extension: str, when: datetime | None = None) -> str:
-    """Build the saved-results filename: <timestamp>_<treaty-slug>_<severity>.<extension>."""
+    """Build the saved-results filename: <timestamp>_<severity>.<extension>.
+
+    The treaty name isn't repeated here -- it's the containing subdirectory
+    (see results_subdirectory()), since results are organized per-treaty.
+    """
     timestamp = (when or datetime.now()).strftime("%Y%m%d_%H%M%S")
-    slug = slugify_treaty_name(report.treaty.cedent_name)
     severity = highest_severity_label(report.findings)
-    return f"{timestamp}_{slug}_{severity}.{extension}"
+    return f"{timestamp}_{severity}.{extension}"
 
 
-def render_report_pdf(report: AnomalyReport) -> bytes:
-    """Render an AnomalyReport as PDF bytes, mirroring format_report_markdown's content.
+def format_results_document(
+    report: AnomalyReport, log_lines: list[str] | None = None, when: datetime | None = None
+) -> str:
+    """format_report_markdown's content, for a saved/downloaded file: prefixed
+    with the run's generation timestamp and (only if the LLM Extraction
+    Fallback actually ran) its token usage -- neither is part of the
+    on-screen report itself, which describes the treaty, not this run.
+    """
+    timestamp = (when or datetime.now()).strftime("%Y-%m-%d %H:%M:%S")
+    lines = [f"Generated: {timestamp}"]
+    llm_usage = extract_llm_usage_summary(log_lines)
+    if llm_usage:
+        lines.append(f"LLM usage: {llm_usage}")
+    lines.append("")
+    lines.append(format_report_markdown(report))
+    return "\n".join(lines)
+
+
+def render_report_pdf(report: AnomalyReport, log_lines: list[str] | None = None, when: datetime | None = None) -> bytes:
+    """Render an AnomalyReport as PDF bytes, mirroring format_results_document's content.
 
     Uses fpdf2's core (Latin-1-only) fonts, so this strips Markdown syntax
     and drops any character that can't be encoded (e.g. the severity emoji)
@@ -202,7 +244,7 @@ def render_report_pdf(report: AnomalyReport) -> bytes:
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
 
-    for raw_line in format_report_markdown(report).split("\n"):
+    for raw_line in format_results_document(report, log_lines=log_lines, when=when).split("\n"):
         line = raw_line.strip()
         if not line:
             pdf.ln(4)
@@ -225,20 +267,30 @@ def render_report_pdf(report: AnomalyReport) -> bytes:
     return bytes(pdf.output())
 
 
-def render_report_bytes(report: AnomalyReport, extension: str) -> bytes:
+def render_report_bytes(
+    report: AnomalyReport, extension: str, log_lines: list[str] | None = None, when: datetime | None = None
+) -> bytes:
     """Render report as bytes in the given format ("md" or "pdf")."""
     if extension == "pdf":
-        return render_report_pdf(report)
-    return format_report_markdown(report).encode("utf-8")
+        return render_report_pdf(report, log_lines=log_lines, when=when)
+    return format_results_document(report, log_lines=log_lines, when=when).encode("utf-8")
 
 
 def save_analysis_result_to_file(
-    report: AnomalyReport, extension: str, directory: Path = DEFAULT_RESULTS_DIR, when: datetime | None = None
+    report: AnomalyReport,
+    extension: str,
+    log_lines: list[str] | None = None,
+    directory: Path = DEFAULT_RESULTS_DIR,
+    when: datetime | None = None,
 ) -> Path:
-    """Write report to a new timestamped file in the given format, returning its path."""
-    directory.mkdir(parents=True, exist_ok=True)
-    path = directory / format_results_filename(report, extension, when=when)
-    path.write_bytes(render_report_bytes(report, extension))
+    """Write report to a new timestamped file (under a per-treaty subdirectory
+    of directory) in the given format, returning its path.
+    """
+    when = when or datetime.now()
+    target_dir = results_subdirectory(report, directory)
+    target_dir.mkdir(parents=True, exist_ok=True)
+    path = target_dir / format_results_filename(report, extension, when=when)
+    path.write_bytes(render_report_bytes(report, extension, log_lines=log_lines, when=when))
     return path
 
 
@@ -422,7 +474,7 @@ def main() -> None:
                 save_col, download_col = st.columns(2)
                 with save_col:
                     if st.button("Save analysis results", icon=":material/save:"):
-                        saved_path = save_analysis_result_to_file(report, extension)
+                        saved_path = save_analysis_result_to_file(report, extension, log_lines=log_lines)
                         st.success(f"Saved analysis results to {saved_path}.")
                 with download_col:
                     # Streamlit Community Cloud's filesystem is ephemeral and
@@ -430,10 +482,13 @@ def main() -> None:
                     # actually retrievable in production -- this downloads the
                     # same content straight to the user's own machine instead,
                     # which works identically locally and in production.
+                    # A single `when` for both the filename and the content, so
+                    # they always agree even at a second boundary.
+                    download_when = datetime.now()
                     st.download_button(
                         "Download analysis results",
-                        data=render_report_bytes(report, extension),
-                        file_name=format_results_filename(report, extension),
+                        data=render_report_bytes(report, extension, log_lines=log_lines, when=download_when),
+                        file_name=format_results_filename(report, extension, when=download_when),
                         mime="application/pdf" if extension == "pdf" else "text/markdown",
                         icon=":material/download:",
                     )

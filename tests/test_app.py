@@ -12,13 +12,16 @@ from streamlit.testing.v1 import AppTest
 
 from src.app import (
     analyze_uploaded_pdf,
+    extract_llm_usage_summary,
     format_extraction_status,
     format_log_header,
     format_report_markdown,
+    format_results_document,
     format_results_filename,
     highest_severity_label,
     render_report_bytes,
     render_report_pdf,
+    results_subdirectory,
     save_analysis_result_to_file,
     save_logs_to_file,
     serialize_state_for_debug,
@@ -445,24 +448,65 @@ def test_format_results_filename_matches_naming_rule():
     report = _sample_report()  # cedent "Acme Insurance Co.", one HIGH finding
     filename = format_results_filename(report, "md", when=datetime(2026, 9, 9, 14, 5, 30))
 
-    assert filename == "20260909_140530_acme_insurance_co_high.md"
+    assert filename == "20260909_140530_high.md"
 
 
 def test_format_results_filename_uses_given_extension():
     report = _sample_report()
     filename = format_results_filename(report, "pdf", when=datetime(2026, 9, 9, 14, 5, 30))
 
-    assert filename == "20260909_140530_acme_insurance_co_high.pdf"
+    assert filename == "20260909_140530_high.pdf"
+
+
+def test_results_subdirectory_is_per_treaty():
+    report = _sample_report()  # cedent "Acme Insurance Co."
+
+    assert results_subdirectory(report, Path("results")) == Path("results/acme_insurance_co")
+
+
+def test_extract_llm_usage_summary_finds_token_counts():
+    log_lines = [
+        "2026-09-09 10:00:00 INFO src.workflow: some other line",
+        "2026-09-09 10:00:01 INFO src.llm_client: LLM Extraction Fallback: extracted treaty terms for "
+        "cedent 'Acme' in 1.23s (model=claude-haiku-4-5-20251001, input_tokens=500, output_tokens=60)",
+    ]
+
+    assert extract_llm_usage_summary(log_lines) == "input tokens: 500, output tokens: 60"
+
+
+def test_extract_llm_usage_summary_none_when_llm_not_invoked():
+    log_lines = ["2026-09-09 10:00:00 INFO src.workflow: Extractor (Regex): extracted treaty terms"]
+
+    assert extract_llm_usage_summary(log_lines) is None
+    assert extract_llm_usage_summary(None) is None
+
+
+def test_format_results_document_includes_timestamp_and_report():
+    report = _sample_report()
+    doc = format_results_document(report, when=datetime(2026, 9, 9, 14, 5, 30))
+
+    assert doc.startswith("Generated: 2026-09-09 14:05:30")
+    assert "Acme Insurance Co." in doc
+    assert "LLM usage" not in doc
+
+
+def test_format_results_document_includes_llm_usage_when_present():
+    report = _sample_report()
+    log_lines = ["... input_tokens=500, output_tokens=60 ..."]
+    doc = format_results_document(report, log_lines=log_lines, when=datetime(2026, 9, 9, 14, 5, 30))
+
+    assert "LLM usage: input tokens: 500, output tokens: 60" in doc
 
 
 def test_render_report_pdf_contains_the_reports_text():
     from pypdf import PdfReader
 
     report = _sample_report()
-    pdf_bytes = render_report_pdf(report)
+    pdf_bytes = render_report_pdf(report, when=datetime(2026, 9, 9, 14, 5, 30))
 
     assert pdf_bytes.startswith(b"%PDF")
     text = PdfReader(io.BytesIO(pdf_bytes)).pages[0].extract_text()
+    assert "Generated: 2026-09-09 14:05:30" in text
     assert "Acme Insurance Co." in text
     assert "HIGH" in text
     assert "Losses exceeded the limit." in text
@@ -470,9 +514,12 @@ def test_render_report_pdf_contains_the_reports_text():
 
 def test_render_report_bytes_dispatches_by_extension():
     report = _sample_report()
+    when = datetime(2026, 9, 9, 14, 5, 30)
 
-    assert render_report_bytes(report, "md") == format_report_markdown(report).encode("utf-8")
-    assert render_report_bytes(report, "pdf").startswith(b"%PDF")
+    assert render_report_bytes(report, "md", when=when) == format_results_document(report, when=when).encode(
+        "utf-8"
+    )
+    assert render_report_bytes(report, "pdf", when=when).startswith(b"%PDF")
 
 
 def test_save_analysis_result_to_file_writes_markdown(tmp_path):
@@ -480,8 +527,8 @@ def test_save_analysis_result_to_file_writes_markdown(tmp_path):
 
     saved_path = save_analysis_result_to_file(report, "md", directory=tmp_path, when=datetime(2026, 9, 9, 14, 5, 30))
 
-    assert saved_path == tmp_path / "20260909_140530_acme_insurance_co_high.md"
-    assert saved_path.read_text() == format_report_markdown(report)
+    assert saved_path == tmp_path / "acme_insurance_co" / "20260909_140530_high.md"
+    assert saved_path.read_text() == format_results_document(report, when=datetime(2026, 9, 9, 14, 5, 30))
 
 
 def test_save_analysis_result_to_file_writes_pdf(tmp_path):
@@ -491,7 +538,7 @@ def test_save_analysis_result_to_file_writes_pdf(tmp_path):
         report, "pdf", directory=tmp_path, when=datetime(2026, 9, 9, 14, 5, 30)
     )
 
-    assert saved_path == tmp_path / "20260909_140530_acme_insurance_co_high.pdf"
+    assert saved_path == tmp_path / "acme_insurance_co" / "20260909_140530_high.pdf"
     assert saved_path.read_bytes().startswith(b"%PDF")
 
 
@@ -518,7 +565,7 @@ def test_app_save_analysis_results_button_writes_markdown_by_default(tmp_path, m
 
     assert not at.exception
     assert any("Saved analysis results to" in s.value for s in at.success)
-    saved_files = list((tmp_path / "results").glob("*_acme_insurance_co_*.md"))
+    saved_files = list((tmp_path / "results" / "acme_insurance_co").glob("*.md"))
     assert len(saved_files) == 1
 
 
@@ -534,8 +581,25 @@ def test_app_save_analysis_results_button_writes_pdf_when_selected(tmp_path, mon
     at = _click_button(at, "Save analysis results")
 
     assert not at.exception
-    saved_files = list((tmp_path / "results").glob("*_acme_insurance_co_*.pdf"))
+    saved_files = list((tmp_path / "results" / "acme_insurance_co").glob("*.pdf"))
     assert len(saved_files) == 1
+
+
+def test_app_save_analysis_results_includes_llm_usage_when_fallback_ran(tmp_path, monkeypatch):
+    mock_client = _mock_llm_client(input_data=FUZZY_TREATY_LLM_RESPONSE)
+    monkeypatch.setattr("src.llm_client.anthropic.Anthropic", lambda **kwargs: mock_client)
+    fuzzy_bytes = Path(FUZZY_TREATY_PATH).read_bytes()
+    monkeypatch.chdir(tmp_path)
+
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+    at = _upload_and_click_analyze(at, "sample_rich_fuzzy_treaty.pdf", fuzzy_bytes)
+    at = _click_button(at, "Save analysis results")
+
+    assert not at.exception
+    saved_files = list((tmp_path / "results").glob("*/*.md"))
+    assert len(saved_files) == 1
+    assert "LLM usage: input tokens: 500, output tokens: 60" in saved_files[0].read_text()
 
 
 def test_app_download_analysis_results_button_matches_selected_format():

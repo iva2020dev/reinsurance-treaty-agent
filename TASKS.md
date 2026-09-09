@@ -77,20 +77,26 @@
     already-shipped results container, requested directly)
   - **Details**: Add a "Save analysis results" button next to the
     rendered report (inside the "Analysis Results" container, only
-    when a report was actually produced) that writes the same
-    Markdown rendering shown on screen (`format_report_markdown`) to a
-    new file under `results/` (new dir, gitignored like `logs/`).
-    Filename naming rule, confirmed with the human: `<datetime
-    stamp>_<treaty short name>_<highest severity>.md`, e.g.
-    `20260909_140530_acme_insurance_co_high.md` — datetime as
-    `YYYYmmdd_HHMMSS` (filesystem-safe, no colons), the cedent name
-    slugified (lowercased, non-alphanumeric runs collapsed to `_`,
-    truncated to 40 chars), and the highest-severity finding's label
+    when a report was actually produced) that writes the report to a
+    new file under `results/` (new dir, gitignored like `logs/`),
+    **organized per-treaty**: `results/<treaty-slug>/<datetime
+    stamp>_<highest severity>.<extension>`, e.g.
+    `results/acme_insurance_co/20260909_140530_high.md` — the cedent
+    name slugified (lowercased, non-alphanumeric runs collapsed to
+    `_`, truncated to 40 chars) is the *subdirectory*, not repeated in
+    the filename, so a treaty's saved history stays together as it
+    accumulates over time; datetime as `YYYYmmdd_HHMMSS`
+    (filesystem-safe, no colons); the highest-severity finding's label
     (`low`/`medium`/`high`, or `clean` if there are no findings) so a
     folder of saved reports can be scanned for risk at a glance. Each
     save always creates a new file (no append/overwrite choice, unlike
     the existing "Save to logs file" control) — timestamped to the
     second, so collisions are effectively impossible in normal use.
+    The saved/downloaded content itself (not the on-screen report,
+    which is about the treaty, not this run) is prefixed with a
+    `Generated: <timestamp>` line and, only when the LLM Extraction
+    Fallback actually ran, an `LLM usage: input tokens: N, output
+    tokens: N` line parsed from that run's own log lines.
     Also add a "Download analysis results" button (`st.download_button`)
     right beside it, offering the same content/filename as a
     browser download — needed because Streamlit Community Cloud's
@@ -103,24 +109,27 @@
     them — confirmed with the human via `AskUserQuestion` — so a
     single selection drives both actions consistently rather than
     offering four separate buttons. PDF rendering
-    (`render_report_pdf`, via the new `fpdf2` dependency) mirrors
-    `format_report_markdown`'s content with Markdown syntax stripped
-    (headers/bold/italic-citation markers) and any character fpdf2's
-    core Latin-1 fonts can't encode (e.g. the severity emoji) silently
-    dropped, since the `[HIGH]`/`[MEDIUM]`/`[LOW]` text label already
-    carries that information.
+    (`render_report_pdf`, via the new `fpdf2` dependency) mirrors the
+    same content with Markdown syntax stripped (headers/bold/italic-
+    citation markers) and any character fpdf2's core Latin-1 fonts
+    can't encode (e.g. the severity emoji) silently dropped, since the
+    `[HIGH]`/`[MEDIUM]`/`[LOW]` text label already carries that
+    information.
   - **Files**: `src/app.py`, `requirements.txt` (new `fpdf2`
     dependency), `.gitignore` (new `results/` entry)
   - **Acceptance**: After a successful analysis, choosing "PDF (.pdf)"
     or "Markdown (.md)" and clicking "Save analysis results" writes a
-    new file under `results/` in the chosen format, named per the
-    rule above, and shows a success message naming the saved path;
-    clicking "Download analysis results" downloads the same
-    content/format to the browser; a saved/downloaded PDF's text is
-    extractable and contains the treaty's cedent name and findings;
-    `python -m pytest -q` passes with new unit tests for the naming/
-    slugify/severity/PDF-rendering helpers and app-level tests
-    confirming both buttons work in both formats.
+    new file under `results/<treaty-slug>/` in the chosen format,
+    named per the rule above, containing a generation timestamp (and
+    LLM usage line, if the LLM ran), and shows a success message
+    naming the saved path; clicking "Download analysis results"
+    downloads the same content/format to the browser; a saved/
+    downloaded PDF's text is extractable and contains the treaty's
+    cedent name, findings, and generation timestamp; `python -m
+    pytest -q` passes with new unit tests for the naming/slugify/
+    severity/subdirectory/LLM-usage/PDF-rendering helpers and
+    app-level tests confirming both buttons work in both formats and
+    that a real LLM-fallback run's usage appears in the saved file.
 
 
 - [ ] CI-Integrated Regression Eval Gate

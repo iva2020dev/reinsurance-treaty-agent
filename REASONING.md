@@ -3166,3 +3166,50 @@ This file contains the reasoning transcript of the AI agent for the current sess
   updated + net new for PDF coverage). Coverage: `src/app.py` 98%.
   Manually booted `streamlit run src/app.py` — healthy, no server-log
   errors.
+
+## 2026-09-09 16:22:39 — Update: per-treaty folders, generation timestamp, LLM usage in content (save-analysis-results-to-file)
+
+- **Goal**: Three follow-up requests from the human, folded into one
+  pass: (1) "name and organise analysis results" — clarified via
+  `AskUserQuestion` to mean the `results/` folder structure; (2) "add
+  datetime stamp in content" — inside the saved/downloaded file, not
+  just the filename; (3) "add LLM usage data results if any" — the
+  LLM Extraction Fallback's token counts, when it actually ran.
+- **Decision (1 — organization)**: Results now live under
+  `results/<treaty-slug>/<timestamp>_<severity>.<ext>` — a
+  subdirectory per treaty (`results_subdirectory()`), rather than one
+  flat directory. `format_results_filename()` dropped the treaty slug
+  (now redundant with the containing folder), keeping just
+  `<timestamp>_<severity>.<extension>`.
+- **Decision (2 — timestamp in content)**: New
+  `format_results_document()` wraps `format_report_markdown()`'s
+  content with a `Generated: <timestamp>` line, used only for saved/
+  downloaded output (not the on-screen `st.markdown` render, which
+  describes the treaty, not this specific run).
+- **Decision (3 — LLM usage)**: `src/workflow.py`'s
+  `llm_extraction_fallback` only *logs* `input_tokens`/`output_tokens`
+  (`src/workflow.py:226-234`) — never stores them in `WorkflowState`.
+  Rather than changing the workflow's state schema (a bigger, riskier
+  change touching the harness), added
+  `extract_llm_usage_summary(log_lines)` to parse that exact log
+  line's token counts back out of the already-captured `log_lines`
+  (the same list the debug expander already displays) — `None` when
+  the LLM never ran (regex succeeded), so the saved content only
+  mentions LLM usage when it's actually relevant.
+- **Action**: Edited `src/app.py`: `results_subdirectory()`,
+  `extract_llm_usage_summary()`, `format_results_document()`; threaded
+  `log_lines`/`when` through `render_report_pdf()`,
+  `render_report_bytes()`, `save_analysis_result_to_file()`; `main()`
+  now passes `log_lines` to both Save and Download, and computes a
+  single `when` per Download click so its filename and content always
+  agree. Updated `TASKS.md`'s `save-analysis-results-to-file` entry.
+  Updated/added tests in `tests/test_app.py`: new filename format, new
+  `results_subdirectory`/`extract_llm_usage_summary`/
+  `format_results_document` unit tests, and a full app-level test
+  (`test_app_save_analysis_results_includes_llm_usage_when_fallback_ran`)
+  that actually mocks the LLM path and asserts the token-usage line
+  lands in the real saved file — not just that the helper function
+  works in isolation.
+- **Outcome**: `python -m pytest -q` — 102 passed (96 previously + 6
+  new). Coverage: `src/app.py` 99%. Manually booted `streamlit run
+  src/app.py` — healthy, no server-log errors.
