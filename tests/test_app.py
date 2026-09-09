@@ -190,6 +190,46 @@ def test_app_re_analyzing_replaces_previous_results():
     assert sum("Treaty:" in m.value for m in at.markdown) == 1
 
 
+def test_app_results_auto_clear_when_a_new_file_is_uploaded_without_re_analyzing():
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    with open(MINIMAL_TREATY_PATH, "rb") as f:
+        at = _upload_and_click_analyze(at, "sample_treaty.pdf", f.read())
+
+    assert not at.exception
+    assert any(b.label == "Close" for b in at.button)
+    markdown_text = "\n".join(m.value for m in at.markdown)
+    assert "Acme Insurance Co." in markdown_text
+
+    with open(RICH_TREATY_PATH, "rb") as f:
+        at.file_uploader[0].set_value([("sample_rich_treaty.pdf", f.read(), "application/pdf")])
+    at.run()
+
+    assert not at.exception
+    assert not any(b.label == "Close" for b in at.button)
+    markdown_text = "\n".join(m.value for m in at.markdown)
+    assert "Acme Insurance Co." not in markdown_text
+
+
+def test_app_results_auto_clear_when_switching_to_sample_selector():
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    with open(MINIMAL_TREATY_PATH, "rb") as f:
+        at = _upload_and_click_analyze(at, "sample_treaty.pdf", f.read())
+
+    assert not at.exception
+    assert any(b.label == "Close" for b in at.button)
+
+    at.radio[0].set_value("Choose a reinsurance treaty").run()
+
+    assert not at.exception
+    assert not any(b.label == "Close" for b in at.button)
+    markdown_text = "\n".join(m.value for m in at.markdown)
+    assert "Acme Insurance Co." not in markdown_text
+
+
 def test_app_upload_malformed_pdf_shows_error_not_crash():
     at = AppTest.from_file("../src/app.py")
     at.run()

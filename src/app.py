@@ -1,5 +1,6 @@
 """Streamlit UI / FastAPI endpoints."""
 
+import hashlib
 import logging
 import sys
 import tempfile
@@ -164,6 +165,11 @@ def format_report_markdown(report: AnomalyReport) -> str:
     return "\n".join(lines)
 
 
+def _fingerprint(file_bytes: bytes) -> str:
+    """A cheap content fingerprint used to detect a changed treaty selection."""
+    return hashlib.sha256(file_bytes).hexdigest()
+
+
 def _run_workflow_with_logging(file_bytes: bytes, display_name: str) -> dict:
     """Run the full workflow on file_bytes, capturing its log lines.
 
@@ -196,6 +202,7 @@ def _run_workflow_with_logging(file_bytes: bytes, display_name: str) -> dict:
         "log_lines": log_lines,
         "parser_error": parser_error,
         "selected_name": display_name,
+        "fingerprint": _fingerprint(file_bytes),
     }
 
 
@@ -261,6 +268,7 @@ def main() -> None:
                 selected_name = sample.filename
 
     has_selection = selected_bytes is not None
+    selected_fingerprint = _fingerprint(selected_bytes) if selected_bytes is not None else None
 
     review_col, analyze_col = st.columns(2)
     with review_col:
@@ -275,6 +283,12 @@ def main() -> None:
         st.session_state["workflow_run"] = _run_workflow_with_logging(selected_bytes, selected_name)
 
     run_result = st.session_state.get("workflow_run")
+    if run_result is not None and run_result.get("fingerprint") != selected_fingerprint:
+        # The treaty selection changed (new upload, different sample, cleared
+        # upload, or switched source) since this result was produced -- clear
+        # and close the results container rather than showing a stale report.
+        del st.session_state["workflow_run"]
+        run_result = None
     if run_result is None:
         return
 

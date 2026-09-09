@@ -46,6 +46,28 @@
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
+- [ ] Auto-clear Analysis Results when a new treaty is selected (@claude)
+  - **ID**: auto-clear-results-on-new-selection
+  - **Tags**: ui, streamlit, ux
+  - **Candidate ID**: N/A (not graduated from `CANDIDATE_TASKS.md`;
+    a small follow-up UX fix on `treaty-sample-selection-ui`'s
+    already-shipped results container, requested directly)
+  - **Details**: Today, once "Analyze" produces a result, the bordered
+    "Analysis Results" container (`st.session_state["workflow_run"]`)
+    stays visible until the user explicitly clicks "Close" or
+    "Analyze" again — if they instead pick a *different* treaty
+    (upload a new file, choose a different sample, clear the upload,
+    or switch source mode) without re-clicking "Analyze", the
+    container keeps showing the stale prior report, now describing a
+    document that's no longer selected. Auto-clear (and effectively
+    auto-close) the results container as soon as the current selection
+    no longer matches the one the shown result was produced from.
+  - **Files**: `src/app.py`
+  - **Acceptance**: After analyzing one treaty, uploading a different
+    file, choosing a different sample, or switching source mode (all
+    without clicking "Analyze" again) immediately hides the results
+    container; `python -m pytest -q` passes with new coverage for
+    both cases.
 
 
 - [ ] CI-Integrated Regression Eval Gate

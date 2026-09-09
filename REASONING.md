@@ -3021,3 +3021,36 @@ This file contains the reasoning transcript of the AI agent for the current sess
   list) on this `close/fix-source-input-height-twitch` branch/PR,
   titled `Closing task as "Done": Fix treaty-source input layout
   twitch on source toggle`, per the mandatory task-closing workflow.
+
+## 2026-09-09 15:48:58 — Task: Auto-clear Analysis Results on new treaty selection (auto-clear-results-on-new-selection)
+
+- **Goal**: Human asked for the "Analysis Results" container to clear
+  and close automatically once a new treaty is chosen, rather than
+  requiring an explicit "Close" click or a re-"Analyze" click first.
+- **Analysis**: `st.session_state["workflow_run"]` previously only
+  changed on an explicit "Analyze" click or "Close" click — nothing
+  detected that the underlying selection (uploaded file / chosen
+  sample / source mode) had since changed, so the container could show
+  a report for a document that's no longer selected.
+- **Decision**: Store a content fingerprint (`hashlib.sha256` of the
+  analyzed bytes) alongside each `workflow_run` result. On every
+  render, compare it against a fingerprint of the *currently* selected
+  bytes (`None` if nothing is selected); a mismatch means the
+  selection changed since that result was produced, so drop
+  `workflow_run` and skip rendering — same effect as clicking "Close",
+  but automatic. A cheap hash rather than object identity/name
+  comparison, since two different samples could coincidentally share a
+  filename structure and a name-only check felt less certain to catch
+  every real change.
+- **Action**: Branched `task/auto-clear-results-on-new-selection` off
+  `main`. Added `auto-clear-results-on-new-selection` to `TASKS.md`'s
+  P1. Edited `src/app.py` (`_fingerprint()` helper,
+  `_run_workflow_with_logging()` now stores it, main() compares and
+  clears). Added
+  `test_app_results_auto_clear_when_a_new_file_is_uploaded_without_re_analyzing`
+  and `test_app_results_auto_clear_when_switching_to_sample_selector`
+  to `tests/test_app.py`.
+- **Outcome**: `python -m pytest -q` — 81 passed (79 previously + 2
+  new). Manually booted `streamlit run src/app.py` — healthy, no
+  server-log errors. Awaiting human review/approval before this task
+  is marked done and removed from `TASKS.md`.
