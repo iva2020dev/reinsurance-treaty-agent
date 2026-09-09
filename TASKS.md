@@ -38,6 +38,7 @@
      ✅ 2026-09-09 13:42:47 Fix treaty-source input layout twitch on source toggle (fix-source-input-height-twitch)
      ✅ 2026-09-09 16:36:48 Save analysis results to a file (save-analysis-results-to-file)
      ✅ 2026-09-09 16:48:06 Auto-clear Analysis Results when a new treaty is selected (auto-clear-results-on-new-selection)
+     ✅ 2026-09-09 17:08:35 Add Multi Domain-Task Selection (S) candidates to CANDIDATE_TASKS.md (candidate-s-section-multi-domain-task-selection)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -72,41 +73,6 @@
 ## P2
 
 <!-- policy: P2 tasks are valuable but not blocking. Do after P0 and P1 are clear. -->
-
-- [ ] Add Multi Domain-Task Selection (S) candidates to CANDIDATE_TASKS.md (@claude)
-  - **ID**: candidate-s-section-multi-domain-task-selection
-  - **Tags**: docs, candidate-tasks, harness, ui
-  - **Candidate ID**: N/A (this task tracks *adding* the `S1`-`S8`
-    candidates themselves to `CANDIDATE_TASKS.md`, not any one of
-    them)
-  - **Details**: Docs-only task tracking the addition of a new `S`
-    top-level category ("Multi Domain-Task Selection") to
-    `CANDIDATE_TASKS.md` — 8 candidates (`S1`-`S8`) covering a domain
-    task registry, a workflow refactor to split the shared extraction
-    pipeline from per-task analysis nodes, multi-task result
-    aggregation, per-task cost estimation, multi-task
-    messaging/logging, a task selection UI, a multi-task results UI,
-    and end-to-end test coverage. Drafted in a design session kept
-    outside this repo (per the human's request) — see
-    `REASONING.md`'s 2026-09-09 entries for the full design writeup
-    this section was drafted from (current architecture facts
-    gathered, and the two confirmed design decisions: a per-task cost
-    *estimate* shown before running, replaced by the *actual* measured
-    cost after; and `S1`'s registry as the single source of truth both
-    the backend graph builder and the frontend selector read from).
-    The originally-drafted `S9` (treaty sample selection UI) was
-    determined not to be a domain-task-selection concern and was
-    tracked/shipped separately as `A11`/`treaty-sample-selection-ui`
-    instead — not part of this `S` section.
-  - **Files**: `CANDIDATE_TASKS.md`
-  - **Acceptance**: `CANDIDATE_TASKS.md`'s Summary section lists a new
-    "Multi Domain-Task Selection" table (`S1`-`S8`) consistent with
-    the existing Harness/Treaty/Claims/Facultative tables' column
-    format, plus a `## S. Multi Domain-Task Selection` detailed section
-    mirroring the `## A.`/`## B.` sections' format; the intro
-    "categories" text and ID-scheme note mention the new `S` category;
-    no other file changed; `python -m pytest -q` unaffected (docs-only
-    change, stays at 102 passed).
 
 - [ ] Fix Claude Code Review CI Check (missing API key secret)
   - **ID**: fix-claude-review-ci-secret
