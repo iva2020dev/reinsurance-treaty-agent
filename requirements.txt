@@ -9,3 +9,4 @@ python-dotenv
 pypdf
 streamlit
 pytest-cov
+fpdf2

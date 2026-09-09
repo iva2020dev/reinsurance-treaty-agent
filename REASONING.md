@@ -3121,3 +3121,48 @@ This file contains the reasoning transcript of the AI agent for the current sess
 - **Outcome**: `python -m pytest -q` — 91 passed (90 previously + 1
   new). Coverage: `src/app.py` 99%. Manually booted `streamlit run
   src/app.py` — healthy, no server-log errors.
+
+## 2026-09-09 16:13:48 — Update: add PDF format with a format selector (save-analysis-results-to-file)
+
+- **Change**: Human asked to save results in both `.md` and `.pdf`
+  formats. Mid-implementation, human further specified: let the user
+  select the format *before* saving, rather than always producing
+  both or offering separate per-format buttons.
+- **Decision**: Added a "Result file format" `st.radio` (Markdown /
+  PDF) right above the Save/Download buttons; both buttons now act on
+  whichever format is currently selected, rather than one button per
+  format. `format_results_filename()` and `save_analysis_result_to_file()`
+  gained a required `extension` parameter; a new `render_report_bytes()`
+  dispatches to either `format_report_markdown().encode()` or the new
+  `render_report_pdf()`.
+- **Analysis**: No existing PDF-writing dependency in the repo
+  (`pypdf` only *reads*/parses PDFs). Chose `fpdf2` — pure Python, no
+  system binary/library dependency (unlike `weasyprint`/`wkhtmltopdf`),
+  so it installs cleanly on Streamlit Community Cloud's free tier.
+  `render_report_pdf()` walks `format_report_markdown()`'s lines,
+  strips Markdown syntax (headers/bold/italic-citation parens) and
+  drops any character fpdf2's core Helvetica font (Latin-1 only) can't
+  encode — covers the severity emoji, whose information already
+  exists as a plain-text `[HIGH]`/`[MEDIUM]`/`[LOW]` label in the same
+  line. Hit and fixed a real bug: `multi_cell()`'s default
+  `new_x=XPos.RIGHT` leaves the cursor at the right edge of the last
+  rendered line rather than resetting to the left margin, so every
+  call after the first heading got ~0 available width and raised
+  `FPDFException: Not enough horizontal space to render a single
+  character` — fixed by passing `new_x="LMARGIN", new_y="NEXT"`
+  explicitly. Verified the fix by reproducing standalone (not just
+  reading fpdf2's docs) and confirming via `pypdf.PdfReader` that the
+  generated PDF's text is actually extractable and correct, not just
+  "no exception raised."
+- **Action**: Added `fpdf2` to `requirements.txt`. Edited `src/app.py`:
+  `render_report_pdf()`, `render_report_bytes()`, updated
+  `format_results_filename()`/`save_analysis_result_to_file()`
+  signatures, added the format radio and wired both buttons to it.
+  Updated `TASKS.md`'s `save-analysis-results-to-file` entry.
+  Updated/added tests in `tests/test_app.py` for the new signatures,
+  PDF content extraction, and format-selection behavior for both
+  buttons.
+- **Outcome**: `python -m pytest -q` — 96 passed (91 previously, some
+  updated + net new for PDF coverage). Coverage: `src/app.py` 98%.
+  Manually booted `streamlit run src/app.py` — healthy, no server-log
+  errors.

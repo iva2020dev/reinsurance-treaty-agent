@@ -92,20 +92,35 @@
     the existing "Save to logs file" control) — timestamped to the
     second, so collisions are effectively impossible in normal use.
     Also add a "Download analysis results" button (`st.download_button`)
-    right beside it, offering the same Markdown content/filename as a
+    right beside it, offering the same content/filename as a
     browser download — needed because Streamlit Community Cloud's
     filesystem is ephemeral with no file browser, so the server-side
     save alone isn't actually retrievable by a user in production; the
     download button works identically local and in production since it
     streams straight to the user's own machine.
-  - **Files**: `src/app.py`, `.gitignore` (new `results/` entry)
-  - **Acceptance**: After a successful analysis, clicking "Save
-    analysis results" writes a new file under `results/` named per the
-    rule above and shows a success message naming the saved path;
-    clicking "Download analysis results" downloads the same content to
-    the browser; `python -m pytest -q` passes with new unit tests for
-    the naming/slugify/severity helpers and app-level tests confirming
-    both buttons work.
+    Both Save and Download support two file formats, chosen once via a
+    "Result file format" radio (Markdown / PDF) placed right above
+    them — confirmed with the human via `AskUserQuestion` — so a
+    single selection drives both actions consistently rather than
+    offering four separate buttons. PDF rendering
+    (`render_report_pdf`, via the new `fpdf2` dependency) mirrors
+    `format_report_markdown`'s content with Markdown syntax stripped
+    (headers/bold/italic-citation markers) and any character fpdf2's
+    core Latin-1 fonts can't encode (e.g. the severity emoji) silently
+    dropped, since the `[HIGH]`/`[MEDIUM]`/`[LOW]` text label already
+    carries that information.
+  - **Files**: `src/app.py`, `requirements.txt` (new `fpdf2`
+    dependency), `.gitignore` (new `results/` entry)
+  - **Acceptance**: After a successful analysis, choosing "PDF (.pdf)"
+    or "Markdown (.md)" and clicking "Save analysis results" writes a
+    new file under `results/` in the chosen format, named per the
+    rule above, and shows a success message naming the saved path;
+    clicking "Download analysis results" downloads the same
+    content/format to the browser; a saved/downloaded PDF's text is
+    extractable and contains the treaty's cedent name and findings;
+    `python -m pytest -q` passes with new unit tests for the naming/
+    slugify/severity/PDF-rendering helpers and app-level tests
+    confirming both buttons work in both formats.
 
 
 - [ ] CI-Integrated Regression Eval Gate

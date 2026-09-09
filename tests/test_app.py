@@ -1,5 +1,6 @@
 """Tests for src.app: report formatting helpers and the running Streamlit UI."""
 
+import io
 import json
 from datetime import datetime
 from pathlib import Path
@@ -16,6 +17,8 @@ from src.app import (
     format_report_markdown,
     format_results_filename,
     highest_severity_label,
+    render_report_bytes,
+    render_report_pdf,
     save_analysis_result_to_file,
     save_logs_to_file,
     serialize_state_for_debug,
@@ -440,30 +443,70 @@ def test_highest_severity_label_picks_the_highest_of_several():
 
 def test_format_results_filename_matches_naming_rule():
     report = _sample_report()  # cedent "Acme Insurance Co.", one HIGH finding
-    filename = format_results_filename(report, when=datetime(2026, 9, 9, 14, 5, 30))
+    filename = format_results_filename(report, "md", when=datetime(2026, 9, 9, 14, 5, 30))
 
     assert filename == "20260909_140530_acme_insurance_co_high.md"
+
+
+def test_format_results_filename_uses_given_extension():
+    report = _sample_report()
+    filename = format_results_filename(report, "pdf", when=datetime(2026, 9, 9, 14, 5, 30))
+
+    assert filename == "20260909_140530_acme_insurance_co_high.pdf"
+
+
+def test_render_report_pdf_contains_the_reports_text():
+    from pypdf import PdfReader
+
+    report = _sample_report()
+    pdf_bytes = render_report_pdf(report)
+
+    assert pdf_bytes.startswith(b"%PDF")
+    text = PdfReader(io.BytesIO(pdf_bytes)).pages[0].extract_text()
+    assert "Acme Insurance Co." in text
+    assert "HIGH" in text
+    assert "Losses exceeded the limit." in text
+
+
+def test_render_report_bytes_dispatches_by_extension():
+    report = _sample_report()
+
+    assert render_report_bytes(report, "md") == format_report_markdown(report).encode("utf-8")
+    assert render_report_bytes(report, "pdf").startswith(b"%PDF")
 
 
 def test_save_analysis_result_to_file_writes_markdown(tmp_path):
     report = _sample_report()
 
-    saved_path = save_analysis_result_to_file(report, directory=tmp_path, when=datetime(2026, 9, 9, 14, 5, 30))
+    saved_path = save_analysis_result_to_file(report, "md", directory=tmp_path, when=datetime(2026, 9, 9, 14, 5, 30))
 
     assert saved_path == tmp_path / "20260909_140530_acme_insurance_co_high.md"
     assert saved_path.read_text() == format_report_markdown(report)
+
+
+def test_save_analysis_result_to_file_writes_pdf(tmp_path):
+    report = _sample_report()
+
+    saved_path = save_analysis_result_to_file(
+        report, "pdf", directory=tmp_path, when=datetime(2026, 9, 9, 14, 5, 30)
+    )
+
+    assert saved_path == tmp_path / "20260909_140530_acme_insurance_co_high.pdf"
+    assert saved_path.read_bytes().startswith(b"%PDF")
 
 
 def test_save_analysis_result_to_file_creates_parent_directory(tmp_path):
     report = _sample_report()
     directory = tmp_path / "results"
 
-    saved_path = save_analysis_result_to_file(report, directory=directory, when=datetime(2026, 9, 9, 14, 5, 30))
+    saved_path = save_analysis_result_to_file(
+        report, "md", directory=directory, when=datetime(2026, 9, 9, 14, 5, 30)
+    )
 
     assert saved_path.exists()
 
 
-def test_app_save_analysis_results_button_writes_file(tmp_path, monkeypatch):
+def test_app_save_analysis_results_button_writes_markdown_by_default(tmp_path, monkeypatch):
     pdf_bytes = Path(MINIMAL_TREATY_PATH).read_bytes()
     monkeypatch.chdir(tmp_path)
 
@@ -479,23 +522,44 @@ def test_app_save_analysis_results_button_writes_file(tmp_path, monkeypatch):
     assert len(saved_files) == 1
 
 
-def test_app_download_analysis_results_button_is_offered_after_analysis():
+def test_app_save_analysis_results_button_writes_pdf_when_selected(tmp_path, monkeypatch):
+    pdf_bytes = Path(MINIMAL_TREATY_PATH).read_bytes()
+    monkeypatch.chdir(tmp_path)
+
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+    at = _upload_and_click_analyze(at, "sample_treaty.pdf", pdf_bytes)
+
+    at.radio[1].set_value("PDF (.pdf)").run()
+    at = _click_button(at, "Save analysis results")
+
+    assert not at.exception
+    saved_files = list((tmp_path / "results").glob("*_acme_insurance_co_*.pdf"))
+    assert len(saved_files) == 1
+
+
+def test_app_download_analysis_results_button_matches_selected_format():
     at = AppTest.from_file("../src/app.py")
     at.run()
 
     with open(MINIMAL_TREATY_PATH, "rb") as f:
         at = _upload_and_click_analyze(at, "sample_treaty.pdf", f.read())
 
-    assert not at.exception
     download_buttons = [b for b in at.download_button if b.label == "Download analysis results"]
     assert len(download_buttons) == 1
     # AppTest's DownloadButton only exposes a mock media URL, not the raw
     # bytes/filename passed to st.download_button -- so this only checks
-    # what's actually observable here (the button exists, offering a
-    # Markdown file); format_results_filename()'s naming and
-    # format_report_markdown()'s content are covered by their own direct
-    # unit tests above.
+    # what's actually observable here (the button exists, offering the
+    # format matching the radio choice); format_results_filename()'s
+    # naming and render_report_bytes()'s content are covered by their own
+    # direct unit tests above.
     assert download_buttons[0].proto.url.endswith(".md")
+
+    at.radio[1].set_value("PDF (.pdf)").run()
+
+    download_buttons = [b for b in at.download_button if b.label == "Download analysis results"]
+    assert len(download_buttons) == 1
+    assert download_buttons[0].proto.url.endswith(".pdf")
 
 
 def test_format_log_header_includes_timestamp_and_filename():

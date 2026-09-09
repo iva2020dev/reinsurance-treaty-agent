@@ -17,6 +17,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 import streamlit as st
+from fpdf import FPDF
 
 from src.models import AnomalyReport
 from src.parser import ParserError, extract_treaty_sections
@@ -181,21 +182,63 @@ def highest_severity_label(findings: list) -> str:
     return max(findings, key=lambda f: _SEVERITY_RANK[f.severity]).severity.value
 
 
-def format_results_filename(report: AnomalyReport, when: datetime | None = None) -> str:
-    """Build the saved-results filename: <timestamp>_<treaty-slug>_<severity>.md."""
+def format_results_filename(report: AnomalyReport, extension: str, when: datetime | None = None) -> str:
+    """Build the saved-results filename: <timestamp>_<treaty-slug>_<severity>.<extension>."""
     timestamp = (when or datetime.now()).strftime("%Y%m%d_%H%M%S")
     slug = slugify_treaty_name(report.treaty.cedent_name)
     severity = highest_severity_label(report.findings)
-    return f"{timestamp}_{slug}_{severity}.md"
+    return f"{timestamp}_{slug}_{severity}.{extension}"
+
+
+def render_report_pdf(report: AnomalyReport) -> bytes:
+    """Render an AnomalyReport as PDF bytes, mirroring format_report_markdown's content.
+
+    Uses fpdf2's core (Latin-1-only) fonts, so this strips Markdown syntax
+    and drops any character that can't be encoded (e.g. the severity emoji)
+    rather than crashing -- the `[HIGH]`/`[MEDIUM]`/`[LOW]` label already
+    carries that information in plain text.
+    """
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+
+    for raw_line in format_report_markdown(report).split("\n"):
+        line = raw_line.strip()
+        if not line:
+            pdf.ln(4)
+            continue
+        is_heading = line.startswith("###")
+        line = re.sub(r"^#+\s*", "", line)
+        line = line.replace("**", "")
+        line = line.replace("_(", "(").replace(")_", ")")
+        line = line.encode("latin-1", "ignore").decode("latin-1")
+        line = re.sub(r"\s+", " ", line).strip()
+        if not line:
+            continue
+        pdf.set_font("Helvetica", style="B" if is_heading else "", size=13 if is_heading else 11)
+        # multi_cell defaults to leaving the cursor at the right edge of the
+        # last rendered line (new_x="RIGHT") rather than the next line's left
+        # margin -- without resetting it, the next call gets ~0 width and
+        # raises "Not enough horizontal space to render a single character".
+        pdf.multi_cell(0, 7, line, new_x="LMARGIN", new_y="NEXT")
+
+    return bytes(pdf.output())
+
+
+def render_report_bytes(report: AnomalyReport, extension: str) -> bytes:
+    """Render report as bytes in the given format ("md" or "pdf")."""
+    if extension == "pdf":
+        return render_report_pdf(report)
+    return format_report_markdown(report).encode("utf-8")
 
 
 def save_analysis_result_to_file(
-    report: AnomalyReport, directory: Path = DEFAULT_RESULTS_DIR, when: datetime | None = None
+    report: AnomalyReport, extension: str, directory: Path = DEFAULT_RESULTS_DIR, when: datetime | None = None
 ) -> Path:
-    """Write report's Markdown rendering to a new timestamped file, returning its path."""
+    """Write report to a new timestamped file in the given format, returning its path."""
     directory.mkdir(parents=True, exist_ok=True)
-    path = directory / format_results_filename(report, when=when)
-    path.write_text(format_report_markdown(report), encoding="utf-8")
+    path = directory / format_results_filename(report, extension, when=when)
+    path.write_bytes(render_report_bytes(report, extension))
     return path
 
 
@@ -366,13 +409,20 @@ def main() -> None:
                         f"{', '.join(ungrounded_fields)}. Double-check these "
                         f"values before relying on this report."
                     )
-                report_markdown = format_report_markdown(report)
-                st.markdown(report_markdown)
+                st.markdown(format_report_markdown(report))
+
+                format_choice = st.radio(
+                    "Result file format",
+                    ["Markdown (.md)", "PDF (.pdf)"],
+                    horizontal=True,
+                    key="results_format_choice",
+                )
+                extension = "pdf" if format_choice.startswith("PDF") else "md"
 
                 save_col, download_col = st.columns(2)
                 with save_col:
                     if st.button("Save analysis results", icon=":material/save:"):
-                        saved_path = save_analysis_result_to_file(report)
+                        saved_path = save_analysis_result_to_file(report, extension)
                         st.success(f"Saved analysis results to {saved_path}.")
                 with download_col:
                     # Streamlit Community Cloud's filesystem is ephemeral and
@@ -382,9 +432,9 @@ def main() -> None:
                     # which works identically locally and in production.
                     st.download_button(
                         "Download analysis results",
-                        data=report_markdown,
-                        file_name=format_results_filename(report),
-                        mime="text/markdown",
+                        data=render_report_bytes(report, extension),
+                        file_name=format_results_filename(report, extension),
+                        mime="application/pdf" if extension == "pdf" else "text/markdown",
                         icon=":material/download:",
                     )
 
