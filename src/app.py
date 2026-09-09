@@ -23,6 +23,10 @@ from src.workflow import WorkflowState, run_workflow_from_pdf
 
 SEVERITY_ICONS = {"low": "ℹ️", "medium": "⚠️", "high": "🚨"}
 DEFAULT_LOG_FILE = Path("logs/workflow.log")
+# Tall enough to fit st.file_uploader's drag-and-drop box (the taller of the
+# two treaty-source inputs) without clipping; the selectbox path just leaves
+# the remainder blank, so both sides render at the same fixed height.
+SOURCE_INPUT_HEIGHT = 180
 
 
 class _ListLogHandler(logging.Handler):
@@ -236,19 +240,23 @@ def main() -> None:
     selected_bytes: bytes | None = None
     selected_name: str | None = None
 
-    if source_mode == "Upload a treaty PDF":
-        uploaded_file = st.file_uploader("Treaty PDF", type="pdf")
-        if uploaded_file is not None:
-            selected_bytes = uploaded_file.getvalue()
-            selected_name = uploaded_file.name
-    else:
-        placeholder = "— Select a sample —"
-        labels = [placeholder] + [sample.label for sample in SAMPLE_TREATIES]
-        choice = st.selectbox("Choose a reinsurance treaty", labels, key="sample_treaty_choice")
-        if choice != placeholder:
-            sample = next(s for s in SAMPLE_TREATIES if s.label == choice)
-            selected_bytes = get_sample_bytes(sample)
-            selected_name = sample.filename
+    # Fixed height so switching between "Upload" and "Choose a sample" doesn't
+    # shift the rest of the page -- st.file_uploader is much taller than
+    # st.selectbox on its own, which would otherwise make the layout twitch.
+    with st.container(height=SOURCE_INPUT_HEIGHT, border=False):
+        if source_mode == "Upload a treaty PDF":
+            uploaded_file = st.file_uploader("Treaty PDF", type="pdf")
+            if uploaded_file is not None:
+                selected_bytes = uploaded_file.getvalue()
+                selected_name = uploaded_file.name
+        else:
+            placeholder = "— Select a sample —"
+            labels = [placeholder] + [sample.label for sample in SAMPLE_TREATIES]
+            choice = st.selectbox("Choose a reinsurance treaty", labels, key="sample_treaty_choice")
+            if choice != placeholder:
+                sample = next(s for s in SAMPLE_TREATIES if s.label == choice)
+                selected_bytes = get_sample_bytes(sample)
+                selected_name = sample.filename
 
     has_selection = selected_bytes is not None
 
