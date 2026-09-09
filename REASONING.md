@@ -3359,3 +3359,50 @@ This file contains the reasoning transcript of the AI agent for the current sess
 - **Outcome**: Documentation/backlog change only — no source files
   touched yet; `python -m pytest -q` expected unaffected (verifying
   before commit).
+
+## 2026-09-09 17:58:40 — Task: Domain task registry & metadata (domain-task-registry)
+
+- **Goal**: Implement `domain-task-registry` (P1, graduated from
+  `S1`): a small catalog listing every candidate domain task from
+  `CANDIDATE_TASKS.md`'s Business Domain tables, as the future single
+  source of truth for `S2`'s graph builder and `S6`'s selector UI —
+  scoped to just the registry itself, no wiring into `src/workflow.py`
+  or `src/app.py`.
+- **Analysis**: Re-read `CANDIDATE_TASKS.md`'s Treaty/Claims/
+  Facultative summary tables directly (not from memory) to get exact
+  titles, candidate IDs, and Shape values: `B0`-`B9` (10, only `B0`
+  shipped), `C1`-`C5` (5), `F1`-`F4` (4) — 19 total. Checked
+  `src/workflow.py` for the real node function name (`analyst_node`)
+  so `B0`'s `workflow_node` field is accurate, not a guess.
+- **Decision**: A frozen dataclass (`DomainTask`) with
+  `id`/`title`/`candidate_id`/`implementation_status`/`shape`/
+  `workflow_node` fields, matching `src/sample_treaties.py`'s existing
+  registry pattern in this repo (same frozen-dataclass-list shape) for
+  consistency. `implementation_status` and `shape` typed as `Literal`
+  string unions rather than a new enum class, since `Severity` in
+  `src/models.py` already sets the local precedent of using plain
+  lowercase string values for this kind of small fixed vocabulary.
+  Deliberately did not add a lookup helper function (e.g.
+  `get_domain_task(candidate_id)`) — the task's acceptance criteria
+  only calls for the data structure itself; a lookup helper is
+  speculative until `S2`/`S6` actually need one.
+- **Action**: Branched `task/domain-task-registry` off `main`.
+  Creating `src/domain_tasks.py` (the registry) and
+  `tests/test_domain_tasks.py` (direct unit tests) next.
+
+- **Outcome**: Implemented `src/domain_tasks.py`: a `DomainTask` frozen
+  dataclass (`id`/`title`/`candidate_id`/`implementation_status`/
+  `shape`/`workflow_node`) and a `DOMAIN_TASKS` list with all 19
+  entries (`B0`-`B9`, `C1`-`C5`, `F1`-`F4`), only `B0` marked
+  `implemented` with `workflow_node="analyst_node"`. Added
+  `tests/test_domain_tasks.py` with 5 direct unit tests: one entry per
+  candidate ID (no duplicates/omissions), unique `id`s, exactly `B0`
+  implemented (with the correct title/node), every non-implemented
+  entry has `workflow_node=None`, and every entry's fields are
+  populated with valid values.
+- **Verification**: `python -m pytest -q` — 107 passed (102 previously
+  + 5 new), 100% coverage on the new module. `src/app.py` and
+  `src/workflow.py` untouched, confirming no behavior change to the
+  running app, per this task's explicit scope limit. Awaiting human
+  review/approval before this task is marked done and removed from
+  `TASKS.md`.

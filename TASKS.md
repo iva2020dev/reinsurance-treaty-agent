@@ -49,7 +49,7 @@
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
-- [ ] Domain task registry & metadata
+- [ ] Domain task registry & metadata (@claude)
   - **ID**: domain-task-registry
   - **Tags**: harness, refactor, multi-domain-task-selection
   - **Candidate ID**: S1 (`CANDIDATE_TASKS.md`)
