@@ -50,6 +50,185 @@
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
+- [ ] Workflow refactor: split shared pipeline from per-task analysis nodes
+  - **ID**: workflow-refactor-multi-task-pipeline
+  - **Tags**: harness, refactor, multi-domain-task-selection
+  - **Candidate ID**: S2 (`CANDIDATE_TASKS.md`)
+  - **Details**: Graduated from `CANDIDATE_TASKS.md` (`S2`, Priority 2
+    of 8 in the Multi Domain-Task Selection list). Today's
+    `Extractor → [LLM Extraction Fallback] → Verifier` stays a shared
+    pipeline every domain task needs (produces `TreatyTerms` +
+    `claims`); rename/scope `analyst_node` to `burn_cost_check_node`
+    (`B0`'s Burn-Cost Check logic, unchanged), and parameterize
+    `build_workflow_graph()` by a set of selected task IDs (using
+    `src/domain_tasks.py`'s registry to resolve IDs to node functions)
+    — it always runs the shared pipeline, then only the analysis
+    node(s) for tasks that are both selected and
+    `implementation_status="implemented"` (today: only `B0`/
+    `burn_cost_check_node`). Selecting only `B0` must behave exactly
+    like today's single-task graph (regression safety net) — no
+    caller-visible behavior change until a second domain task actually
+    exists.
+  - **Files**: `src/workflow.py`, `tests/test_workflow.py`,
+    `tests/test_integration.py`
+  - **Acceptance**: `build_workflow_graph(selected_task_ids: set[str])`
+    (or equivalent) always runs Extractor → [LLM Fallback] → Verifier,
+    then only `burn_cost_check_node` when `"burn_cost_check"` (`B0`) is
+    in `selected_task_ids`; calling it with just `B0` selected produces
+    identical output/behavior to today's fixed graph on every existing
+    fixture; `python -m pytest -q` passes with `analyst_node`
+    references updated to `burn_cost_check_node` throughout the test
+    suite; likely its own multi-task chain once picked up (Effort: L,
+    same pattern as the `B4`/hybrid-extraction chains), not a single
+    commit.
+
+- [ ] Multi-task result aggregation & state schema
+  - **ID**: multi-task-result-aggregation-schema
+  - **Tags**: harness, refactor, multi-domain-task-selection
+  - **Candidate ID**: S3 (`CANDIDATE_TASKS.md`)
+  - **Blocked by**: workflow-refactor-multi-task-pipeline
+  - **Details**: Graduated from `CANDIDATE_TASKS.md` (`S3`, Priority 3
+    of 8). Replace `WorkflowState.report: AnomalyReport | None`
+    (`src/workflow.py`) with `WorkflowState.task_results:
+    dict[str, TaskResult]` — one entry per selected task, each with a
+    `status` (`ran` / `skipped_not_implemented` / `failed`), its
+    findings, cost, and latency — so the UI (`S7`) can render N
+    independent per-task results instead of a single report. `B0`'s
+    entry (key `"burn_cost_check"`) carries today's `AnomalyReport`
+    fields; every other selected-but-not-implemented task gets a
+    `skipped_not_implemented` entry with no findings.
+  - **Files**: `src/models.py` (new `TaskResult` model), `src/workflow.py`,
+    `tests/test_workflow.py`
+  - **Acceptance**: A new `TaskResult` Pydantic model in `src/models.py`
+    with `status`/`findings`/`cost`/`latency` fields; `WorkflowState`
+    exposes `task_results` keyed by domain-task id; selecting only
+    `B0` produces a `task_results` dict with exactly one `ran` entry
+    equivalent to today's `AnomalyReport`; `python -m pytest -q`
+    passes with existing single-report assertions updated to read from
+    `task_results["burn_cost_check"]`.
+
+- [ ] Per-task cost estimation (pre-run) & actual cost tracking (post-run)
+  - **ID**: per-task-cost-estimation
+  - **Tags**: harness, cost-observability, multi-domain-task-selection
+  - **Candidate ID**: S4 (`CANDIDATE_TASKS.md`)
+  - **Details**: Graduated from `CANDIDATE_TASKS.md` (`S4`, Priority 4
+    of 8). The first real $-cost logic in this app — narrower/scoped
+    version of `A6` ("Cost & latency observability"), specific to
+    per-task estimate/actual display rather than `A6`'s broader
+    always-on observability. Pre-run: a rough per-task cost estimate
+    from document page/token count × task shape (`src/domain_tasks.py`'s
+    `shape` field) — near-zero for `deterministic` tasks, a
+    model-price-based estimate for `llm`/`hybrid` tasks — plus a live
+    cumulative total as the `S6` UI's checkboxes toggle. Post-run:
+    convert `llm_extraction_fallback`'s already-logged `input_tokens`/
+    `output_tokens` (same log line `extract_llm_usage_summary()` in
+    `src/app.py` already parses for the saved-results feature) into an
+    actual $ figure via the model's published per-token price,
+    replacing the estimate once a task completes.
+  - **Files**: `src/cost_estimation.py` (new), `tests/test_cost_estimation.py`
+    (new)
+  - **Acceptance**: An `estimate_task_cost(task, page_count)` function
+    (or equivalent) returns near-zero for every `deterministic`-shaped
+    task and a non-zero, page-count-scaled estimate for `llm`/`hybrid`-
+    shaped ones; an `actual_task_cost(input_tokens, output_tokens)`
+    function converts real token counts into a $ figure using the
+    model's published price; direct unit tests for both; this task
+    only adds the cost-math module — it does not wire estimates into
+    the UI yet (that's `S6`).
+
+- [ ] Multi-task messaging & logging
+  - **ID**: multi-task-messaging-logging
+  - **Tags**: harness, logging, multi-domain-task-selection
+  - **Candidate ID**: S5 (`CANDIDATE_TASKS.md`)
+  - **Blocked by**: workflow-refactor-multi-task-pipeline, multi-task-result-aggregation-schema
+  - **Details**: Graduated from `CANDIDATE_TASKS.md` (`S5`, Priority 5
+    of 8). Every node's log line gains a task-id tag (e.g. prefixing
+    `"[burn_cost_check] "`), so a multi-task run's combined log stays
+    attributable per task. A combined-run summary message (which tasks
+    ran, which were skipped as not-implemented, which failed) drives
+    both the UI banner and the saved log file, replacing today's
+    single-task-only `format_extraction_status()` in `src/app.py`.
+  - **Files**: `src/workflow.py`, `src/app.py`, `tests/test_workflow.py`,
+    `tests/test_app.py`
+  - **Acceptance**: Every workflow node's log lines are tagged with the
+    task id they belong to; a new `format_multi_task_status()`-style
+    function (replacing `format_extraction_status()`) summarizes which
+    tasks ran/were skipped/failed across a `task_results` dict;
+    `python -m pytest -q` passes with tests for both the tagging and
+    the summary function.
+
+- [ ] Task selection UI (checkboxes, disabled/blurred not-implemented tasks, live cost readout)
+  - **ID**: multi-task-selection-ui
+  - **Tags**: ui, streamlit, multi-domain-task-selection
+  - **Candidate ID**: S6 (`CANDIDATE_TASKS.md`)
+  - **Blocked by**: per-task-cost-estimation
+  - **Details**: Graduated from `CANDIDATE_TASKS.md` (`S6`, Priority 6
+    of 8). A checkbox/multiselect control in `src/app.py` listing every
+    task from `src/domain_tasks.py`'s `DOMAIN_TASKS` registry; only
+    tasks with `implementation_status="implemented"` (today: just
+    `B0`) are enabled/checkable, every other task rendered visually
+    disabled/blurred with a "Not implemented" badge (matching this
+    app's existing disabled-button styling pattern, e.g. the Review/
+    Analyze buttons' `disabled=` state in `main()`); checking an
+    enabled task shows its live cost estimate from `per-task-cost-
+    estimation`'s `estimate_task_cost()`, plus a running cumulative
+    total across all checked tasks. Replaces the implicit
+    "`B0` always runs" behavior with an explicit selection step.
+  - **Files**: `src/app.py`, `tests/test_app.py`
+  - **Acceptance**: The Streamlit UI shows one checkbox per registry
+    entry; not-implemented tasks are visibly disabled and can't be
+    checked; checking `B0` shows a live cost estimate and updates a
+    running total; the selected task ID set feeds into `build_workflow_
+    graph()` (from `workflow-refactor-multi-task-pipeline`) when
+    "Analyze" is clicked; `AppTest`-based tests cover the disabled
+    state, the cost readout, and that only checked+implemented tasks
+    actually run.
+
+- [ ] Multi-task results UI (per-task sections + combined summary)
+  - **ID**: multi-task-results-ui
+  - **Tags**: ui, streamlit, multi-domain-task-selection
+  - **Candidate ID**: S7 (`CANDIDATE_TASKS.md`)
+  - **Blocked by**: multi-task-result-aggregation-schema, multi-task-messaging-logging
+  - **Details**: Graduated from `CANDIDATE_TASKS.md` (`S7`, Priority 7
+    of 8). One expandable section per selected+implemented task inside
+    the existing "Analysis Results" bordered container — each with its
+    own findings/log/actual cost (from `per-task-cost-estimation`) —
+    plus a combined header (total findings across tasks, total actual
+    cost, which tasks were skipped and why), replacing today's single
+    `format_report_markdown()` call in `src/app.py`.
+  - **Files**: `src/app.py`, `tests/test_app.py`
+  - **Acceptance**: Selecting only `B0` renders identically to today's
+    single-report view (regression safety net); selecting a mix of
+    implemented + not-implemented tasks renders one expandable section
+    per selected task (implemented tasks show real findings, skipped
+    ones show a clear "not implemented" message) plus a combined
+    header with aggregate findings/cost; `AppTest`-based tests cover
+    both the single-task and mixed-selection cases.
+
+- [ ] End-to-end test coverage for multi-task selection
+  - **ID**: multi-task-e2e-test-coverage
+  - **Tags**: testing, multi-domain-task-selection
+  - **Candidate ID**: S8 (`CANDIDATE_TASKS.md`)
+  - **Blocked by**: workflow-refactor-multi-task-pipeline, multi-task-result-aggregation-schema, per-task-cost-estimation, multi-task-messaging-logging, multi-task-selection-ui, multi-task-results-ui
+  - **Details**: Graduated from `CANDIDATE_TASKS.md` (`S8`, Priority 8
+    of 8, the last item in the Multi Domain-Task Selection chain).
+    Dedicated end-to-end coverage across the whole `S2`-`S7` chain,
+    beyond each task's own unit tests: selecting only `B0` behaves
+    exactly like today (regression safety net); selecting a mix of
+    implemented + not-implemented tasks skips the latter gracefully
+    with a clear per-task message; cost estimates/actuals round-trip
+    correctly end-to-end; the new `task_results` schema serializes
+    correctly for the debug panel (`serialize_state_for_debug()` in
+    `src/app.py`).
+  - **Files**: `tests/test_integration.py`, `tests/test_app.py`
+  - **Acceptance**: A new end-to-end test (or small suite) exercises a
+    real multi-task selection through `run_workflow`/the running app,
+    covering: `B0`-only selection matches today's baseline exactly; a
+    mixed implemented/not-implemented selection produces the right
+    per-task statuses; cost figures round-trip from estimate to
+    actual; the debug JSON dump includes `task_results` without
+    crashing; `python -m pytest -q` passes.
+
 - [ ] CI-Integrated Regression Eval Gate
   - **ID**: extraction-eval-ci-gate
   - **Tags**: ci, evaluation, extraction, llm

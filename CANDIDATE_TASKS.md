@@ -133,13 +133,13 @@ discussion on how document quality drives task shape (see
 | Pri | ID | Task | Status | Shape | Answer Type | Effort | Depends on |
 |---|---|---|---|---|---|---|---|
 | 1 | S1 | Domain task registry & metadata | ✅ Done | Deterministic | N/A | S | — |
-| 2 | S2 | Workflow refactor: split shared pipeline from per-task analysis nodes | Proposed | Deterministic | N/A | L | S1 |
-| 3 | S3 | Multi-task result aggregation & state schema | Proposed | Deterministic | N/A | M | S2 |
-| 4 | S4 | Per-task cost estimation (pre-run) & actual cost tracking (post-run) | Proposed | Hybrid | N/A | M | S1 |
-| 5 | S5 | Multi-task messaging & logging | Proposed | Deterministic | N/A | S/M | S2, S3 |
-| 6 | S6 | Task selection UI (checkboxes, disabled/blurred not-implemented tasks, live cost readout) | Proposed | Deterministic | N/A | M | S1, S4 |
-| 7 | S7 | Multi-task results UI (per-task sections + combined summary) | Proposed | Deterministic | N/A | M | S3, S5 |
-| 8 | S8 | End-to-end test coverage for multi-task selection | Proposed | Deterministic | N/A | M | S2-S7 |
+| 2 | S2 | Workflow refactor: split shared pipeline from per-task analysis nodes | 📋 In TASKS.md | Deterministic | N/A | L | S1 |
+| 3 | S3 | Multi-task result aggregation & state schema | 📋 In TASKS.md | Deterministic | N/A | M | S2 |
+| 4 | S4 | Per-task cost estimation (pre-run) & actual cost tracking (post-run) | 📋 In TASKS.md | Hybrid | N/A | M | S1 |
+| 5 | S5 | Multi-task messaging & logging | 📋 In TASKS.md | Deterministic | N/A | S/M | S2, S3 |
+| 6 | S6 | Task selection UI (checkboxes, disabled/blurred not-implemented tasks, live cost readout) | 📋 In TASKS.md | Deterministic | N/A | M | S1, S4 |
+| 7 | S7 | Multi-task results UI (per-task sections + combined summary) | 📋 In TASKS.md | Deterministic | N/A | M | S3, S5 |
+| 8 | S8 | End-to-end test coverage for multi-task selection | 📋 In TASKS.md | Deterministic | N/A | M | S2-S7 |
 
 ---
 
@@ -448,7 +448,9 @@ selector read from).
   selector (`S6`) read from, so the two can't drift.
   *Deterministic. Effort: S. Answer type: N/A (infrastructure).*
 - **S2. Workflow refactor: split shared pipeline from per-task
-  analysis nodes** — Priority 2 — today's `Extractor → [LLM Fallback]
+  analysis nodes** — Priority 2 — 📋 In TASKS.md as
+  `workflow-refactor-multi-task-pipeline` — today's
+  `Extractor → [LLM Fallback]
   → Verifier` stays a shared pipeline every domain task needs
   (produces `TreatyTerms` + `claims`); `analyst_node` gets renamed/
   scoped to a `burn_cost_check_node` (`B0`'s logic, unchanged), and
@@ -458,14 +460,15 @@ selector read from).
   *Deterministic. Effort: L — likely its own multi-task chain once
   graduated (same pattern as `B4`). Answer type: N/A (infrastructure).*
 - **S3. Multi-task result aggregation & state schema** — Priority 3 —
-  replace `WorkflowState.report: AnomalyReport | None` with a
+  📋 In TASKS.md as `multi-task-result-aggregation-schema` — replace `WorkflowState.report: AnomalyReport | None` with a
   `task_results: dict[str, TaskResult]` (one entry per selected task:
   status `ran`/`skipped_not_implemented`/`failed`, findings, cost,
   latency), so the UI can render N independent results instead of one.
   *Deterministic, depends on S2. Effort: M. Answer type: N/A
   (infrastructure).*
 - **S4. Per-task cost estimation (pre-run) & actual cost tracking
-  (post-run)** — Priority 4 — the first real $-cost logic in this
+  (post-run)** — Priority 4 — 📋 In TASKS.md as
+  `per-task-cost-estimation` — the first real $-cost logic in this
   app. Pre-run: a rough per-task estimate from document page/token
   count × task shape (near-zero for deterministic tasks, a
   model-price-based estimate for LLM/hybrid tasks) plus a live
@@ -480,14 +483,16 @@ selector read from).
   *Hybrid: deterministic estimate math + real LLM usage for the
   actual. Effort: M, depends on S1. Answer type: N/A
   (infrastructure/cost-control).*
-- **S5. Multi-task messaging & logging** — Priority 5 — every node's
+- **S5. Multi-task messaging & logging** — Priority 5 — 📋 In TASKS.md
+  as `multi-task-messaging-logging` — every node's
   log line gains a task-id tag; a combined-run summary message (which
   tasks ran, which were skipped as not-implemented, which failed)
   drives both the UI banner and the saved log file, replacing today's
   single-task-only `format_extraction_status`.
   *Deterministic, depends on S2, S3. Effort: S/M. Answer type: N/A
   (infrastructure).*
-- **S6. Task selection UI** — Priority 6 — a checkbox/multiselect
+- **S6. Task selection UI** — Priority 6 — 📋 In TASKS.md as
+  `multi-task-selection-ui` — a checkbox/multiselect
   control listing every task from `S1`'s registry; only tasks marked
   `implemented` (today: just `B0`) are enabled, every other task
   rendered visually disabled/blurred with a "Not implemented" badge;
@@ -495,14 +500,16 @@ selector read from).
   plus a running cumulative total across all checked tasks.
   *Deterministic, depends on S1, S4. Effort: M. Answer type: N/A
   (infrastructure/UX).*
-- **S7. Multi-task results UI** — Priority 7 — one expandable section
+- **S7. Multi-task results UI** — Priority 7 — 📋 In TASKS.md as
+  `multi-task-results-ui` — one expandable section
   per selected+implemented task (its own findings/log/actual cost),
   plus a combined header (total findings across tasks, total actual
   cost, which tasks were skipped and why), replacing today's single
   `format_report_markdown` call.
   *Deterministic, depends on S3, S5. Effort: M. Answer type: N/A
   (infrastructure/UX).*
-- **S8. End-to-end test coverage** — Priority 8 — verifies: selecting
+- **S8. End-to-end test coverage** — Priority 8 — 📋 In TASKS.md as
+  `multi-task-e2e-test-coverage` — verifies: selecting
   only `B0` behaves exactly like today (regression safety net),
   selecting a mix of implemented + not-implemented tasks skips the
   latter gracefully with a clear per-task message, cost estimates/
