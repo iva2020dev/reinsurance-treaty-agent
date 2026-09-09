@@ -3233,3 +3233,12 @@ This file contains the reasoning transcript of the AI agent for the current sess
   existing tests updated, no net-new). Coverage: `src/app.py` 99%.
   Manually booted `streamlit run src/app.py` — healthy, no server-log
   errors.
+
+## 2026-09-09 16:36:48 — Closing task: Save analysis results to a file (save-analysis-results-to-file)
+
+- PR #60 merged into `main` at `eac417f`. Human explicitly approved
+  marking `save-analysis-results-to-file` done. Removing it from
+  `TASKS.md`'s P1 section (and adding it to the "Recently completed"
+  list) on this `close/save-analysis-results-to-file` branch/PR,
+  titled `Closing task as "Done": Save analysis results to a file`,
+  per the mandatory task-closing workflow.
