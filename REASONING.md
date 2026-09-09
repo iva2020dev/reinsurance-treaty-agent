@@ -3271,3 +3271,52 @@ This file contains the reasoning transcript of the AI agent for the current sess
   live on `main`. Local `task/auto-clear-results-on-new-selection`
   branch left as-is for now (safe to delete later — its content is
   fully superseded).
+
+## 2026-09-09 17:02:04 — Task: Add Multi Domain-Task Selection (S) candidates to CANDIDATE_TASKS.md (candidate-s-section-multi-domain-task-selection)
+
+- **Goal**: Human asked to return to the Multi Domain-Task Selection
+  feature and finally execute the original plan's deliverable: add the
+  `S1`-`S8` candidate tasks to `CANDIDATE_TASKS.md` on a branch.
+- **Context recap**: This feature was designed earlier in this session
+  (goal/analysis/design decisions/the `S` section draft), but per the
+  human's request the design writeup itself
+  (`DOMAIN_TASK_SELECTION_PLAN.md`) was kept **outside this repo**, in
+  the human's PyCharm Scratches folder (renamed
+  `Reinsurance_DOMAIN_TASK_SELECTION_PLAN.md`), rather than committed
+  here — only this round's actual deliverable (the `S` section in
+  `CANDIDATE_TASKS.md`) was meant to land in the repo. That deliverable
+  was never executed at the time, because the conversation moved on to
+  a different request (S9/A11) before circling back.
+- **Analysis**: Re-reading the scratch plan file found a leftover
+  inconsistency from an earlier edit in this session: its "detailed
+  entries" section still contained the full old `S9` (treaty sample
+  selection UI) writeup, even though a note directly above it, and the
+  summary table, already correctly said `S9` was tracked separately as
+  `A11` instead — an incomplete edit from when that decision was made.
+  Cleaned it up in the scratch file (deleted the stray `S9` paragraph)
+  before using the file as the source for this task, so the `S`
+  section added here correctly contains only `S1`-`S8`.
+  Also found two stale local git branches from earlier in this session
+  with no unique commits: `task/domain-task-selection-candidates`
+  (superseded by the renamed `feature/...` branch) and
+  `task/auto-clear-results-on-new-selection` (already fully merged via
+  a different branch, PR closed unmerged) — deleted both (local, and
+  the latter's remote copy too) as routine cleanup.
+- **Action**: Branched `feature/multi-domain-task-selection-candidates`
+  off `main` (a fresh name, since `feature/domain-task-selection-
+  candidates` was already used and merged for the `A11` addition).
+  Edited `CANDIDATE_TASKS.md`: updated the intro "two categories" text
+  to "three categories" describing `S`; updated the ID-scheme note;
+  added a new "Multi Domain-Task Selection" summary table (`S1`-`S8`)
+  after the Facultative summary table; added a full `## S. Multi
+  Domain-Task Selection` detailed section (context paragraph + 8
+  `###`-style entries) after `## B. Business Domain`'s Facultative
+  entries, before `## Document-quality sensitivity`. Added
+  `candidate-s-section-multi-domain-task-selection` to `TASKS.md`'s
+  P2, per the repo's "no exceptions" task-tracking convention.
+- **Outcome**: `python -m pytest -q` — 102 passed, unaffected
+  (docs-only change, no source files touched). Confirmed no `S[0-9]`
+  ID collisions existed before writing. Awaiting human review/approval
+  before this task is marked done and removed from `TASKS.md`, and
+  before deciding which (if any) `S` item(s) actually graduate into
+  real work.
