@@ -35,6 +35,7 @@
      ✅ 2026-09-08 12:20:00 Sync CANDIDATE_TASKS.md's Harness statuses with TASKS.md (sync-candidate-tasks-harness-status)
      ✅ 2026-09-08 13:00:00 Remove leftover "Radius" template content (remove-radius-template-leftovers)
      ✅ 2026-09-09 12:55:13 Treaty Sample Selection UI (prepared/golden samples, no local disk) (treaty-sample-selection-ui)
+     ✅ 2026-09-09 13:42:47 Fix treaty-source input layout twitch on source toggle (fix-source-input-height-twitch)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -44,26 +45,6 @@
 ## P1
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
-
-- [ ] Fix treaty-source input layout twitch on source toggle (@claude)
-  - **ID**: fix-source-input-height-twitch
-  - **Tags**: ui, streamlit, ux
-  - **Candidate ID**: N/A (not graduated from `CANDIDATE_TASKS.md`;
-    a small follow-up UX fix on `treaty-sample-selection-ui`'s
-    already-shipped source toggle, requested directly)
-  - **Details**: `src/app.py`'s "Treaty source" `st.radio` switches
-    between `st.file_uploader` (tall: drag-and-drop box) and
-    `st.selectbox` (short: single-line dropdown) for "Treaty PDF" vs.
-    "Choose a reinsurance treaty". Since the two widgets render at very
-    different natural heights, toggling between them visibly shifts
-    everything below (Review/Analyze buttons, any prior results) —
-    a layout "twitch". Fix by giving both branches the same fixed
-    height.
-  - **Files**: `src/app.py`
-  - **Acceptance**: Toggling the "Treaty source" radio between "Upload
-    a treaty PDF" and "Choose a reinsurance treaty" does not change the
-    vertical position of the Review/Analyze buttons below it;
-    `python -m pytest -q` passes.
 
 
 
