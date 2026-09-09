@@ -485,7 +485,8 @@ def test_format_results_document_includes_timestamp_and_report():
     report = _sample_report()
     doc = format_results_document(report, when=datetime(2026, 9, 9, 14, 5, 30))
 
-    assert doc.startswith("Generated: 2026-09-09 14:05:30")
+    assert doc.startswith("## Analysis Results")
+    assert "Generated: 2026-09-09 14:05:30" in doc
     assert "Acme Insurance Co." in doc
     assert "LLM usage" not in doc
 
@@ -506,6 +507,7 @@ def test_render_report_pdf_contains_the_reports_text():
 
     assert pdf_bytes.startswith(b"%PDF")
     text = PdfReader(io.BytesIO(pdf_bytes)).pages[0].extract_text()
+    assert "Analysis Results" in text
     assert "Generated: 2026-09-09 14:05:30" in text
     assert "Acme Insurance Co." in text
     assert "HIGH" in text

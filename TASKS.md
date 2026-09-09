@@ -93,10 +93,12 @@
     the existing "Save to logs file" control) — timestamped to the
     second, so collisions are effectively impossible in normal use.
     The saved/downloaded content itself (not the on-screen report,
-    which is about the treaty, not this run) is prefixed with a
-    `Generated: <timestamp>` line and, only when the LLM Extraction
-    Fallback actually ran, an `LLM usage: input tokens: N, output
-    tokens: N` line parsed from that run's own log lines.
+    which is about the treaty, not this run) is prefixed with an
+    "## Analysis Results" header (matching the on-screen container's
+    own title), a `Generated: <timestamp>` line, and, only when the
+    LLM Extraction Fallback actually ran, an `LLM usage: input
+    tokens: N, output tokens: N` line parsed from that run's own log
+    lines.
     Also add a "Download analysis results" button (`st.download_button`)
     right beside it, offering the same content/filename as a
     browser download — needed because Streamlit Community Cloud's

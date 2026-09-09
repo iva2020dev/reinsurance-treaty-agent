@@ -3213,3 +3213,23 @@ This file contains the reasoning transcript of the AI agent for the current sess
 - **Outcome**: `python -m pytest -q` — 102 passed (96 previously + 6
   new). Coverage: `src/app.py` 99%. Manually booted `streamlit run
   src/app.py` — healthy, no server-log errors.
+
+## 2026-09-09 16:27:52 — Update: add "Analysis Results" header to saved content (save-analysis-results-to-file)
+
+- **Change**: Human asked to add an "Analysis Results" header to the
+  saved/downloaded results file content, matching the on-screen
+  container's own title.
+- **Action**: `format_results_document()` now starts with
+  `"## Analysis Results"` before the `Generated:`/`LLM usage:` lines.
+  `render_report_pdf()`'s heading detection (previously
+  `line.startswith("###")`, matching only `format_report_markdown`'s
+  own `### Treaty: ...` heading) generalized to `line.startswith("#")`
+  so the new `##`-level header is also bolded/sized as a heading in
+  the PDF, not rendered as plain body text. Updated `TASKS.md`'s
+  entry and the relevant tests in `tests/test_app.py`
+  (`format_results_document`'s and `render_report_pdf`'s content
+  assertions).
+- **Outcome**: `python -m pytest -q` — 102 passed (unaffected count;
+  existing tests updated, no net-new). Coverage: `src/app.py` 99%.
+  Manually booted `streamlit run src/app.py` — healthy, no server-log
+  errors.

@@ -218,12 +218,13 @@ def format_results_document(
     report: AnomalyReport, log_lines: list[str] | None = None, when: datetime | None = None
 ) -> str:
     """format_report_markdown's content, for a saved/downloaded file: prefixed
-    with the run's generation timestamp and (only if the LLM Extraction
-    Fallback actually ran) its token usage -- neither is part of the
-    on-screen report itself, which describes the treaty, not this run.
+    with an "Analysis Results" header (matching the on-screen container's own
+    title), the run's generation timestamp, and (only if the LLM Extraction
+    Fallback actually ran) its token usage -- none of these three are part of
+    the on-screen report itself, which describes the treaty, not this run.
     """
     timestamp = (when or datetime.now()).strftime("%Y-%m-%d %H:%M:%S")
-    lines = [f"Generated: {timestamp}"]
+    lines = ["## Analysis Results", f"Generated: {timestamp}"]
     llm_usage = extract_llm_usage_summary(log_lines)
     if llm_usage:
         lines.append(f"LLM usage: {llm_usage}")
@@ -249,7 +250,7 @@ def render_report_pdf(report: AnomalyReport, log_lines: list[str] | None = None,
         if not line:
             pdf.ln(4)
             continue
-        is_heading = line.startswith("###")
+        is_heading = line.startswith("#")
         line = re.sub(r"^#+\s*", "", line)
         line = line.replace("**", "")
         line = line.replace("_(", "(").replace(")_", ")")
