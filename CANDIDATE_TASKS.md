@@ -217,7 +217,11 @@ Picking a sample surfaces the same explicit "Analyze" action the
 uploader path uses today (no auto-run on selection), then feeds into
 the existing workflow exactly like an uploaded file — same downstream
 code path, so this is UI-only plus a small sample registry, not a
-workflow change.
+workflow change. Also adds a "Review treaty" action that opens the
+currently selected document (sample or uploaded) in a modal window
+(`st.dialog`) showing its content, so the user can confirm they picked
+the right document before running "Analyze" — applies to both the
+sample-selector and uploader paths.
 *Deterministic (UI + static sample registry, no new analysis logic).
 Effort: S/M. Answer type: N/A (infrastructure/UX, not itself a
 content-answering task) — this is app-generic UX unrelated to which

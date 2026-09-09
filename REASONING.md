@@ -2651,3 +2651,19 @@ This file contains the reasoning transcript of the AI agent for the current sess
 - **Outcome**: `TASKS.md` no longer lists it; `treaty-sample-
   selection-ui` (P0) remains as the single live tracking entry for
   this work going forward.
+
+## 2026-09-09 10:29:10 — Update: treaty-sample-selection-ui scope change (review-in-modal)
+
+- **Change**: Human requested adding the ability to review the
+  selected treaty in a modal window, as an addition to the
+  in-progress `treaty-sample-selection-ui` (P0) task / `A11` candidate
+  (not yet started implementation).
+- **Action**: Updated `TASKS.md`'s `treaty-sample-selection-ui` Details
+  and Acceptance to add a "Review treaty" action opening a modal
+  (`st.dialog`) showing the selected document's content (sample or
+  uploaded) before "Analyze" is run; applies to both the sample
+  selector and the existing uploader path. Mirrored the same addition
+  into `CANDIDATE_TASKS.md`'s `A11` detailed entry to keep the two in
+  sync per the file's own "Keeping this in sync" rule.
+- **Outcome**: Scope updated on both files; no implementation started
+  yet, so no test/behavior change to verify.

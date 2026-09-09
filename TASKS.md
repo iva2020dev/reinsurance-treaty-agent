@@ -61,6 +61,12 @@
     Picking a sample surfaces the same explicit "Analyze" action the
     uploader path uses today (no auto-run on selection), then feeds
     into the existing workflow exactly like an uploaded file.
+    Additionally, once a sample (or an uploaded file) is selected, add
+    a "Review treaty" action that opens it in a modal window
+    (`st.dialog`) showing the PDF content (rendered pages or extracted
+    text) before the user commits to running "Analyze" — lets the user
+    confirm they picked the right document without leaving the page or
+    running the full analysis first.
   - **Files**: `src/app.py`, a new small sample registry (e.g.
     `src/sample_treaties.py`), `data/*.pdf` (existing fixtures, read
     not moved)
@@ -69,8 +75,12 @@
     golden cases) and clicking "Analyze" runs the existing workflow
     end-to-end and produces a report, with no local file path ever
     entered/browsed by the user; works the same in a local run and in
-    the Railway deployment; `python -m pytest -q` passes with new
-    coverage for the sample-selection path.
+    the Railway deployment. A "Review treaty" action opens the
+    currently selected document (sample or uploaded) in a modal
+    window displaying its content, for both the sample-selector and
+    uploader paths, without triggering analysis; `python -m pytest -q`
+    passes with new coverage for both the sample-selection and
+    review-modal paths.
 
 ## P1
 
