@@ -3406,3 +3406,15 @@ This file contains the reasoning transcript of the AI agent for the current sess
   running app, per this task's explicit scope limit. Awaiting human
   review/approval before this task is marked done and removed from
   `TASKS.md`.
+
+## 2026-09-09 18:03:57 — Closing task: Domain task registry & metadata (domain-task-registry)
+
+- PR #66 merged into `main` at `9c71784`. Human explicitly approved
+  marking `domain-task-registry` done. Removing it from `TASKS.md`'s
+  P1 section (and adding it to the "Recently completed" list) on this
+  `close/domain-task-registry` branch/PR, titled `Closing task as
+  "Done": Domain task registry & metadata`, per the mandatory
+  task-closing workflow. Also updated `CANDIDATE_TASKS.md`'s `S1`
+  Status (summary row + detailed heading) from `📋 In TASKS.md` to
+  `✅ Done (shipped as \`domain-task-registry\`)`, matching the pattern
+  used for `A1`-`A3`/`A11`.

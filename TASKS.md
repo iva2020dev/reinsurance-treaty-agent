@@ -39,6 +39,7 @@
      ✅ 2026-09-09 16:36:48 Save analysis results to a file (save-analysis-results-to-file)
      ✅ 2026-09-09 16:48:06 Auto-clear Analysis Results when a new treaty is selected (auto-clear-results-on-new-selection)
      ✅ 2026-09-09 17:08:35 Add Multi Domain-Task Selection (S) candidates to CANDIDATE_TASKS.md (candidate-s-section-multi-domain-task-selection)
+     ✅ 2026-09-09 18:03:57 Domain task registry & metadata (domain-task-registry)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -48,43 +49,6 @@
 ## P1
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
-
-- [ ] Domain task registry & metadata (@claude)
-  - **ID**: domain-task-registry
-  - **Tags**: harness, refactor, multi-domain-task-selection
-  - **Candidate ID**: S1 (`CANDIDATE_TASKS.md`)
-  - **Details**: Graduated from `CANDIDATE_TASKS.md` (`S1`, Priority 1
-    of 8 in the Multi Domain-Task Selection list). Add a small catalog
-    module (e.g. `src/domain_tasks.py`) listing every candidate domain
-    task from `CANDIDATE_TASKS.md`'s Business Domain tables: a stable
-    task id, a display title, its `CANDIDATE_TASKS.md` ID (`B0`, `B1`,
-    `B2`, ...), an implementation status (`implemented` for `B0` only
-    today, `not_implemented` for every other `B`/`C`/`F` candidate),
-    its shape (`deterministic`/`hybrid`/`llm`, matching
-    `CANDIDATE_TASKS.md`'s Shape column), and which existing workflow
-    node(s) it needs (today: `B0` maps to `analyst_node` in
-    `src/workflow.py`; every other candidate has no node yet, so this
-    field is empty/`None` until it's implemented). This registry is
-    the single source of truth both a future backend graph builder
-    (`S2`, not in scope here) and a future frontend task-selector UI
-    (`S6`, not in scope here) will read from, so the two can't drift
-    — but this task itself only builds the registry and does not wire
-    it into `src/workflow.py` or `src/app.py` yet (no behavior change
-    to the running app).
-  - **Files**: `src/domain_tasks.py` (new), `tests/test_domain_tasks.py`
-    (new)
-  - **Acceptance**: `src/domain_tasks.py` exports a data structure
-    (e.g. a list of a small dataclass/`TypedDict`) with one entry per
-    candidate domain task currently listed in `CANDIDATE_TASKS.md`'s
-    Business Domain — Treaty/Claims/Facultative tables (`B0`-`B9`,
-    `C1`-`C5`, `F1`-`F4`), each carrying id/title/candidate_id/
-    implementation_status/shape/workflow_node fields; exactly one
-    entry (`B0`) has `implementation_status="implemented"`; a direct
-    unit test in `tests/test_domain_tasks.py` asserts the registry's
-    shape and that `B0`'s entry is the only implemented one;
-    `python -m pytest -q` passes with no existing test's behavior
-    changed (this task adds a new module and its own tests only — it
-    does not touch `src/app.py` or `src/workflow.py`).
 
 - [ ] CI-Integrated Regression Eval Gate
   - **ID**: extraction-eval-ci-gate
