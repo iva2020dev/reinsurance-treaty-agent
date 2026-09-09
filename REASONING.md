@@ -2925,3 +2925,21 @@ This file contains the reasoning transcript of the AI agent for the current sess
   (98% overall, matching the manual check from the prior entry).
   `.coverage`/`htmlcov/` correctly stay untracked (`git status`
   confirmed).
+
+## 2026-09-09 12:51:37 — Document test coverage in README.md (treaty-sample-selection-ui)
+
+- **Goal**: Human asked to add README documentation explaining how
+  coverage is generated, what it is, and how to see/interact with it.
+- **Action**: Added a "### Test Coverage" subsection to
+  `README.md`'s "## Running Tests" section (right before "## Running
+  the Extraction Accuracy Eval Suite"), covering: what coverage means
+  and its limits, what `pytest.ini`'s `addopts` auto-generates on every
+  `pytest` run (`.coverage`, `htmlcov/`, the terminal summary table),
+  how to view it (browser via `htmlcov/index.html`, or PyCharm's
+  native "Run with Coverage" for in-editor gutters — explicitly noting
+  `.coverage` itself isn't meant to be opened directly, since a user
+  asked exactly that in this session), and that neither output is
+  committed (already gitignored).
+- **Outcome**: `python -m pytest -q` — 79 passed, coverage table
+  printed as expected (98% overall). Docs-only change, no code
+  touched.

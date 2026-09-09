@@ -671,6 +671,49 @@ The same retry/backoff log lines above appear in the
 `APIConnectionError` reason) once all retries are exhausted — exactly
 the behavior a real prolonged outage would produce.
 
+### Test Coverage
+
+Every `pytest` run also measures and reports test coverage
+automatically — no separate command needed. This is configured in
+`pytest.ini`'s `addopts`, which adds `pytest-cov` (`requirements.txt`)
+flags (`--cov=src --cov-report=term-missing --cov-report=html`) to
+whatever subset of tests you run, whether that's the full suite or a
+single file/test by name as in the examples above.
+
+- **What it is**: the percentage of each `src/` file's lines actually
+  executed while the test suite runs. High coverage doesn't prove
+  correctness on its own (a line can execute without its result ever
+  being asserted), but low/missing coverage reliably flags code with
+  *no* test exercising it at all — see `REASONING.md`'s 2026-09-09
+  `treaty-sample-selection-ui` entries for a concrete example (an
+  untested error-handling branch found and fixed this way).
+- **What gets generated**, on every run:
+  - `.coverage` — `coverage.py`'s own data file, a binary/SQLite
+    format. Not meant to be opened directly.
+  - `htmlcov/` — a browsable HTML report, regenerated fresh each run.
+  - A terminal summary table (`--cov-report=term-missing`): per-file
+    percentage covered, plus the exact line numbers still missed,
+    printed right after the test results.
+- **How to see and interact with it**:
+  - **In a browser**: open `htmlcov/index.html` after any test run
+    (e.g. `open htmlcov/index.html` on macOS). It's a set of static
+    pages — click into any file to see its source with executed lines
+    highlighted green and missed lines red; re-run `pytest` and
+    refresh the page to update it.
+  - **In an IDE (PyCharm)**: don't try to open `.coverage` itself —
+    it's not human-readable. Instead use PyCharm's own coverage
+    runner: right-click a test file (or a run configuration) and
+    choose **"Run 'pytest' with Coverage"** (or click the coverage
+    icon next to the regular Run button). This shows inline green/red
+    highlights directly in each source file's gutter plus a
+    **Coverage** tool window — it uses PyCharm's own coverage engine,
+    independent of the `.coverage` file `pytest-cov` writes, so it
+    works even without reading that file.
+- Neither `.coverage` nor `htmlcov/` is committed — both are
+  `.gitignore`d, since they're a local, ephemeral artifact of whichever
+  test run produced them, not something meant to be shared or reviewed
+  as a file.
+
 ## Running the Extraction Accuracy Eval Suite
 
 `tests/eval/` is a small harness, separate from `pytest tests/`, that
