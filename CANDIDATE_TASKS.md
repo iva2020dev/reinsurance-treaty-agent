@@ -81,6 +81,7 @@ discussion on how document quality drives task shape (see
 | 8 | A8 | Data-handling/PII review for third-party LLM calls | Proposed | Deterministic | N/A | S/M | — |
 | 9 | A9 | Fallback tiering / cost-aware escalation | Proposed | Hybrid | N/A | M | — |
 | 10 | A10 | Human-in-the-loop review workflow | Proposed | Deterministic | N/A | M | — |
+| 11 | A11 | Treaty sample selection UI (prepared/golden samples, no local disk) | 📋 In TASKS.md | Deterministic | N/A | S/M | — |
 
 ### Business Domain — Treaty
 
@@ -197,6 +198,37 @@ wrong" on a real run, capturing the case (input + LLM output +
 correction) to grow the eval dataset in A3 over time.
 *Effort: M (needs a small persistence layer, not just in-memory state).
 Answer type: N/A (infrastructure).*
+
+### A11. Treaty sample selection UI (prepared/golden samples, no local disk) — Priority 11 — 📋 In TASKS.md as `treaty-sample-selection-ui`
+Today `src/app.py`'s `main()` only accepts a treaty via
+`st.file_uploader`, so trying any prepared sample (including the 5
+golden cases in `tests/eval/golden_dataset.py`: `acme_minimal`,
+`meridian_rich`, `sentinel_fuzzy`, `harborlight_prose`,
+`continental_prose`) means manually finding the matching file under
+`data/*.pdf` on the local machine and re-uploading it — not viable for
+a reviewer/demo user without repo access. Add a second entry point
+alongside the uploader: a "Choose a reinsurance treaty" selector (e.g.
+`st.selectbox` or a small button grid) listing every prepared sample
+by name/label, packaged with the PDF bytes shipped in the repo itself
+(bundled as package data / read from `data/` at app start — never a
+path typed or picked from the *user's* local disk), so it behaves
+identically whether the app runs locally or deployed (Railway).
+Picking a sample surfaces the same explicit "Analyze" action the
+uploader path uses today (no auto-run on selection), then feeds into
+the existing workflow exactly like an uploaded file — same downstream
+code path, so this is UI-only plus a small sample registry, not a
+workflow change. Also adds a "Review treaty" action that opens the
+currently selected document (sample or uploaded) in a modal window
+(`st.dialog`) showing its content, so the user can confirm they picked
+the right document before running "Analyze" — applies to both the
+sample-selector and uploader paths. "Analyze" itself is gated: rendered
+blurred/disabled until a treaty is selected (sample or upload), and
+disabled again if the selection is cleared.
+*Deterministic (UI + static sample registry, no new analysis logic).
+Effort: S/M. Answer type: N/A (infrastructure/UX, not itself a
+content-answering task) — this is app-generic UX unrelated to which
+domain task runs, distinct from the Multi Domain-Task Selection (`S`)
+work tracked separately in `DOMAIN_TASK_SELECTION_PLAN.md`.*
 
 ---
 

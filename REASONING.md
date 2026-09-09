@@ -2553,3 +2553,136 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `close/remove-radius-template-leftovers` branch/PR, titled
   `Closing task as "Done": Remove leftover "Radius" template content`,
   per the mandatory task-closing workflow.
+
+## 2026-09-09 10:12:34 — Task: Add Treaty Sample Selection UI to CANDIDATE_TASKS.md (candidate-a11-sample-selection-ui)
+
+- **Goal**: While planning the separate Multi Domain-Task Selection
+  (`S`) feature with the human (drafted in `DOMAIN_TASK_SELECTION_PLAN.md`,
+  which the human asked to keep outside this repo, in their PyCharm
+  Scratches folder, once approved), the human requested a new task:
+  let a user select a prepared/golden treaty sample directly in the
+  Streamlit UI (not from local disk) to start analysis. Human then
+  flagged that this item (originally drafted as `S9`) is not a
+  domain-task-selection concern — it's generic app/harness UX — and
+  asked for it to be moved into `CANDIDATE_TASKS.md`'s Harness
+  section instead, as `A1`.
+- **Analysis**: `A1` is already taken (`✅ Done`, "Retry/backoff
+  resilience for the LLM call") and Harness IDs are numbered by
+  current priority rank, not reused/inserted — asked the human via
+  `AskUserQuestion` whether to append as the next free ID (`A11`,
+  no disruption to `A1`-`A10`) or literally renumber everything to
+  make it `A1`. Human chose `A11`.
+- **Decision**: `A11` — "Treaty sample selection UI (prepared/golden
+  samples, no local disk)" — added to the Harness section only, with
+  a cross-reference note left in `DOMAIN_TASK_SELECTION_PLAN.md`
+  (kept outside this repo) pointing to it instead of duplicating it
+  as an `S`-series item.
+- **Action**: Branched `feature/domain-task-selection-candidates` off
+  `main`. Edited `CANDIDATE_TASKS.md`: added `A11` row to the Harness
+  summary table (Priority 11, Status `Proposed`, Deterministic, N/A,
+  S/M, no dependencies) and its detailed `###` entry, referencing the
+  5 golden cases in `tests/eval/golden_dataset.py`
+  (`acme_minimal`, `meridian_rich`, `sentinel_fuzzy`,
+  `harborlight_prose`, `continental_prose`) as the samples this UI
+  would surface. Added `candidate-a11-sample-selection-ui` to
+  `TASKS.md`'s P2 section.
+- **Outcome**: Documentation-only change — no source files touched.
+  `python -m pytest -q` expected unaffected (verifying before commit).
+  Awaiting human review/approval before this task is marked done and
+  removed from `TASKS.md`.
+
+## 2026-09-09 10:17:43 — Task: Graduate A11 (Treaty Sample Selection UI) into TASKS.md as P0 (treaty-sample-selection-ui)
+
+- **Goal**: Human asked to move `A11` ("Treaty sample selection UI
+  (prepared/golden samples, no local disk)") from `CANDIDATE_TASKS.md`
+  into the real backlog in `TASKS.md`, as a P0 task.
+- **Analysis**: This is distinct from the earlier
+  `candidate-a11-sample-selection-ui` P2 entry, which only tracked the
+  docs-only work of *adding* `A11` as a candidate to
+  `CANDIDATE_TASKS.md` (committed at `b257d4d`) — that entry's own
+  acceptance criteria are already met, but it hasn't been marked
+  done/removed yet since that needs separate human approval per the
+  mandatory workflow. This new action is the actual graduation:
+  `A11`'s scope becomes a real, scoped `TASKS.md` task.
+- **Decision**: Added a new P0 entry `treaty-sample-selection-ui`
+  carrying `A11`'s full scope (sample selector alongside the existing
+  uploader, backed by a small in-repo sample registry over the 5
+  golden-dataset PDFs, no local-disk path ever used, same explicit
+  "Analyze" action, works identically local vs. Railway). Updated
+  `CANDIDATE_TASKS.md`'s `A11` Status (summary table row + detailed
+  entry heading) from `Proposed` to `📋 In TASKS.md`, per the
+  Status-column convention documented near the top of that file.
+- **Action**: Continued on `feature/domain-task-selection-candidates`
+  (already open for `A11`-related docs work). Edited `TASKS.md` (new
+  P0 entry) and `CANDIDATE_TASKS.md` (Status → `📋 In TASKS.md`, both
+  places).
+- **Outcome**: Documentation/backlog change only — no source files
+  touched yet; `python -m pytest -q` expected unaffected (verifying
+  before commit). The pre-existing `candidate-a11-sample-selection-ui`
+  P2 entry is now fully superseded by this graduation and left as-is
+  pending the human's explicit go-ahead to close it out, per the
+  "never self-approve/remove a task" rule.
+
+## 2026-09-09 10:20:39 — Task: Close out candidate-a11-sample-selection-ui (superseded, never merged)
+
+- **Goal**: Human approved closing out the `candidate-a11-sample-
+  selection-ui` P2 entry now that it's fully superseded by the
+  `treaty-sample-selection-ui` P0 graduation.
+- **Analysis**: The repo's normal task-closing convention (see e.g.
+  `remove-radius-template-leftovers`'s and `sync-candidate-tasks-
+  harness-status`'s closing entries above) is a dedicated
+  `close/<id>` branch off `main`, titled `Closing task as "Done":
+  <task title>`, because those tasks had already been merged into
+  `main` and needed their own removal PR there. `candidate-a11-
+  sample-selection-ui` never reached `main` — it was added and
+  completed entirely within this still-open
+  `feature/domain-task-selection-candidates` branch (commit
+  `b257d4d`). Branching off `main` to "close" it would diff against a
+  version of `TASKS.md` that never had the entry, producing a no-op/
+  confusing PR. (Briefly created such a branch, recognized this, and
+  discarded it before making any commit there.)
+- **Decision**: Remove the `candidate-a11-sample-selection-ui` entry
+  directly on this same feature branch instead — its work (adding
+  `A11` to `CANDIDATE_TASKS.md`) is already committed here, and its
+  tracking entry is redundant with `treaty-sample-selection-ui` now
+  that `A11` has graduated.
+- **Action**: Deleted the `candidate-a11-sample-selection-ui` entry
+  from `TASKS.md`'s P2 section.
+- **Outcome**: `TASKS.md` no longer lists it; `treaty-sample-
+  selection-ui` (P0) remains as the single live tracking entry for
+  this work going forward.
+
+## 2026-09-09 10:29:10 — Update: treaty-sample-selection-ui scope change (review-in-modal)
+
+- **Change**: Human requested adding the ability to review the
+  selected treaty in a modal window, as an addition to the
+  in-progress `treaty-sample-selection-ui` (P0) task / `A11` candidate
+  (not yet started implementation).
+- **Action**: Updated `TASKS.md`'s `treaty-sample-selection-ui` Details
+  and Acceptance to add a "Review treaty" action opening a modal
+  (`st.dialog`) showing the selected document's content (sample or
+  uploaded) before "Analyze" is run; applies to both the sample
+  selector and the existing uploader path. Mirrored the same addition
+  into `CANDIDATE_TASKS.md`'s `A11` detailed entry to keep the two in
+  sync per the file's own "Keeping this in sync" rule.
+- **Outcome**: Scope updated on both files; no implementation started
+  yet, so no test/behavior change to verify.
+
+## 2026-09-09 10:30:50 — Update: treaty-sample-selection-ui scope change (gate Analyze on selection)
+
+- **Change**: Human requested that "Analyze" render blurred/inactive
+  until a treaty is selected (via either the sample selector or the
+  uploader), as a further addition to the in-progress
+  `treaty-sample-selection-ui` (P0) task / `A11` candidate (still not
+  started implementation).
+- **Action**: Updated `TASKS.md`'s `treaty-sample-selection-ui`
+  Details and Acceptance to require "Analyze" be disabled/blurred on
+  initial load and whenever no document is selected, becoming
+  clickable only once a sample or uploaded file is selected, and
+  disabled again if the selection is cleared — reusing the same
+  disabled-state styling pattern already planned for not-implemented
+  tasks elsewhere (`S6` in `DOMAIN_TASK_SELECTION_PLAN.md`, kept
+  outside this repo). Mirrored the same addition into
+  `CANDIDATE_TASKS.md`'s `A11` detailed entry to keep the two in sync.
+- **Outcome**: Scope updated on both files; no implementation started
+  yet, so no test/behavior change to verify.
