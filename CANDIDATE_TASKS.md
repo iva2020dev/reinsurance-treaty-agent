@@ -81,7 +81,7 @@ discussion on how document quality drives task shape (see
 | 8 | A8 | Data-handling/PII review for third-party LLM calls | Proposed | Deterministic | N/A | S/M | — |
 | 9 | A9 | Fallback tiering / cost-aware escalation | Proposed | Hybrid | N/A | M | — |
 | 10 | A10 | Human-in-the-loop review workflow | Proposed | Deterministic | N/A | M | — |
-| 11 | A11 | Treaty sample selection UI (prepared/golden samples, no local disk) | Proposed | Deterministic | N/A | S/M | — |
+| 11 | A11 | Treaty sample selection UI (prepared/golden samples, no local disk) | 📋 In TASKS.md | Deterministic | N/A | S/M | — |
 
 ### Business Domain — Treaty
 
@@ -199,7 +199,7 @@ correction) to grow the eval dataset in A3 over time.
 *Effort: M (needs a small persistence layer, not just in-memory state).
 Answer type: N/A (infrastructure).*
 
-### A11. Treaty sample selection UI (prepared/golden samples, no local disk) — Priority 11
+### A11. Treaty sample selection UI (prepared/golden samples, no local disk) — Priority 11 — 📋 In TASKS.md as `treaty-sample-selection-ui`
 Today `src/app.py`'s `main()` only accepts a treaty via
 `st.file_uploader`, so trying any prepared sample (including the 5
 golden cases in `tests/eval/golden_dataset.py`: `acme_minimal`,

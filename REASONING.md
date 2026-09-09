@@ -2590,3 +2590,35 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `python -m pytest -q` expected unaffected (verifying before commit).
   Awaiting human review/approval before this task is marked done and
   removed from `TASKS.md`.
+
+## 2026-09-09 10:17:43 — Task: Graduate A11 (Treaty Sample Selection UI) into TASKS.md as P0 (treaty-sample-selection-ui)
+
+- **Goal**: Human asked to move `A11` ("Treaty sample selection UI
+  (prepared/golden samples, no local disk)") from `CANDIDATE_TASKS.md`
+  into the real backlog in `TASKS.md`, as a P0 task.
+- **Analysis**: This is distinct from the earlier
+  `candidate-a11-sample-selection-ui` P2 entry, which only tracked the
+  docs-only work of *adding* `A11` as a candidate to
+  `CANDIDATE_TASKS.md` (committed at `b257d4d`) — that entry's own
+  acceptance criteria are already met, but it hasn't been marked
+  done/removed yet since that needs separate human approval per the
+  mandatory workflow. This new action is the actual graduation:
+  `A11`'s scope becomes a real, scoped `TASKS.md` task.
+- **Decision**: Added a new P0 entry `treaty-sample-selection-ui`
+  carrying `A11`'s full scope (sample selector alongside the existing
+  uploader, backed by a small in-repo sample registry over the 5
+  golden-dataset PDFs, no local-disk path ever used, same explicit
+  "Analyze" action, works identically local vs. Railway). Updated
+  `CANDIDATE_TASKS.md`'s `A11` Status (summary table row + detailed
+  entry heading) from `Proposed` to `📋 In TASKS.md`, per the
+  Status-column convention documented near the top of that file.
+- **Action**: Continued on `feature/domain-task-selection-candidates`
+  (already open for `A11`-related docs work). Edited `TASKS.md` (new
+  P0 entry) and `CANDIDATE_TASKS.md` (Status → `📋 In TASKS.md`, both
+  places).
+- **Outcome**: Documentation/backlog change only — no source files
+  touched yet; `python -m pytest -q` expected unaffected (verifying
+  before commit). The pre-existing `candidate-a11-sample-selection-ui`
+  P2 entry is now fully superseded by this graduation and left as-is
+  pending the human's explicit go-ahead to close it out, per the
+  "never self-approve/remove a task" rule.

@@ -40,6 +40,37 @@
 
 <!-- policy: P0 tasks are critical, urgent, blocks other work. Tasks that should ship ASAP. -->
 
+- [ ] Treaty Sample Selection UI (prepared/golden samples, no local disk)
+  - **ID**: treaty-sample-selection-ui
+  - **Tags**: ui, streamlit, ux, harness
+  - **Candidate ID**: A11 (`CANDIDATE_TASKS.md`)
+  - **Details**: Graduated from `CANDIDATE_TASKS.md` (`A11`, Priority
+    11 of 11 in the Harness list). Today `src/app.py`'s `main()` only
+    accepts a treaty via `st.file_uploader`, so trying any prepared
+    sample (including the 5 golden cases in
+    `tests/eval/golden_dataset.py`: `acme_minimal`, `meridian_rich`,
+    `sentinel_fuzzy`, `harborlight_prose`, `continental_prose`) means
+    manually finding the matching file under `data/*.pdf` on the local
+    machine and re-uploading it. Add a second entry point alongside the
+    uploader: a "Choose a sample treaty" selector (e.g. `st.selectbox`
+    or a small button grid) listing every prepared sample by
+    name/label, packaged with the PDF bytes shipped in the repo itself
+    (bundled as package data / read from `data/` at app start — never a
+    path typed or picked from the *user's* local disk), so it behaves
+    identically whether the app runs locally or deployed (Railway).
+    Picking a sample surfaces the same explicit "Analyze" action the
+    uploader path uses today (no auto-run on selection), then feeds
+    into the existing workflow exactly like an uploaded file.
+  - **Files**: `src/app.py`, a new small sample registry (e.g.
+    `src/sample_treaties.py`), `data/*.pdf` (existing fixtures, read
+    not moved)
+  - **Acceptance**: The Streamlit UI shows both an uploader and a
+    sample selector; selecting any listed sample (including all 5
+    golden cases) and clicking "Analyze" runs the existing workflow
+    end-to-end and produces a report, with no local file path ever
+    entered/browsed by the user; works the same in a local run and in
+    the Railway deployment; `python -m pytest -q` passes with new
+    coverage for the sample-selection path.
 
 ## P1
 
