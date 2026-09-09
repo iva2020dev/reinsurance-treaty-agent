@@ -2829,3 +2829,14 @@ This file contains the reasoning transcript of the AI agent for the current sess
   from 350 to 440 (~26% increase).
 - **Outcome**: `python -m pytest -q` — 76 passed (unaffected, height
   value only).
+
+## 2026-09-09 12:29:58 — Update: label renames (treaty-sample-selection-ui)
+
+- **Change**: Human asked to rename two labels in `src/app.py`:
+  the debug expander from "Debug: workflow execution" to "Analysis
+  Workflow execution", and the save-log button from "Save logs to
+  file" to "Save to logs file".
+- **Action**: Renamed both in `src/app.py`; updated
+  `tests/test_app.py`'s `_click_button(at, "Save logs to file")` call
+  to match the new label.
+- **Outcome**: `python -m pytest -q` — 76 passed.

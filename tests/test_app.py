@@ -353,7 +353,7 @@ def test_app_save_button_writes_default_log_file(tmp_path, monkeypatch):
     at = _upload_and_click_analyze(at, "sample_treaty.pdf", pdf_bytes)
 
     at.segmented_control[0].set_value("Overwrite").run()
-    at = _click_button(at, "Save logs to file")
+    at = _click_button(at, "Save to logs file")
 
     assert not at.exception
     log_file = tmp_path / "logs" / "workflow.log"

@@ -300,7 +300,7 @@ def main() -> None:
                 )
             st.markdown(format_report_markdown(report))
 
-    with st.expander("Debug: workflow execution"):
+    with st.expander("Analysis Workflow execution"):
         if state is None:
             st.caption(
                 "No workflow state was produced — the PDF could not be "
@@ -324,7 +324,7 @@ def main() -> None:
                 required=True,
                 key="log_save_mode",
             )
-            submitted = st.form_submit_button("Save logs to file", icon=":material/save:")
+            submitted = st.form_submit_button("Save to logs file", icon=":material/save:")
         if submitted:
             if log_lines:
                 header = format_log_header(result_name)
