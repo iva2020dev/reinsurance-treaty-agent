@@ -3054,3 +3054,40 @@ This file contains the reasoning transcript of the AI agent for the current sess
   new). Manually booted `streamlit run src/app.py` — healthy, no
   server-log errors. Awaiting human review/approval before this task
   is marked done and removed from `TASKS.md`.
+
+## 2026-09-09 15:55:45 — Task: Save analysis results to a file (save-analysis-results-to-file)
+
+- **Goal**: Human asked for a "Save analysis results" feature, with a
+  naming rule of datetime stamp + treaty short name + one more
+  component the human wanted my input on.
+- **Decision (asked via AskUserQuestion)**: For the third naming
+  component, offered highest-severity / loss-ratio / extraction-method
+  / none — human picked highest severity (lets a folder of saved
+  reports be scanned for risk at a glance). For file format, offered
+  Markdown / JSON / both — human picked Markdown, matching what's
+  already rendered on screen (`format_report_markdown`), so the saved
+  file is exactly what a reviewer already saw.
+- **Analysis**: `_sample_report()`'s severity is a `Severity(str,
+  Enum)` member — discovered while testing that Python's default
+  `Enum.__str__` (`"Severity.HIGH"`) is used inside an f-string, not
+  the plain string value, even though `Severity` inherits `str`;
+  fixed by taking `.value` explicitly. Also had to read
+  `MINIMAL_TREATY_PATH`'s bytes *before* `monkeypatch.chdir(tmp_path)`
+  in the app-level test — a relative path breaks after the chdir,
+  same pattern as the existing `test_app_save_button_writes_default_
+  log_file`.
+- **Action**: Branched `task/save-analysis-results-to-file` off
+  `main`. Added `save-analysis-results-to-file` to `TASKS.md`'s P1.
+  Edited `src/app.py`: `DEFAULT_RESULTS_DIR`, `_SEVERITY_RANK`,
+  `slugify_treaty_name()`, `highest_severity_label()`,
+  `format_results_filename()`, `save_analysis_result_to_file()`, and a
+  "Save analysis results" button inside the successful-report branch
+  of the results container. Added `results/` to `.gitignore` (mirrors
+  `logs/`). Added 9 new tests to `tests/test_app.py` covering the
+  naming/slugify/severity helpers directly plus an app-level test
+  confirming the button writes a real file.
+- **Outcome**: `python -m pytest -q` — 90 passed (81 previously + 9
+  new). Coverage: `src/app.py` 99%.
+  Manually booted `streamlit run src/app.py` — healthy, no server-log
+  errors. Awaiting human review/approval before this task is marked
+  done and removed from `TASKS.md`.

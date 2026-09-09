@@ -2,6 +2,7 @@
 
 import hashlib
 import logging
+import re
 import sys
 import tempfile
 from dataclasses import asdict
@@ -24,6 +25,8 @@ from src.workflow import WorkflowState, run_workflow_from_pdf
 
 SEVERITY_ICONS = {"low": "ℹ️", "medium": "⚠️", "high": "🚨"}
 DEFAULT_LOG_FILE = Path("logs/workflow.log")
+DEFAULT_RESULTS_DIR = Path("results")
+_SEVERITY_RANK = {"low": 0, "medium": 1, "high": 2}
 # Tall enough to fit st.file_uploader's drag-and-drop box (the taller of the
 # two treaty-source inputs) without clipping. Both the uploader and the
 # selectbox render inside a bordered container of this same fixed height, so
@@ -163,6 +166,37 @@ def format_report_markdown(report: AnomalyReport) -> str:
             lines.append(f"- {icon} **[{finding.severity.upper()}]** {finding.description}")
 
     return "\n".join(lines)
+
+
+def slugify_treaty_name(name: str, max_length: int = 40) -> str:
+    """Turn a treaty/cedent name into a short, filesystem-safe slug."""
+    slug = re.sub(r"[^A-Za-z0-9]+", "_", name).strip("_").lower()
+    return (slug or "treaty")[:max_length]
+
+
+def highest_severity_label(findings: list) -> str:
+    """The highest-severity finding's label, or "clean" if there are none."""
+    if not findings:
+        return "clean"
+    return max(findings, key=lambda f: _SEVERITY_RANK[f.severity]).severity.value
+
+
+def format_results_filename(report: AnomalyReport, when: datetime | None = None) -> str:
+    """Build the saved-results filename: <timestamp>_<treaty-slug>_<severity>.md."""
+    timestamp = (when or datetime.now()).strftime("%Y%m%d_%H%M%S")
+    slug = slugify_treaty_name(report.treaty.cedent_name)
+    severity = highest_severity_label(report.findings)
+    return f"{timestamp}_{slug}_{severity}.md"
+
+
+def save_analysis_result_to_file(
+    report: AnomalyReport, directory: Path = DEFAULT_RESULTS_DIR, when: datetime | None = None
+) -> Path:
+    """Write report's Markdown rendering to a new timestamped file, returning its path."""
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / format_results_filename(report, when=when)
+    path.write_text(format_report_markdown(report), encoding="utf-8")
+    return path
 
 
 def _fingerprint(file_bytes: bytes) -> str:
@@ -333,6 +367,9 @@ def main() -> None:
                         f"values before relying on this report."
                     )
                 st.markdown(format_report_markdown(report))
+                if st.button("Save analysis results", icon=":material/save:"):
+                    saved_path = save_analysis_result_to_file(report)
+                    st.success(f"Saved analysis results to {saved_path}.")
 
         with st.expander("Analysis Workflow execution"):
             if state is None:

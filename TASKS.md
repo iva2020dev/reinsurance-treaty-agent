@@ -69,6 +69,36 @@
     container; `python -m pytest -q` passes with new coverage for
     both cases.
 
+- [ ] Save analysis results to a file (@claude)
+  - **ID**: save-analysis-results-to-file
+  - **Tags**: ui, streamlit, ux
+  - **Candidate ID**: N/A (not graduated from `CANDIDATE_TASKS.md`;
+    a small follow-up feature on `treaty-sample-selection-ui`'s
+    already-shipped results container, requested directly)
+  - **Details**: Add a "Save analysis results" button next to the
+    rendered report (inside the "Analysis Results" container, only
+    when a report was actually produced) that writes the same
+    Markdown rendering shown on screen (`format_report_markdown`) to a
+    new file under `results/` (new dir, gitignored like `logs/`).
+    Filename naming rule, confirmed with the human: `<datetime
+    stamp>_<treaty short name>_<highest severity>.md`, e.g.
+    `20260909_140530_acme_insurance_co_high.md` — datetime as
+    `YYYYmmdd_HHMMSS` (filesystem-safe, no colons), the cedent name
+    slugified (lowercased, non-alphanumeric runs collapsed to `_`,
+    truncated to 40 chars), and the highest-severity finding's label
+    (`low`/`medium`/`high`, or `clean` if there are no findings) so a
+    folder of saved reports can be scanned for risk at a glance. Each
+    save always creates a new file (no append/overwrite choice, unlike
+    the existing "Save to logs file" control) — timestamped to the
+    second, so collisions are effectively impossible in normal use.
+  - **Files**: `src/app.py`, `.gitignore` (new `results/` entry)
+  - **Acceptance**: After a successful analysis, clicking "Save
+    analysis results" writes a new file under `results/` named per the
+    rule above and shows a success message naming the saved path;
+    `python -m pytest -q` passes with new unit tests for the naming/
+    slugify/severity helpers and an app-level test confirming the
+    button writes the file.
+
 
 - [ ] CI-Integrated Regression Eval Gate
   - **ID**: extraction-eval-ci-gate

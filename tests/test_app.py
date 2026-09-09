@@ -14,8 +14,12 @@ from src.app import (
     format_extraction_status,
     format_log_header,
     format_report_markdown,
+    format_results_filename,
+    highest_severity_label,
+    save_analysis_result_to_file,
     save_logs_to_file,
     serialize_state_for_debug,
+    slugify_treaty_name,
 )
 from src.models import AnomalyFinding, AnomalyReport, ClaimsData, Severity, TreatyTerms
 from src.parser import ParserError
@@ -406,6 +410,73 @@ def test_app_shows_llm_error_when_both_extraction_paths_fail(monkeypatch):
     debug_state = json.loads(at.json[0].value)
     assert debug_state["extraction_method"] == "none"
     assert "simulated network failure" in debug_state["llm_error"]
+
+
+def test_slugify_treaty_name_strips_punctuation_and_lowercases():
+    assert slugify_treaty_name("Acme Insurance Co.") == "acme_insurance_co"
+
+
+def test_slugify_treaty_name_truncates_to_max_length():
+    long_name = "A" * 100
+    assert len(slugify_treaty_name(long_name, max_length=10)) == 10
+
+
+def test_slugify_treaty_name_falls_back_when_nothing_alphanumeric():
+    assert slugify_treaty_name("!!!") == "treaty"
+
+
+def test_highest_severity_label_no_findings_is_clean():
+    assert highest_severity_label([]) == "clean"
+
+
+def test_highest_severity_label_picks_the_highest_of_several():
+    findings = [
+        AnomalyFinding(field="a", description="a", severity=Severity.LOW),
+        AnomalyFinding(field="b", description="b", severity=Severity.HIGH),
+        AnomalyFinding(field="c", description="c", severity=Severity.MEDIUM),
+    ]
+    assert highest_severity_label(findings) == "high"
+
+
+def test_format_results_filename_matches_naming_rule():
+    report = _sample_report()  # cedent "Acme Insurance Co.", one HIGH finding
+    filename = format_results_filename(report, when=datetime(2026, 9, 9, 14, 5, 30))
+
+    assert filename == "20260909_140530_acme_insurance_co_high.md"
+
+
+def test_save_analysis_result_to_file_writes_markdown(tmp_path):
+    report = _sample_report()
+
+    saved_path = save_analysis_result_to_file(report, directory=tmp_path, when=datetime(2026, 9, 9, 14, 5, 30))
+
+    assert saved_path == tmp_path / "20260909_140530_acme_insurance_co_high.md"
+    assert saved_path.read_text() == format_report_markdown(report)
+
+
+def test_save_analysis_result_to_file_creates_parent_directory(tmp_path):
+    report = _sample_report()
+    directory = tmp_path / "results"
+
+    saved_path = save_analysis_result_to_file(report, directory=directory, when=datetime(2026, 9, 9, 14, 5, 30))
+
+    assert saved_path.exists()
+
+
+def test_app_save_analysis_results_button_writes_file(tmp_path, monkeypatch):
+    pdf_bytes = Path(MINIMAL_TREATY_PATH).read_bytes()
+    monkeypatch.chdir(tmp_path)
+
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+    at = _upload_and_click_analyze(at, "sample_treaty.pdf", pdf_bytes)
+
+    at = _click_button(at, "Save analysis results")
+
+    assert not at.exception
+    assert any("Saved analysis results to" in s.value for s in at.success)
+    saved_files = list((tmp_path / "results").glob("*_acme_insurance_co_*.md"))
+    assert len(saved_files) == 1
 
 
 def test_format_log_header_includes_timestamp_and_filename():
