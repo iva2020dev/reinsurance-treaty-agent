@@ -2874,3 +2874,30 @@ This file contains the reasoning transcript of the AI agent for the current sess
 - **Outcome**: `python -m pytest -q` — 78 passed (76 previously + 2
   new). Manually booted `streamlit run src/app.py` — healthy, no
   server-log errors.
+
+## 2026-09-09 12:43:58 — Verification: full test suite + coverage of new functionality (treaty-sample-selection-ui)
+
+- **Goal**: Human asked to test everything and check coverage of the
+  new functionality before considering this task complete.
+- **Action**: Ran `python -m pytest -q` (full suite) and, since
+  `pytest-cov`/`coverage` weren't installed, temporarily `pip install
+  coverage`ed (not added to `requirements.txt` — dev-only, local
+  check) and ran `python -m coverage run -m pytest -q` +
+  `coverage report -m --include="src/app.py,src/sample_treaties.py"`.
+- **Findings**: Initial coverage was 97% on `src/app.py` (100% on the
+  new `src/sample_treaties.py`), with one real gap in the new
+  functionality: `_show_review_dialog`'s `ParserError` branch (a
+  malformed/unreadable PDF opened via "Review treaty") was untested —
+  the happy path had a test, the error path didn't. Added
+  `test_app_review_treaty_shows_error_for_malformed_pdf` to close it.
+  The 3 remaining uncovered lines (`sys.path` bootstrap guard, an
+  unreachable-in-practice `save_logs_to_file` mode validation, and the
+  "no log lines to save" branch) are pre-existing, unrelated to this
+  task's new code, and not worth chasing here.
+- **Outcome**: `python -m pytest -q` — 79 passed (78 previously + 1
+  new). Coverage on the touched/new files: `src/app.py` 98%,
+  `src/sample_treaties.py` 100%. All new functionality from this
+  task's work (sample registry, source toggle, Review/Analyze gating,
+  review modal happy+error paths, Close button, re-Analyze
+  replacement) now has direct test coverage, not just "doesn't crash"
+  checks.

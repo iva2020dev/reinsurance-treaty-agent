@@ -237,6 +237,20 @@ def test_app_review_treaty_shows_selected_document_text_in_modal():
     assert "Acme Insurance Co." in text_values
 
 
+def test_app_review_treaty_shows_error_for_malformed_pdf():
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    at.file_uploader[0].set_value([("bad.pdf", b"not a pdf at all", "application/pdf")])
+    at.run()
+
+    at = _click_button(at, "Review treaty")
+
+    assert not at.exception
+    assert len(at.error) == 1
+    assert "Could not read this PDF" in at.error[0].value
+
+
 def test_serialize_state_for_debug_is_json_safe():
     report = _sample_report()
     state = {
