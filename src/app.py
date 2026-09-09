@@ -28,7 +28,7 @@ DEFAULT_LOG_FILE = Path("logs/workflow.log")
 # selectbox render inside a bordered container of this same fixed height, so
 # they present as equal-height boxes -- not just equal *page* height with the
 # shorter selectbox floating in blank space.
-SOURCE_INPUT_HEIGHT = 180
+SOURCE_INPUT_HEIGHT = 140
 
 
 class _ListLogHandler(logging.Handler):

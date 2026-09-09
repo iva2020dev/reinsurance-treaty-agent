@@ -3000,3 +3000,15 @@ This file contains the reasoning transcript of the AI agent for the current sess
   one.
 - **Outcome**: `python -m pytest -q` — 79 passed (unaffected). Manually
   booted `streamlit run src/app.py` — healthy, no server-log errors.
+
+## 2026-09-09 13:40:49 — Update: tune SOURCE_INPUT_HEIGHT (fix-source-input-height-twitch)
+
+- **Change**: Human iterated on `SOURCE_INPUT_HEIGHT` live against the
+  running local app (no browser available in this environment to
+  verify visually myself): 180 left too much blank space under the
+  bordered selectbox; 110 was too small and caused the file uploader's
+  own content to clip into an internal vertical scrollbar. Settled on
+  140, confirmed good.
+- **Action**: Set `SOURCE_INPUT_HEIGHT = 140` in `src/app.py`.
+- **Outcome**: `python -m pytest -q` — 79 passed (unaffected, constant
+  value only). Confirmed working by the human against the live app.
