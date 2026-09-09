@@ -3320,3 +3320,13 @@ This file contains the reasoning transcript of the AI agent for the current sess
   before this task is marked done and removed from `TASKS.md`, and
   before deciding which (if any) `S` item(s) actually graduate into
   real work.
+
+## 2026-09-09 17:08:35 — Closing task: Add Multi Domain-Task Selection (S) candidates to CANDIDATE_TASKS.md (candidate-s-section-multi-domain-task-selection)
+
+- PR #63 merged into `main` at `363839e`. Human explicitly approved
+  marking `candidate-s-section-multi-domain-task-selection` done.
+  Removing it from `TASKS.md`'s P2 section (and adding it to the
+  "Recently completed" list) on this `close/candidate-s-section-
+  multi-domain-task-selection` branch/PR, titled `Closing task as
+  "Done": Add Multi Domain-Task Selection (S) candidates to
+  CANDIDATE_TASKS.md`, per the mandatory task-closing workflow.
