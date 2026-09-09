@@ -2943,3 +2943,16 @@ This file contains the reasoning transcript of the AI agent for the current sess
 - **Outcome**: `python -m pytest -q` — 79 passed, coverage table
   printed as expected (98% overall). Docs-only change, no code
   touched.
+
+## 2026-09-09 12:55:13 — Closing task: Treaty Sample Selection UI (treaty-sample-selection-ui)
+
+- PR #55 merged into `main` at `566cf1a`. Human explicitly approved
+  marking `treaty-sample-selection-ui` done. Removing it from
+  `TASKS.md`'s P0 section (and adding it to the "Recently completed"
+  list) on this `close/treaty-sample-selection-ui` branch/PR, titled
+  `Closing task as "Done": Treaty Sample Selection UI (prepared/golden
+  samples, no local disk)`, per the mandatory task-closing workflow.
+  Also updated `CANDIDATE_TASKS.md`'s `A11` Status (summary row +
+  detailed heading) from `📋 In TASKS.md` to `✅ Done (shipped as
+  \`treaty-sample-selection-ui\`)`, matching the pattern used for
+  `A1`-`A3`.
