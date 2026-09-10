@@ -4112,3 +4112,15 @@ This file contains the reasoning transcript of the AI agent for the current sess
   the three targeted spots changed, no unrelated restructuring.
   Awaiting human review/approval before this task is marked done and
   removed from `TASKS.md`.
+
+## 2026-09-10 19:25:28 — Closing task: Document close/ and add-task/ branch-naming conventions in AGENTS.md (document-branch-naming-conventions)
+
+- PR #85 merged into `main` at 2026-09-10T19:25:28Z. Human explicitly
+  approved marking `document-branch-naming-conventions` done. Removing
+  it from `TASKS.md`'s P2 section (and adding it to the "Recently
+  completed" list) on this `close/document-branch-naming-conventions`
+  branch/PR, titled `Closing task as "Done": Document close/ and
+  add-task/ branch-naming conventions in AGENTS.md`, per the mandatory
+  task-closing workflow. No `CANDIDATE_TASKS.md` update needed — this
+  task was never graduated from there (`Candidate ID: N/A`, added
+  directly to `TASKS.md`).
