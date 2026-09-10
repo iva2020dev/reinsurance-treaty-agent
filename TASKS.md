@@ -45,6 +45,7 @@
      ✅ 2026-09-10 15:49:37 Multi-task result aggregation & state schema (multi-task-result-aggregation-schema)
      ✅ 2026-09-10 16:12:54 Task selection UI (checkboxes, disabled/blurred not-implemented tasks, live cost readout) (multi-task-selection-ui)
      ✅ 2026-09-10 17:04:17 Multi-task messaging & logging (multi-task-messaging-logging)
+     ✅ 2026-09-10 21:58:20 Dynamic graph fan-out for multi-task selection (multi-task-graph-fanout)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -55,56 +56,43 @@
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
-- [ ] Dynamic graph fan-out for multi-task selection (@claude)
-  - **ID**: multi-task-graph-fanout
-  - **Tags**: harness, refactor, multi-domain-task-selection
+- [ ] Regenerate workflow diagram for a multi-task selection example
+  - **ID**: multi-task-graph-diagram-example
+  - **Tags**: harness, docs, multi-domain-task-selection
   - **Candidate ID**: N/A (not graduated from `CANDIDATE_TASKS.md`; a
-    follow-up gap found directly while explaining `workflow-refactor-
-    multi-task-pipeline`'s current limitation to the human)
-  - **Details**: Today `build_workflow_graph()` (`src/workflow.py`,
-    from `workflow-refactor-multi-task-pipeline`) only ever wires in
-    **at most one** implemented+selected task node after the shared
-    `Extractor → [LLM Extraction Fallback] → Verifier` pipeline —
-    selecting more than one implemented task raises
-    `NotImplementedError`, since nothing yet defines how multiple
-    analysis nodes would run together. This is unreachable in practice
-    today (`src/domain_tasks.py`'s `DOMAIN_TASKS` registry has exactly
-    one `implemented` entry, `burn_cost_check`), but it means the
-    graph-*building* code itself doesn't yet genuinely support
-    multi-task selection — it just special-cases "one or zero." The
-    graph should fan out from Verifier to *every* selected+implemented
-    task's node in parallel (all feeding into `END`), replacing the
-    single-node special case and the `NotImplementedError` guard,
-    **without changing the shared pipeline nodes at all**
-    (`extractor_node`, `llm_extraction_fallback`, `verifier_node`, and
-    their existing edges stay exactly as they are). This is
-    forward-looking groundwork: `data/workflow_graph.png`/`README.md`'s
-    diagram is only ever regenerated for the *default* selection
-    (`{"burn_cost_check"}`), so it won't visually change until a
-    second domain task actually gets a real `workflow_node` — but the
-    graph-construction code should already be selection-count-agnostic
-    now, so implementing a second task later needs no further graph-
-    building changes here.
-  - **Files**: `src/workflow.py`, `tests/test_workflow.py`
-  - **Acceptance**: `build_workflow_graph(selected_task_ids)` adds a
-    node + an edge to `END` for *every* task in its resolved
-    active-tasks list (not just the first), and routes from `verifier`
-    to all of them for parallel fan-out (LangGraph conditional-edge
-    routing functions can return a list of target node names, not just
-    a single string) instead of raising past one; a test using the
-    same `monkeypatch.setattr("src.workflow.DOMAIN_TASKS", ...)`
-    pattern as the existing (now-removed) multi-implemented-task guard
-    test confirms two implemented tasks selected together both
-    actually run, rather than raising; selecting today's one real
-    implemented task (`burn_cost_check`) alone continues to produce
-    byte-identical behavior on every existing fixture (regression
-    safety net) — verified via `python -m tests.eval.run_eval` staying
-    at 100% in addition to `python -m pytest -q`; the shared pipeline
-    nodes/edges are provably untouched (no diff in that part of
-    `src/workflow.py`); `data/workflow_graph.png`/`README.md`'s
-    diagram is unchanged in shape (default selection still resolves to
-    just `burn_cost_check`) since only one domain task is implemented
-    today.
+    follow-up found directly while discussing `multi-task-graph-
+    fanout` with the human)
+  - **Details**: `scripts/regenerate_workflow_graph.py`'s
+    `get_mermaid_text()` always calls `build_workflow_graph()` with no
+    arguments, rendering only the *default* single-task selection
+    (`{"burn_cost_check"}`) into `README.md`'s mermaid block and
+    `data/workflow_graph.png`. Now that `multi-task-graph-fanout` made
+    the graph-building code genuinely selection-count-agnostic, the
+    shipped diagram should also be able to show what a real multi-task
+    selection looks like (`Verifier` branching to 2+ analysis nodes) —
+    otherwise the diagram will keep looking identical forever even
+    after fan-out is exercised in production, which hides the
+    capability from anyone reading the README.
+    **Important caveat, noted for whoever picks this up**: this is only
+    meaningfully verifiable once a *second real* domain task (e.g. a
+    graduated/implemented `B1`) exists in `src/domain_tasks.py`'s
+    registry — today, demonstrating a 2-task selection still needs a
+    mocked/monkeypatched node (like `multi-task-graph-fanout`'s own
+    test uses), which isn't suitable content for a real, permanently-
+    committed README diagram. If no second domain task is implemented
+    yet when this is picked up, re-scope (e.g. to just the script
+    plumbing, with the actual second example diagram deferred) or hold
+    off rather than faking an example task.
+  - **Files**: `scripts/regenerate_workflow_graph.py`, `README.md`,
+    `tests/test_workflow_graph_docs.py`
+  - **Acceptance**: `README.md` gains a second, clearly-labeled
+    diagram (e.g. a `<!-- workflow-graph-multi-task:start/end -->`
+    block) showing `build_workflow_graph()` for an explicit real
+    multi-task selection, branching from `Verifier` to every included
+    task's node; `tests/test_workflow_graph_docs.py` (or a new sibling
+    test) verifies this second diagram also stays in sync with the
+    live graph, the same way the existing single-task one does;
+    `python -m pytest -q` passes.
 
 - [ ] Multi-task results UI (per-task sections + combined summary)
   - **ID**: multi-task-results-ui

@@ -3967,6 +3967,39 @@ This file contains the reasoning transcript of the AI agent for the current sess
   human review/approval before this task is marked done and removed
   from `TASKS.md`.
 
+## 2026-09-10 21:50:40 — New task discovered: Regenerate workflow diagram for a multi-task selection example (multi-task-graph-diagram-example)
+
+- **Context**: Human asked why `data/workflow_graph.png` didn't
+  visually change after `multi-task-graph-fanout` shipped, then asked
+  how to make the diagram change automatically. Explained: the
+  `.githooks/pre-commit` hook already auto-regenerates it on every
+  commit touching `src/workflow.py` — it's just that
+  `scripts/regenerate_workflow_graph.py`'s `get_mermaid_text()` always
+  renders `build_workflow_graph()`'s *default* (single-task) selection,
+  so the automation working correctly still produces an unchanged
+  picture until there's a real multi-task example to render.
+- **Action**: Per the human's instruction, added
+  `multi-task-graph-diagram-example` directly to `TASKS.md`'s P1
+  (bypassing `CANDIDATE_TASKS.md`, same as `multi-task-graph-fanout` —
+  a follow-up gap found directly in this session's own work, not a new
+  candidate). Explicitly noted a caveat for whoever picks it up: it's
+  only meaningfully verifiable once a second *real* domain task is
+  implemented (not just mocked, since a mocked example isn't
+  appropriate for a permanently-committed README diagram) — flagged
+  so this doesn't get picked up prematurely and produce a misleading
+  or fake example.
+
+## 2026-09-10 21:58:20 — Closing task: Dynamic graph fan-out for multi-task selection (multi-task-graph-fanout)
+
+- PR #80 merged into `main` at `e352b23`. Human explicitly approved
+  marking `multi-task-graph-fanout` done. Removing it from `TASKS.md`'s
+  P1 section (and adding it to the "Recently completed" list) on this
+  `close/multi-task-graph-fanout` branch/PR, titled `Closing task as
+  "Done": Dynamic graph fan-out for multi-task selection`, per the
+  mandatory task-closing workflow. No `CANDIDATE_TASKS.md` update
+  needed — this task was never graduated from there (`Candidate ID:
+  N/A`, added directly to `TASKS.md`).
+
 ## 2026-09-10 — New task discovered: Document branch-naming conventions in AGENTS.md (document-branch-naming-conventions)
 
 - **Goal**: Human asked to "check updates in AGENTS" — review
