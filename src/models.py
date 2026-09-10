@@ -1,7 +1,8 @@
-"""Pydantic data schemas (TreatyTerms, ClaimsData, AnomalyReport)."""
+"""Pydantic data schemas (TreatyTerms, ClaimsData, AnomalyReport, TaskResult)."""
 
 from datetime import date
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -49,3 +50,17 @@ class AnomalyReport(BaseModel):
     claims: list[ClaimsData] = Field(default_factory=list)
     loss_ratio: float = Field(ge=0)
     findings: list[AnomalyFinding] = Field(default_factory=list)
+
+
+class TaskResult(BaseModel):
+    """One domain task's outcome within a (future) multi-task run.
+
+    Deliberately generic across task shapes (unlike AnomalyReport, which is
+    burn-cost-check-specific with its treaty/claims/loss_ratio fields) --
+    findings/cost/latency are the only things every domain task shares.
+    """
+
+    status: Literal["ran", "skipped_not_implemented", "failed"]
+    findings: list[AnomalyFinding] = Field(default_factory=list)
+    cost: float = 0.0
+    latency: float = 0.0
