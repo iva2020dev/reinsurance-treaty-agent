@@ -3674,3 +3674,18 @@ This file contains the reasoning transcript of the AI agent for the current sess
   src/app.py` — healthy, no server-log errors. Awaiting human review/
   approval before this task is marked done and removed from
   `TASKS.md`.
+
+## 2026-09-10 15:49:37 — Closing task: Multi-task result aggregation & state schema (multi-task-result-aggregation-schema)
+
+- PR #73 merged into `main` at `9470f3c`. Human explicitly approved
+  marking `multi-task-result-aggregation-schema` done. Removing it
+  from `TASKS.md`'s P1 section (and adding it to the "Recently
+  completed" list) on this `close/multi-task-result-aggregation-
+  schema` branch/PR, titled `Closing task as "Done": Multi-task result
+  aggregation & state schema`, per the mandatory task-closing
+  workflow. Also updated `CANDIDATE_TASKS.md`'s `S3` Status (summary
+  row + detailed heading) from `📋 In TASKS.md` to `✅ Done (shipped as
+  \`multi-task-result-aggregation-schema\`)`, and rewrote its detailed
+  entry's description to reflect the shipped (additive) scope instead
+  of the original "replace `report`" text, so `CANDIDATE_TASKS.md`
+  doesn't describe a design that was deliberately not built.
