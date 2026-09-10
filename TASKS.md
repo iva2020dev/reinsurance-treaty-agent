@@ -43,6 +43,7 @@
      ✅ 2026-09-10 15:13:52 Workflow refactor: split shared pipeline from per-task analysis nodes (workflow-refactor-multi-task-pipeline)
      ✅ 2026-09-10 15:25:39 Per-task cost estimation (pre-run) & actual cost tracking (post-run) (per-task-cost-estimation)
      ✅ 2026-09-10 15:49:37 Multi-task result aggregation & state schema (multi-task-result-aggregation-schema)
+     ✅ 2026-09-10 16:12:54 Task selection UI (checkboxes, disabled/blurred not-implemented tasks, live cost readout) (multi-task-selection-ui)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -73,33 +74,6 @@
     tasks ran/were skipped/failed across a `task_results` dict;
     `python -m pytest -q` passes with tests for both the tagging and
     the summary function.
-
-- [ ] Task selection UI (checkboxes, disabled/blurred not-implemented tasks, live cost readout) (@claude)
-  - **ID**: multi-task-selection-ui
-  - **Tags**: ui, streamlit, multi-domain-task-selection
-  - **Candidate ID**: S6 (`CANDIDATE_TASKS.md`)
-  - **Blocked by**: per-task-cost-estimation
-  - **Details**: Graduated from `CANDIDATE_TASKS.md` (`S6`, Priority 6
-    of 8). A checkbox/multiselect control in `src/app.py` listing every
-    task from `src/domain_tasks.py`'s `DOMAIN_TASKS` registry; only
-    tasks with `implementation_status="implemented"` (today: just
-    `B0`) are enabled/checkable, every other task rendered visually
-    disabled/blurred with a "Not implemented" badge (matching this
-    app's existing disabled-button styling pattern, e.g. the Review/
-    Analyze buttons' `disabled=` state in `main()`); checking an
-    enabled task shows its live cost estimate from `per-task-cost-
-    estimation`'s `estimate_task_cost()`, plus a running cumulative
-    total across all checked tasks. Replaces the implicit
-    "`B0` always runs" behavior with an explicit selection step.
-  - **Files**: `src/app.py`, `tests/test_app.py`
-  - **Acceptance**: The Streamlit UI shows one checkbox per registry
-    entry; not-implemented tasks are visibly disabled and can't be
-    checked; checking `B0` shows a live cost estimate and updates a
-    running total; the selected task ID set feeds into `build_workflow_
-    graph()` (from `workflow-refactor-multi-task-pipeline`) when
-    "Analyze" is clicked; `AppTest`-based tests cover the disabled
-    state, the cost readout, and that only checked+implemented tasks
-    actually run.
 
 - [ ] Multi-task results UI (per-task sections + combined summary)
   - **ID**: multi-task-results-ui

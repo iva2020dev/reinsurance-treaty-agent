@@ -137,7 +137,7 @@ discussion on how document quality drives task shape (see
 | 3 | S3 | Multi-task result aggregation & state schema | ✅ Done | Deterministic | N/A | M | S2 |
 | 4 | S4 | Per-task cost estimation (pre-run) & actual cost tracking (post-run) | ✅ Done | Hybrid | N/A | M | S1 |
 | 5 | S5 | Multi-task messaging & logging | 📋 In TASKS.md | Deterministic | N/A | S/M | S2, S3 |
-| 6 | S6 | Task selection UI (checkboxes, disabled/blurred not-implemented tasks, live cost readout) | 📋 In TASKS.md | Deterministic | N/A | M | S1, S4 |
+| 6 | S6 | Task selection UI (checkboxes, disabled/blurred not-implemented tasks, live cost readout) | ✅ Done | Deterministic | N/A | M | S1, S4 |
 | 7 | S7 | Multi-task results UI (per-task sections + combined summary) | 📋 In TASKS.md | Deterministic | N/A | M | S3, S5 |
 | 8 | S8 | End-to-end test coverage for multi-task selection | 📋 In TASKS.md | Deterministic | N/A | M | S2-S7 |
 
@@ -498,8 +498,8 @@ selector read from).
   single-task-only `format_extraction_status`.
   *Deterministic, depends on S2, S3. Effort: S/M. Answer type: N/A
   (infrastructure).*
-- **S6. Task selection UI** — Priority 6 — 📋 In TASKS.md as
-  `multi-task-selection-ui` — a checkbox/multiselect
+- **S6. Task selection UI** — Priority 6 — ✅ Done (shipped as
+  `multi-task-selection-ui`) — a checkbox/multiselect
   control listing every task from `S1`'s registry; only tasks marked
   `implemented` (today: just `B0`) are enabled, every other task
   rendered visually disabled/blurred with a "Not implemented" badge;
