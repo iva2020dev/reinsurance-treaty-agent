@@ -44,6 +44,7 @@
      ✅ 2026-09-10 15:25:39 Per-task cost estimation (pre-run) & actual cost tracking (post-run) (per-task-cost-estimation)
      ✅ 2026-09-10 15:49:37 Multi-task result aggregation & state schema (multi-task-result-aggregation-schema)
      ✅ 2026-09-10 16:12:54 Task selection UI (checkboxes, disabled/blurred not-implemented tasks, live cost readout) (multi-task-selection-ui)
+     ✅ 2026-09-10 17:04:17 Multi-task messaging & logging (multi-task-messaging-logging)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -53,27 +54,6 @@
 ## P1
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
-
-- [ ] Multi-task messaging & logging (@claude)
-  - **ID**: multi-task-messaging-logging
-  - **Tags**: harness, logging, multi-domain-task-selection
-  - **Candidate ID**: S5 (`CANDIDATE_TASKS.md`)
-  - **Blocked by**: workflow-refactor-multi-task-pipeline, multi-task-result-aggregation-schema
-  - **Details**: Graduated from `CANDIDATE_TASKS.md` (`S5`, Priority 5
-    of 8). Every node's log line gains a task-id tag (e.g. prefixing
-    `"[burn_cost_check] "`), so a multi-task run's combined log stays
-    attributable per task. A combined-run summary message (which tasks
-    ran, which were skipped as not-implemented, which failed) drives
-    both the UI banner and the saved log file, replacing today's
-    single-task-only `format_extraction_status()` in `src/app.py`.
-  - **Files**: `src/workflow.py`, `src/app.py`, `tests/test_workflow.py`,
-    `tests/test_app.py`
-  - **Acceptance**: Every workflow node's log lines are tagged with the
-    task id they belong to; a new `format_multi_task_status()`-style
-    function (replacing `format_extraction_status()`) summarizes which
-    tasks ran/were skipped/failed across a `task_results` dict;
-    `python -m pytest -q` passes with tests for both the tagging and
-    the summary function.
 
 - [ ] Multi-task results UI (per-task sections + combined summary)
   - **ID**: multi-task-results-ui

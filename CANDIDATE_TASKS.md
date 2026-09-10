@@ -136,7 +136,7 @@ discussion on how document quality drives task shape (see
 | 2 | S2 | Workflow refactor: split shared pipeline from per-task analysis nodes | ✅ Done | Deterministic | N/A | L | S1 |
 | 3 | S3 | Multi-task result aggregation & state schema | ✅ Done | Deterministic | N/A | M | S2 |
 | 4 | S4 | Per-task cost estimation (pre-run) & actual cost tracking (post-run) | ✅ Done | Hybrid | N/A | M | S1 |
-| 5 | S5 | Multi-task messaging & logging | 📋 In TASKS.md | Deterministic | N/A | S/M | S2, S3 |
+| 5 | S5 | Multi-task messaging & logging | ✅ Done | Deterministic | N/A | S/M | S2, S3 |
 | 6 | S6 | Task selection UI (checkboxes, disabled/blurred not-implemented tasks, live cost readout) | ✅ Done | Deterministic | N/A | M | S1, S4 |
 | 7 | S7 | Multi-task results UI (per-task sections + combined summary) | 📋 In TASKS.md | Deterministic | N/A | M | S3, S5 |
 | 8 | S8 | End-to-end test coverage for multi-task selection | 📋 In TASKS.md | Deterministic | N/A | M | S2-S7 |
@@ -490,12 +490,19 @@ selector read from).
   *Hybrid: deterministic estimate math + real LLM usage for the
   actual. Effort: M, depends on S1. Answer type: N/A
   (infrastructure/cost-control).*
-- **S5. Multi-task messaging & logging** — Priority 5 — 📋 In TASKS.md
-  as `multi-task-messaging-logging` — every node's
-  log line gains a task-id tag; a combined-run summary message (which
-  tasks ran, which were skipped as not-implemented, which failed)
-  drives both the UI banner and the saved log file, replacing today's
-  single-task-only `format_extraction_status`.
+- **S5. Multi-task messaging & logging** — Priority 5 — ✅ Done
+  (shipped as `multi-task-messaging-logging`) — the per-task analysis
+  node(s)' log line(s) gain a task-id tag (e.g. `burn_cost_check_node`
+  → `"[burn_cost_check] "`; the *shared* Extractor/LLM Fallback/
+  Verifier pipeline nodes stay untagged, since they aren't any one
+  task's own work). A combined-run summary function,
+  `format_multi_task_status()`, reports per selected task whether it
+  ran (with findings/cost/latency), was skipped as not-implemented,
+  didn't run due to incomplete extraction, or otherwise failed —
+  added **alongside** (not replacing) the existing single-task
+  `format_extraction_status()`, which reports a different, still-
+  useful thing (*how* extraction happened, not *which* domain tasks
+  ran). Drives both the debug panel and the saved log file.
   *Deterministic, depends on S2, S3. Effort: S/M. Answer type: N/A
   (infrastructure).*
 - **S6. Task selection UI** — Priority 6 — ✅ Done (shipped as
