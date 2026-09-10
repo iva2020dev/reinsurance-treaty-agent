@@ -6,7 +6,7 @@ future consumers (a graph builder that only runs implemented+selected
 tasks, a frontend task selector) read from this list rather than each
 maintaining their own copy, so they can't drift apart.
 
-Only `B0` (the Burn-Cost Check, `analyst_node` in `src/workflow.py`) is
+Only `B0` (the Burn-Cost Check, `burn_cost_check_node` in `src/workflow.py`) is
 implemented today; every other entry mirrors a still-`Proposed`
 candidate in `CANDIDATE_TASKS.md`'s Business Domain tables and has no
 workflow node yet.
@@ -37,7 +37,7 @@ DOMAIN_TASKS: list[DomainTask] = [
         candidate_id="B0",
         implementation_status="implemented",
         shape="hybrid",
-        workflow_node="analyst_node",
+        workflow_node="burn_cost_check_node",
     ),
     DomainTask(
         id="exclusion_completeness_checklist",

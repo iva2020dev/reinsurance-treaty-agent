@@ -10,7 +10,8 @@ import pytest
 from src.models import ClaimsData, Severity, TreatyTerms
 from src.parser import PageSection, extract_treaty_sections
 from src.workflow import (
-    analyst_node,
+    build_workflow_graph,
+    burn_cost_check_node,
     extract_treaty_terms,
     extractor_node,
     llm_extraction_fallback,
@@ -321,27 +322,75 @@ def test_verifier_node_flags_incompleteness_without_calling_tools():
     assert result["claims"] == []
 
 
-def test_analyst_node_no_anomalies():
+def test_burn_cost_check_node_no_anomalies():
     treaty = TreatyTerms(
         cedent_name="X", attachment_point=1_000_000, limit=5_000_000, reinsurance_premium=250_000
     )
     claims = [ClaimsData(cedent_name="X", claim_amount=1_100_000, claim_date=date(2025, 1, 1))]
 
-    result = analyst_node({"treaty": treaty, "claims": claims})
+    result = burn_cost_check_node({"treaty": treaty, "claims": claims})
 
     report = result["report"]
     assert report.findings == []
     assert report.loss_ratio == 100_000 / 5_000_000
 
 
-def test_analyst_node_flags_at_least_one_anomaly():
+def test_burn_cost_check_node_flags_at_least_one_anomaly():
     treaty = TreatyTerms(
         cedent_name="X", attachment_point=1_000_000, limit=5_000_000, reinsurance_premium=250_000
     )
 
-    result = analyst_node({"treaty": treaty, "claims": []})
+    result = burn_cost_check_node({"treaty": treaty, "claims": []})
 
     report = result["report"]
     assert len(report.findings) >= 1
     assert report.findings[0].severity == Severity.LOW
     assert "No historical claims data" in report.findings[0].description
+
+
+def test_run_workflow_default_selection_matches_explicit_burn_cost_check_selection():
+    default_result = run_workflow(WELL_FORMED_SECTIONS)
+    explicit_result = run_workflow(WELL_FORMED_SECTIONS, selected_task_ids={"burn_cost_check"})
+
+    assert default_result["report"] == explicit_result["report"]
+
+
+def test_run_workflow_empty_selection_completes_but_runs_no_analysis_task():
+    result = run_workflow(WELL_FORMED_SECTIONS, selected_task_ids=set())
+
+    assert result["complete"] is True
+    assert result.get("report") is None
+
+
+def test_run_workflow_selecting_only_a_not_implemented_task_skips_it_gracefully():
+    result = run_workflow(WELL_FORMED_SECTIONS, selected_task_ids={"exclusion_completeness_checklist"})
+
+    assert result["complete"] is True
+    assert result.get("report") is None
+
+
+def test_build_workflow_graph_rejects_more_than_one_implemented_task(monkeypatch):
+    from src.domain_tasks import DomainTask
+
+    two_implemented = [
+        DomainTask(
+            id="burn_cost_check",
+            title="Burn-Cost Check",
+            candidate_id="B0",
+            implementation_status="implemented",
+            shape="hybrid",
+            workflow_node="burn_cost_check_node",
+        ),
+        DomainTask(
+            id="second_task",
+            title="Second Task",
+            candidate_id="B1",
+            implementation_status="implemented",
+            shape="deterministic",
+            workflow_node="burn_cost_check_node",
+        ),
+    ]
+    monkeypatch.setattr("src.workflow.DOMAIN_TASKS", two_implemented)
+
+    with pytest.raises(NotImplementedError):
+        build_workflow_graph({"burn_cost_check", "second_task"})
