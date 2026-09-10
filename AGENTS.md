@@ -123,10 +123,10 @@ update `CANDIDATE_TASKS.md` to match, in the same PR:
 
 - **Graduating** a candidate into `TASKS.md` (giving it a real
   ID/Details/Files/Acceptance there) — set its `CANDIDATE_TASKS.md`
-  row and detailed entry to `📋 In TASKS.md as \`<id>\``.
+  row and detailed entry to `` 📋 In TASKS.md as `<id>` ``.
 - **Completing** a graduated candidate (approved done, removed from
   `TASKS.md` per step 11 above) — set its `CANDIDATE_TASKS.md` row and
-  detailed entry to `✅ Done (shipped as \`<id>\`)`.
+  detailed entry to `` ✅ Done (shipped as `<id>`) ``.
 - Discovered as a gap on 2026-09-08: `A1`-`A3` were completed and
   removed from `TASKS.md` on 2026-09-06, but `CANDIDATE_TASKS.md` kept
   showing them as `📋 In TASKS.md` for two days — fixed as its own

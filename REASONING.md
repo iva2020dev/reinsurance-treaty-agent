@@ -3999,3 +3999,34 @@ This file contains the reasoning transcript of the AI agent for the current sess
   mandatory task-closing workflow. No `CANDIDATE_TASKS.md` update
   needed — this task was never graduated from there (`Candidate ID:
   N/A`, added directly to `TASKS.md`).
+
+## 2026-09-10 — Fix: Unclosed `<id>` XML tag in AGENTS.md (fix-agents-md-unclosed-id-tag)
+
+- **Goal**: Human reported a linter flagging "Unclosed XML tag '<id>'"
+  at `AGENTS.md` lines 126 and 129.
+- **Analysis**: Both lines use a nested-backtick pattern —
+  `` `📋 In TASKS.md as \`<id>\`` `` — meant to render the whole status
+  string (including its own literal backticks around `<id>`) as one
+  inline code span. Standard Markdown doesn't support escaping
+  backticks with `\` inside a single-backtick code span: the first
+  unescaped-looking backtick after `as ` actually closes the span
+  early, leaving `<id>\`` as raw text outside any code span — which is
+  why a linter parses the bare `<id>` as an unclosed HTML/XML tag
+  instead of literal code content. `AGENTS.md` line 59
+  (`` `task/<id>` ``) is a normal single-backtick span with no nested
+  backticks, so it wasn't affected.
+- **Decision**: Rewrite both spans using CommonMark's documented way to
+  include a literal backtick inside a code span — a longer backtick
+  run as the delimiter, with a padding space on each side since the
+  content itself starts/ends with a backtick: `` `` 📋 In TASKS.md as
+  `<id>` `` ``. This keeps `<id>` genuinely inside a code span (so
+  linters/renderers treat it as literal text, not a tag) without
+  changing the displayed text at all.
+- **Action**: Fixed both lines in `AGENTS.md`. Grepped the rest of the
+  repo's `.md` files for the same broken `` \`< `` pattern — found one
+  more occurrence, in a historical dated `REASONING.md` log entry
+  (2026-09-08 area); left it untouched since editing past transcript
+  entries would misrepresent the historical record, and transcripts
+  aren't linted documentation.
+- **Outcome**: `python -m pytest -q` — 131 passed, no regressions
+  (docs-only change, no source touched).
