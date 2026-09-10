@@ -76,7 +76,7 @@
     passes with existing single-report assertions updated to read from
     `task_results["burn_cost_check"]`.
 
-- [ ] Per-task cost estimation (pre-run) & actual cost tracking (post-run)
+- [ ] Per-task cost estimation (pre-run) & actual cost tracking (post-run) (@claude)
   - **ID**: per-task-cost-estimation
   - **Tags**: harness, cost-observability, multi-domain-task-selection
   - **Candidate ID**: S4 (`CANDIDATE_TASKS.md`)
