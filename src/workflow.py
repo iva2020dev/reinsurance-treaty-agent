@@ -12,7 +12,7 @@ from pydantic import ValidationError
 
 from src.domain_tasks import DOMAIN_TASKS
 from src.llm_client import call_with_retry, get_client
-from src.models import AnomalyFinding, AnomalyReport, ClaimsData, Severity, TreatyTerms
+from src.models import AnomalyFinding, AnomalyReport, ClaimsData, Severity, TaskResult, TreatyTerms
 from src.parser import PageSection, extract_treaty_sections
 from src.tools import calculate_loss_ratio, check_treaty_grounding, query_historical_claims
 
@@ -100,6 +100,11 @@ class WorkflowState(TypedDict, total=False):
     claims: list[ClaimsData]
     complete: bool
     report: AnomalyReport | None
+    # Additive alongside `report` (not a replacement) -- keyed by domain-task
+    # id (src/domain_tasks.py), populated only for tasks that actually ran.
+    # Ready to hold multiple entries once more than one implemented task can
+    # run on the same treaty; today that's just {"burn_cost_check": ...}.
+    task_results: dict[str, TaskResult]
 
 
 def _extract_exclusions(sections: list[PageSection]) -> tuple[list[str], int | None]:
@@ -262,6 +267,7 @@ def verifier_node(state: WorkflowState) -> dict:
 
 def burn_cost_check_node(state: WorkflowState) -> dict:
     """Compare treaty terms against historical claims and flag anomalies (the Burn-Cost Check, B0)."""
+    started_at = time.perf_counter()
     treaty = state["treaty"]
     claims = state.get("claims", [])
     loss_ratio = calculate_loss_ratio(treaty.attachment_point, treaty.limit, claims)
@@ -299,12 +305,17 @@ def burn_cost_check_node(state: WorkflowState) -> dict:
         )
 
     report = AnomalyReport(treaty=treaty, claims=claims, loss_ratio=loss_ratio, findings=findings)
+    latency = time.perf_counter() - started_at
+    # Burn-Cost Check is a deterministic task (no LLM call) -- cost is always
+    # 0.0, matching src/cost_estimation.py's estimate_task_cost() for
+    # deterministic-shaped tasks.
+    task_result = TaskResult(status="ran", findings=findings, cost=0.0, latency=latency)
     logger.info(
         "Burn-Cost Check: loss ratio %.2f, %d finding(s)",
         loss_ratio,
         len(findings),
     )
-    return {"report": report}
+    return {"report": report, "task_results": {"burn_cost_check": task_result}}
 
 
 def _route_after_extractor(state: WorkflowState) -> str:

@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 import anthropic
 import pytest
 
-from src.models import ClaimsData, Severity, TreatyTerms
+from src.models import ClaimsData, Severity, TaskResult, TreatyTerms
 from src.parser import PageSection, extract_treaty_sections
 from src.workflow import (
     build_workflow_graph,
@@ -346,6 +346,37 @@ def test_burn_cost_check_node_flags_at_least_one_anomaly():
     assert len(report.findings) >= 1
     assert report.findings[0].severity == Severity.LOW
     assert "No historical claims data" in report.findings[0].description
+
+
+def test_burn_cost_check_node_also_populates_task_results_alongside_report():
+    treaty = TreatyTerms(
+        cedent_name="X", attachment_point=1_000_000, limit=5_000_000, reinsurance_premium=250_000
+    )
+    claims = [ClaimsData(cedent_name="X", claim_amount=1_100_000, claim_date=date(2025, 1, 1))]
+
+    result = burn_cost_check_node({"treaty": treaty, "claims": claims})
+
+    assert set(result["task_results"]) == {"burn_cost_check"}
+    task_result = result["task_results"]["burn_cost_check"]
+    assert isinstance(task_result, TaskResult)
+    assert task_result.status == "ran"
+    assert task_result.findings == result["report"].findings
+    assert task_result.cost == 0.0
+    assert task_result.latency >= 0.0
+
+
+def test_run_workflow_task_results_matches_report_for_burn_cost_check():
+    result = run_workflow(WELL_FORMED_SECTIONS)
+
+    task_result = result["task_results"]["burn_cost_check"]
+    assert task_result.status == "ran"
+    assert task_result.findings == result["report"].findings
+
+
+def test_run_workflow_empty_selection_produces_no_task_results():
+    result = run_workflow(WELL_FORMED_SECTIONS, selected_task_ids=set())
+
+    assert result.get("task_results") is None
 
 
 def test_run_workflow_default_selection_matches_explicit_burn_cost_check_selection():

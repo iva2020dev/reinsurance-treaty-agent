@@ -3613,3 +3613,64 @@ This file contains the reasoning transcript of the AI agent for the current sess
   detailed heading) from `📋 In TASKS.md` to `✅ Done (shipped as
   \`per-task-cost-estimation\`)`, matching the pattern used for
   `S1`/`S2`/`A1`-`A3`/`A11`.
+
+## 2026-09-10 15:38:00 — Task: Multi-task result aggregation & state schema (multi-task-result-aggregation-schema)
+
+- **Goal**: Implement `multi-task-result-aggregation-schema` (P1,
+  graduated from `S3`): add a `TaskResult` schema and
+  `WorkflowState.task_results` so results can eventually be tracked
+  per-task instead of as one combined report.
+- **Scope conflict found before writing code**: The task's `Details`
+  said to *replace* `WorkflowState.report` with `task_results`, but
+  its own `Files` list didn't include `src/app.py` — which depends
+  heavily on `state["report"]` today (report rendering, Save/Download,
+  PDF export, per-treaty results organization — all built in later
+  sessions after `S3` was originally drafted, before any of that
+  existed). A literal replacement would silently break `src/app.py`
+  without it being in scope to fix. Asked the human via
+  `AskUserQuestion` rather than guessing which way to resolve it.
+- **Decision**: Human chose: keep `WorkflowState.report` exactly as it
+  is today (so `src/app.py` keeps working completely unchanged), and
+  add `task_results` **alongside** it, additive — designed so the
+  schema is ready to hold multiple entries once more than one domain
+  task can run on the same treaty, without actually implementing that
+  multi-task execution now (`S2`'s existing `NotImplementedError`
+  guard for >1 implemented task still applies). Updated `TASKS.md`'s
+  entry to record this scope revision explicitly (dated inline) before
+  writing any code, per the "if the human changes actions within an
+  in-progress task, update the entry and log it" rule — this is an
+  unusually large scope narrowing to leave undocumented.
+  Also decided: populating `skipped_not_implemented`/`failed` entries
+  for the *full* selected-task-ids set (not just what actually ran) is
+  `S5`'s job, not this one — `S5`'s own Details already describe
+  exactly that ("combined-run summary... which tasks ran/skipped/
+  failed"), and doing it here would need `selected_task_ids` threaded
+  into runtime state, a bigger change than this task's stated Files
+  list implies. This task only populates a `"ran"` entry for whatever
+  task actually executed.
+- **Action**: Claimed `multi-task-result-aggregation-schema` and
+  branched `task/multi-task-result-aggregation-schema` off `main`
+  before writing any code. Implementing `TaskResult` in
+  `src/models.py` and wiring `task_results` into
+  `burn_cost_check_node`/`WorkflowState` next.
+
+- **Outcome**: Implemented `TaskResult` (`src/models.py`:
+  `status`/`findings`/`cost`/`latency`, deliberately generic across
+  task shapes unlike `AnomalyReport`'s burn-cost-check-specific
+  `treaty`/`claims`/`loss_ratio` fields). Added `WorkflowState.
+  task_results: dict[str, TaskResult]` (`src/workflow.py`), populated
+  alongside (not instead of) `report` in `burn_cost_check_node`:
+  `{"burn_cost_check": TaskResult(status="ran", findings=<same as
+  report.findings>, cost=0.0, latency=<measured via
+  time.perf_counter()>)}`. Added 3 new tests to
+  `tests/test_workflow.py`: the node populates both keys consistently,
+  `run_workflow()`'s `task_results` matches its `report`, and an empty
+  task selection produces no `task_results` at all (nothing ran).
+- **Verification**: `python -m pytest -q` — 121 passed (118 previously
+  + 3 new), all unchanged (no existing test needed modification,
+  confirming `report`'s behavior is genuinely untouched). Coverage:
+  `src/workflow.py` 99%. Ran `python -m tests.eval.run_eval` manually
+  — all 5 golden cases still 100%. Manually booted `streamlit run
+  src/app.py` — healthy, no server-log errors. Awaiting human review/
+  approval before this task is marked done and removed from
+  `TASKS.md`.
