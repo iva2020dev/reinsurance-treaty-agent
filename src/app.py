@@ -19,6 +19,8 @@ if str(_REPO_ROOT) not in sys.path:
 import streamlit as st
 from fpdf import FPDF
 
+from src.cost_estimation import estimate_task_cost
+from src.domain_tasks import DOMAIN_TASKS
 from src.models import AnomalyReport
 from src.parser import ParserError, extract_treaty_sections
 from src.sample_treaties import SAMPLE_TREATIES, get_sample_bytes
@@ -48,15 +50,34 @@ class _ListLogHandler(logging.Handler):
         self.sink.append(self.format(record))
 
 
-def run_workflow_on_bytes(file_bytes: bytes) -> WorkflowState:
+def run_workflow_on_bytes(file_bytes: bytes, selected_task_ids: set[str] | None = None) -> WorkflowState:
     """Write the uploaded bytes to a temp file and run the full agent workflow on them.
 
     Raises ParserError if the PDF cannot be read or has no extractable text.
+    See build_workflow_graph() (src/workflow.py) for selected_task_ids'
+    meaning and default.
     """
     with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp:
         tmp.write(file_bytes)
         tmp.flush()
-        return run_workflow_from_pdf(Path(tmp.name))
+        return run_workflow_from_pdf(Path(tmp.name), selected_task_ids)
+
+
+def get_pdf_page_count(file_bytes: bytes) -> int:
+    """Cheaply parse a PDF's page count for the live cost estimate, with no LLM call.
+
+    Returns 0 if the bytes can't be parsed as a PDF -- the caller (the
+    per-task cost readout) should treat that the same as "unknown," not
+    crash, since this runs on every rerun while a document is selected,
+    before the user has committed to analyzing it.
+    """
+    with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp:
+        tmp.write(file_bytes)
+        tmp.flush()
+        try:
+            return len(extract_treaty_sections(Path(tmp.name)))
+        except ParserError:
+            return 0
 
 
 def extract_report(state: WorkflowState) -> AnomalyReport:
@@ -300,12 +321,16 @@ def _fingerprint(file_bytes: bytes) -> str:
     return hashlib.sha256(file_bytes).hexdigest()
 
 
-def _run_workflow_with_logging(file_bytes: bytes, display_name: str) -> dict:
+def _run_workflow_with_logging(
+    file_bytes: bytes, display_name: str, selected_task_ids: set[str] | None = None
+) -> dict:
     """Run the full workflow on file_bytes, capturing its log lines.
 
     Returned as a plain dict suitable for `st.session_state`, so the
     result survives reruns triggered by other widgets (e.g. the save-log
-    form) after the "Analyze" click that produced it.
+    form) after the "Analyze" click that produced it. See
+    build_workflow_graph() (src/workflow.py) for selected_task_ids'
+    meaning and default.
     """
     log_lines: list[str] = []
     handler = _ListLogHandler(log_lines)
@@ -321,7 +346,7 @@ def _run_workflow_with_logging(file_bytes: bytes, display_name: str) -> dict:
     try:
         with st.spinner("Running agent workflow..."):
             try:
-                state = run_workflow_on_bytes(file_bytes)
+                state = run_workflow_on_bytes(file_bytes, selected_task_ids)
             except ParserError as exc:
                 parser_error = str(exc)
     finally:
@@ -400,17 +425,43 @@ def main() -> None:
     has_selection = selected_bytes is not None
     selected_fingerprint = _fingerprint(selected_bytes) if selected_bytes is not None else None
 
+    st.subheader("Domain tasks to run")
+    page_count = get_pdf_page_count(selected_bytes) if selected_bytes is not None else 0
+    selected_task_ids: set[str] = set()
+    total_estimated_cost = 0.0
+    for task in DOMAIN_TASKS:
+        is_implemented = task.implementation_status == "implemented"
+        checked = st.checkbox(
+            task.title,
+            value=is_implemented,
+            disabled=not is_implemented,
+            key=f"task_checkbox_{task.id}",
+        )
+        if not is_implemented:
+            st.caption("Not implemented")
+        elif checked:
+            selected_task_ids.add(task.id)
+            estimated_cost = estimate_task_cost(task, page_count)
+            total_estimated_cost += estimated_cost
+            st.caption(f"Estimated cost: ${estimated_cost:,.4f}")
+    if selected_task_ids:
+        st.caption(f"**Total estimated cost: ${total_estimated_cost:,.4f}**")
+
     review_col, analyze_col = st.columns(2)
     with review_col:
         review_clicked = st.button("Review treaty", disabled=not has_selection)
     with analyze_col:
-        analyze_clicked = st.button("Analyze", type="primary", disabled=not has_selection)
+        analyze_clicked = st.button(
+            "Analyze", type="primary", disabled=not has_selection or not selected_task_ids
+        )
 
     if review_clicked and selected_bytes is not None and selected_name is not None:
         _show_review_dialog(selected_bytes, selected_name)
 
     if analyze_clicked and selected_bytes is not None and selected_name is not None:
-        st.session_state["workflow_run"] = _run_workflow_with_logging(selected_bytes, selected_name)
+        st.session_state["workflow_run"] = _run_workflow_with_logging(
+            selected_bytes, selected_name, selected_task_ids
+        )
 
     run_result = st.session_state.get("workflow_run")
     if run_result is not None and run_result.get("fingerprint") != selected_fingerprint:

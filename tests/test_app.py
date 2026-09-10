@@ -27,6 +27,7 @@ from src.app import (
     serialize_state_for_debug,
     slugify_treaty_name,
 )
+from src.domain_tasks import DOMAIN_TASKS
 from src.models import AnomalyFinding, AnomalyReport, ClaimsData, Severity, TreatyTerms
 from src.parser import ParserError
 
@@ -144,6 +145,72 @@ def test_app_analyze_button_disabled_until_treaty_selected():
     analyze_button = next(b for b in at.button if b.label == "Analyze")
     assert not review_button.disabled
     assert not analyze_button.disabled
+
+
+def test_app_shows_one_checkbox_per_domain_task_only_implemented_enabled():
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    assert len(at.checkbox) == len(DOMAIN_TASKS)
+    implemented_titles = {t.title for t in DOMAIN_TASKS if t.implementation_status == "implemented"}
+    for checkbox in at.checkbox:
+        if checkbox.label in implemented_titles:
+            assert not checkbox.disabled
+        else:
+            assert checkbox.disabled
+            assert not checkbox.value
+
+
+def test_app_burn_cost_check_defaults_checked_and_shows_cost_estimate():
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    burn_cost_checkbox = next(c for c in at.checkbox if c.label == "Burn-Cost Check")
+    assert burn_cost_checkbox.value is True
+    # B0 is hybrid-shaped, so estimate_task_cost() includes the fixed
+    # output-token estimate even with no document selected (page_count=0).
+    captions = "\n".join(c.value for c in at.caption)
+    assert "Estimated cost: $0.0010" in captions
+    assert "Total estimated cost: $0.0010" in captions
+
+
+def test_app_analyze_disabled_when_no_task_is_selected():
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    with open(MINIMAL_TREATY_PATH, "rb") as f:
+        at.file_uploader[0].set_value([("sample_treaty.pdf", f.read(), "application/pdf")])
+    at.run()
+
+    analyze_button = next(b for b in at.button if b.label == "Analyze")
+    assert not analyze_button.disabled
+
+    burn_cost_checkbox = next(c for c in at.checkbox if c.label == "Burn-Cost Check")
+    at = burn_cost_checkbox.uncheck().run()
+
+    analyze_button = next(b for b in at.button if b.label == "Analyze")
+    assert analyze_button.disabled
+
+
+def test_app_cost_estimate_increases_with_a_larger_selected_document():
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    with open(MINIMAL_TREATY_PATH, "rb") as f:
+        at.file_uploader[0].set_value([("sample_treaty.pdf", f.read(), "application/pdf")])
+    at = at.run()
+    small_captions = "\n".join(c.value for c in at.caption)
+
+    with open(RICH_TREATY_PATH, "rb") as f:
+        at.file_uploader[0].set_value([("sample_rich_treaty.pdf", f.read(), "application/pdf")])
+    at = at.run()
+    large_captions = "\n".join(c.value for c in at.caption)
+
+    def _total_cost(captions: str) -> float:
+        line = next(line for line in captions.splitlines() if "Total estimated cost" in line)
+        return float(line.split("$")[1].strip("*"))
+
+    assert _total_cost(large_captions) > _total_cost(small_captions)
 
 
 def test_app_upload_and_render_success():

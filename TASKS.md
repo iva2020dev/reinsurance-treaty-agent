@@ -74,7 +74,7 @@
     `python -m pytest -q` passes with tests for both the tagging and
     the summary function.
 
-- [ ] Task selection UI (checkboxes, disabled/blurred not-implemented tasks, live cost readout)
+- [ ] Task selection UI (checkboxes, disabled/blurred not-implemented tasks, live cost readout) (@claude)
   - **ID**: multi-task-selection-ui
   - **Tags**: ui, streamlit, multi-domain-task-selection
   - **Candidate ID**: S6 (`CANDIDATE_TASKS.md`)
