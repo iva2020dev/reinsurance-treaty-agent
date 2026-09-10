@@ -3867,3 +3867,28 @@ This file contains the reasoning transcript of the AI agent for the current sess
   node tagged, not "every node"; additive alongside `format_
   extraction_status()`, not replacing it) rather than the original
   wording — same pattern as `S3`'s closing entry.
+
+## 2026-09-10 17:13:33 — New task discovered: Dynamic graph fan-out for multi-task selection (multi-task-graph-fanout)
+
+- **Context**: Human asked how the current `data/workflow_graph.png`
+  diagram would change as more domain tasks become implemented. In
+  answering, re-examined `build_workflow_graph()`
+  (`workflow-refactor-multi-task-pipeline`'s output) and confirmed a
+  real gap: it only ever wires in *at most one* implemented+selected
+  task node — selecting more than one raises `NotImplementedError`
+  rather than actually fanning out. This is invisible today (the
+  registry has exactly one implemented entry) but means the graph-
+  *building* code doesn't yet genuinely support multi-task selection,
+  just a "one or zero" special case.
+- **Action**: Per the human's explicit instruction ("add it as a
+  tasks.md directly"), added `multi-task-graph-fanout` straight to
+  `TASKS.md`'s P1 (bypassing `CANDIDATE_TASKS.md` staging, since this
+  is a follow-up fix to already-shipped `S2` work discovered directly
+  during this session, not a new candidate needing prioritization
+  discussion). Scoped per the human's explicit constraint: the graph
+  should fan out to every selected+implemented task after `Verifier`
+  while leaving the shared pipeline nodes (`extractor_node`,
+  `llm_extraction_fallback`, `verifier_node`) completely untouched.
+  Not implemented yet — this is the task-creation step only, per the
+  "Add any new tasks discovered during work" step of the mandatory
+  workflow.
