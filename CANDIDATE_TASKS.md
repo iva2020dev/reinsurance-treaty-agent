@@ -135,7 +135,7 @@ discussion on how document quality drives task shape (see
 | 1 | S1 | Domain task registry & metadata | ✅ Done | Deterministic | N/A | S | — |
 | 2 | S2 | Workflow refactor: split shared pipeline from per-task analysis nodes | ✅ Done | Deterministic | N/A | L | S1 |
 | 3 | S3 | Multi-task result aggregation & state schema | 📋 In TASKS.md | Deterministic | N/A | M | S2 |
-| 4 | S4 | Per-task cost estimation (pre-run) & actual cost tracking (post-run) | 📋 In TASKS.md | Hybrid | N/A | M | S1 |
+| 4 | S4 | Per-task cost estimation (pre-run) & actual cost tracking (post-run) | ✅ Done | Hybrid | N/A | M | S1 |
 | 5 | S5 | Multi-task messaging & logging | 📋 In TASKS.md | Deterministic | N/A | S/M | S2, S3 |
 | 6 | S6 | Task selection UI (checkboxes, disabled/blurred not-implemented tasks, live cost readout) | 📋 In TASKS.md | Deterministic | N/A | M | S1, S4 |
 | 7 | S7 | Multi-task results UI (per-task sections + combined summary) | 📋 In TASKS.md | Deterministic | N/A | M | S3, S5 |
@@ -467,8 +467,8 @@ selector read from).
   *Deterministic, depends on S2. Effort: M. Answer type: N/A
   (infrastructure).*
 - **S4. Per-task cost estimation (pre-run) & actual cost tracking
-  (post-run)** — Priority 4 — 📋 In TASKS.md as
-  `per-task-cost-estimation` — the first real $-cost logic in this
+  (post-run)** — Priority 4 — ✅ Done (shipped as
+  `per-task-cost-estimation`) — the first real $-cost logic in this
   app. Pre-run: a rough per-task estimate from document page/token
   count × task shape (near-zero for deterministic tasks, a
   model-price-based estimate for LLM/hybrid tasks) plus a live

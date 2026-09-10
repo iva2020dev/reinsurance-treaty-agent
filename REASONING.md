@@ -3600,3 +3600,16 @@ This file contains the reasoning transcript of the AI agent for the current sess
   workflow yet, per this task's explicit scope limit (that's `S6`'s
   job). Awaiting human review/approval before this task is marked done
   and removed from `TASKS.md`.
+
+## 2026-09-10 15:25:39 — Closing task: Per-task cost estimation (pre-run) & actual cost tracking (post-run) (per-task-cost-estimation)
+
+- PR #71 merged into `main` at `b4a62b4`. Human explicitly approved
+  marking `per-task-cost-estimation` done. Removing it from
+  `TASKS.md`'s P1 section (and adding it to the "Recently completed"
+  list) on this `close/per-task-cost-estimation` branch/PR, titled
+  `Closing task as "Done": Per-task cost estimation (pre-run) & actual
+  cost tracking (post-run)`, per the mandatory task-closing workflow.
+  Also updated `CANDIDATE_TASKS.md`'s `S4` Status (summary row +
+  detailed heading) from `📋 In TASKS.md` to `✅ Done (shipped as
+  \`per-task-cost-estimation\`)`, matching the pattern used for
+  `S1`/`S2`/`A1`-`A3`/`A11`.
