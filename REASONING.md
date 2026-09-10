@@ -3689,3 +3689,76 @@ This file contains the reasoning transcript of the AI agent for the current sess
   entry's description to reflect the shipped (additive) scope instead
   of the original "replace `report`" text, so `CANDIDATE_TASKS.md`
   doesn't describe a design that was deliberately not built.
+
+## 2026-09-10 15:55:24 — Task: Task selection UI (multi-task-selection-ui)
+
+- **Goal**: Implement `multi-task-selection-ui` (P1, graduated from
+  `S6`): a checkbox per `src/domain_tasks.py` registry entry in
+  `src/app.py`, disabled for not-implemented tasks, showing a live
+  per-task cost estimate (from `per-task-cost-estimation`'s
+  `estimate_task_cost()`) plus a running cumulative total; the checked
+  task ID set feeds `build_workflow_graph()` (via
+  `run_workflow_from_pdf`'s `selected_task_ids` param from
+  `workflow-refactor-multi-task-pipeline`) when "Analyze" is clicked.
+- **Analysis**: `estimate_task_cost(task, page_count)` needs a page
+  count, which isn't known until a document is parsed — but the
+  live-cost requirement means it must be available before "Analyze"
+  runs the full workflow. Reused the same pattern the existing
+  "Review treaty" dialog already uses (write selected bytes to a temp
+  file, call `extract_treaty_sections()` for cheap local PDF parsing,
+  no LLM call) to get a page count as soon as a document is selected,
+  before any task is even run.
+- **Decision**: Render one `st.checkbox` per `DOMAIN_TASKS` entry
+  between the source-input container and the Review/Analyze buttons.
+  Not-implemented tasks render `disabled=True` with a "Not
+  implemented" caption (same visual pattern as the existing disabled
+  Review/Analyze buttons). The only implemented task (`B0`/
+  `burn_cost_check`) defaults to checked, preserving today's
+  "B0 runs by default" convenience while still being a real, uncheckable-
+  if-desired checkbox — satisfies "explicit selection step" without
+  silently changing default behavior for existing users. "Analyze" is
+  now also disabled when no task is checked (in addition to the
+  existing no-document-selected guard). Checked task IDs are collected
+  into a `set[str]` and threaded through `run_workflow_on_bytes()` →
+  `run_workflow_from_pdf()` → `build_workflow_graph()`'s existing
+  `selected_task_ids` parameter (from `S2`) — no new plumbing needed
+  there, just passing the UI's selection through what `S2` already
+  built.
+- **Action**: Claimed `multi-task-selection-ui` and branched
+  `task/multi-task-selection-ui` off `main` before writing code.
+  Implementing the checkbox list, page-count helper, and threading
+  `selected_task_ids` through `src/app.py`'s workflow-running
+  functions next.
+
+- **Outcome**: Implemented in `src/app.py`: `get_pdf_page_count()`
+  (cheap local PDF parse for the live cost estimate, no LLM call);
+  threaded `selected_task_ids` through `run_workflow_on_bytes()` and
+  `_run_workflow_with_logging()` down to `run_workflow_from_pdf()`;
+  added a "Domain tasks to run" checklist between the source-input
+  container and the Review/Analyze buttons — one `st.checkbox` per
+  `DOMAIN_TASKS` entry, disabled with a "Not implemented" caption for
+  every non-implemented task, defaulting checked for `burn_cost_check`
+  (the only implemented one today). Each checked task shows its live
+  `estimate_task_cost()` figure; a running total appears below the
+  list. "Analyze" is now also disabled when no task is checked (in
+  addition to the existing no-document-selected guard).
+  Found along the way: `burn_cost_check` is `hybrid`-shaped (matching
+  `CANDIDATE_TASKS.md`'s `B0` Shape column), not `deterministic`, so
+  its live estimate is never exactly `$0.0000` even with no document
+  selected (`cost_estimation.py`'s fixed output-token estimate still
+  applies) — caught this via a wrong test assumption, fixed the test
+  rather than the (correct) implementation once traced back to
+  `src/domain_tasks.py`'s actual registry entry.
+  Added 4 new tests to `tests/test_app.py`: one checkbox per registry
+  entry with only implemented ones enabled, `B0` defaults checked with
+  the correct hybrid-shaped cost estimate shown, "Analyze" disables
+  when the only checked task is unchecked, and the cost estimate
+  increases for a larger selected document.
+- **Verification**: `python -m pytest -q` — 125 passed (121 previously
+  + 4 new), zero existing tests modified (only the one new test I
+  wrote wrong needed a fix, not any pre-existing test). Coverage:
+  `src/app.py` 99%. Ran `python -m tests.eval.run_eval` manually — all
+  5 golden cases still 100%. Manually booted `streamlit run
+  src/app.py` — healthy, no server-log errors. Awaiting human review/
+  approval before this task is marked done and removed from
+  `TASKS.md`.
