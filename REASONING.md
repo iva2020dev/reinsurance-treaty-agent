@@ -3533,3 +3533,17 @@ This file contains the reasoning transcript of the AI agent for the current sess
   booted `streamlit run src/app.py` — healthy, no server-log errors.
   Awaiting human review/approval before this task is marked done and
   removed from `TASKS.md`.
+
+## 2026-09-10 15:13:52 — Closing task: Workflow refactor: split shared pipeline from per-task analysis nodes (workflow-refactor-multi-task-pipeline)
+
+- PR #69 merged into `main` at `bb2546f`. Human explicitly approved
+  marking `workflow-refactor-multi-task-pipeline` done. Removing it
+  from `TASKS.md`'s P1 section (and adding it to the "Recently
+  completed" list) on this `close/workflow-refactor-multi-task-
+  pipeline` branch/PR, titled `Closing task as "Done": Workflow
+  refactor: split shared pipeline from per-task analysis nodes`, per
+  the mandatory task-closing workflow. Also updated
+  `CANDIDATE_TASKS.md`'s `S2` Status (summary row + detailed heading)
+  from `📋 In TASKS.md` to `✅ Done (shipped as \`workflow-refactor-
+  multi-task-pipeline\`)`, matching the pattern used for `S1`/`A1`-
+  `A3`/`A11`.

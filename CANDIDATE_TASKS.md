@@ -133,7 +133,7 @@ discussion on how document quality drives task shape (see
 | Pri | ID | Task | Status | Shape | Answer Type | Effort | Depends on |
 |---|---|---|---|---|---|---|---|
 | 1 | S1 | Domain task registry & metadata | ✅ Done | Deterministic | N/A | S | — |
-| 2 | S2 | Workflow refactor: split shared pipeline from per-task analysis nodes | 📋 In TASKS.md | Deterministic | N/A | L | S1 |
+| 2 | S2 | Workflow refactor: split shared pipeline from per-task analysis nodes | ✅ Done | Deterministic | N/A | L | S1 |
 | 3 | S3 | Multi-task result aggregation & state schema | 📋 In TASKS.md | Deterministic | N/A | M | S2 |
 | 4 | S4 | Per-task cost estimation (pre-run) & actual cost tracking (post-run) | 📋 In TASKS.md | Hybrid | N/A | M | S1 |
 | 5 | S5 | Multi-task messaging & logging | 📋 In TASKS.md | Deterministic | N/A | S/M | S2, S3 |
@@ -448,8 +448,8 @@ selector read from).
   selector (`S6`) read from, so the two can't drift.
   *Deterministic. Effort: S. Answer type: N/A (infrastructure).*
 - **S2. Workflow refactor: split shared pipeline from per-task
-  analysis nodes** — Priority 2 — 📋 In TASKS.md as
-  `workflow-refactor-multi-task-pipeline` — today's
+  analysis nodes** — Priority 2 — ✅ Done (shipped as
+  `workflow-refactor-multi-task-pipeline`) — today's
   `Extractor → [LLM Fallback]
   → Verifier` stays a shared pipeline every domain task needs
   (produces `TreatyTerms` + `claims`); `analyst_node` gets renamed/
