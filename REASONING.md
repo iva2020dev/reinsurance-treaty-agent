@@ -3966,3 +3966,14 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `streamlit run src/app.py` — healthy, no server-log errors. Awaiting
   human review/approval before this task is marked done and removed
   from `TASKS.md`.
+
+## 2026-09-10 21:58:20 — Closing task: Dynamic graph fan-out for multi-task selection (multi-task-graph-fanout)
+
+- PR #80 merged into `main` at `e352b23`. Human explicitly approved
+  marking `multi-task-graph-fanout` done. Removing it from `TASKS.md`'s
+  P1 section (and adding it to the "Recently completed" list) on this
+  `close/multi-task-graph-fanout` branch/PR, titled `Closing task as
+  "Done": Dynamic graph fan-out for multi-task selection`, per the
+  mandatory task-closing workflow. No `CANDIDATE_TASKS.md` update
+  needed — this task was never graduated from there (`Candidate ID:
+  N/A`, added directly to `TASKS.md`).
