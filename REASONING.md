@@ -3775,3 +3775,80 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `S6` Status (summary row + detailed heading) from `📋 In TASKS.md` to
   `✅ Done (shipped as \`multi-task-selection-ui\`)`, matching the
   pattern used for `S1`-`S4`/`A1`-`A3`/`A11`.
+
+## 2026-09-10 16:17:04 — Task: Multi-task messaging & logging (multi-task-messaging-logging)
+
+- **Goal**: Implement `multi-task-messaging-logging` (P1, graduated
+  from `S5`): tag per-task log lines with a task-id, and add a
+  combined-run summary of which tasks ran/were skipped/failed.
+- **Two judgment calls made before writing code** (smaller than `S3`'s
+  scope conflict, but worth recording since the task's own wording
+  doesn't quite match implementation reality):
+  1. **"Every node's log line gains a task-id tag"** — read literally,
+     this would tag `extractor_node`/`llm_extraction_fallback`/
+     `verifier_node`'s log lines too, but those are the *shared*
+     pipeline every domain task needs, not any one task's own work —
+     tagging them with e.g. `"[burn_cost_check]"` would misattribute
+     shared infrastructure to one task. Tagging only the per-task
+     analysis node(s) (today: just `burn_cost_check_node`) is the
+     accurate reading of the *intent* (a multi-task run's combined log
+     staying attributable per task), even though it's not literally
+     "every node."
+  2. **"A new `format_multi_task_status()`-style function... replacing
+     `format_extraction_status()`"** — checked `format_extraction_
+     status()`'s actual current use (`src/app.py`, one `st.caption` in
+     the debug expander) and found it reports something genuinely
+     different and still useful: *how* extraction happened (regex vs.
+     LLM fallback), which is orthogonal to *which domain tasks ran*.
+     Literally replacing it would delete working, still-relevant
+     information the debug panel currently shows. Following the same
+     additive precedent the human set for `S3`'s `report`/`task_results`
+     conflict: keep `format_extraction_status()` as-is, add `format_
+     multi_task_status()` as a second, additional caption line right
+     after it, rather than deleting the first.
+- **Design for the "skipped" determination**: `WorkflowState.task_
+  results` (from `S3`) only ever holds entries for tasks that actually
+  ran (`S3`'s own deliberate scope limit) — it was never going to carry
+  the full selected-task-ids set needed to know what was *skipped*.
+  Rather than threading `selected_task_ids` into runtime state (the
+  "bigger change" `S3` explicitly deferred to this task), compute the
+  skip/fail summary in `src/app.py` by diffing the UI's already-known
+  `selected_task_ids` (from `S6`, already available at the point
+  `_run_workflow_with_logging()` is called) against `task_results`'
+  keys — no `WorkflowState` schema change needed. Stored
+  `selected_task_ids` in the `workflow_run` session-state dict
+  (alongside `state`/`log_lines`/etc.) so it's still available when the
+  debug panel renders on a later rerun, same pattern already used for
+  `selected_name`/`fingerprint`.
+- **Action**: Claimed `multi-task-messaging-logging` and branched
+  `task/multi-task-messaging-logging` off `main` before writing code.
+  Implementing the log tag in `src/workflow.py` and `format_multi_
+  task_status()` + wiring in `src/app.py` next.
+
+- **Outcome**: Implemented: `src/workflow.py`'s `burn_cost_check_node`
+  log line now prefixed `"[burn_cost_check] "`. Added `src/app.py`'s
+  `format_multi_task_status(selected_task_ids, task_results)` —
+  additive alongside `format_extraction_status()`, not replacing it —
+  reporting per selected task whether it `ran` (with findings/cost/
+  latency), was `skipped (not implemented)`, `did not run (extraction
+  incomplete)`, or carries some other `TaskResult.status` (e.g.
+  `failed`). Threaded `selected_task_ids` into the `workflow_run`
+  session-state dict (same pattern as `selected_name`/`fingerprint`)
+  so it survives reruns for the debug panel. Wired the summary into
+  both the "Analysis Workflow execution" expander (as a new
+  `st.markdown` line) and the saved log file (prefixed alongside the
+  existing run header).
+  Added 5 new tests to `tests/test_app.py` (`format_multi_task_status`
+  covering all four branches: no selection, ran, not-implemented-
+  skip, incomplete-extraction, failed) and 1 to `tests/test_workflow.py`
+  (`caplog`-based confirmation the log line is actually tagged) and 1
+  more to an existing app-level debug-panel test (the summary line
+  actually appears after a real Analyze run, not just in isolation).
+- **Verification**: `python -m pytest -q` — 131 passed (125 previously
+  + 6 new), zero existing tests modified — confirms both
+  `format_extraction_status()` and the existing log/debug behavior are
+  genuinely untouched. Coverage: `src/app.py` 99%, `src/workflow.py`
+  99%. Ran `python -m tests.eval.run_eval` manually — all 5 golden
+  cases still 100%. Manually booted `streamlit run src/app.py` —
+  healthy, no server-log errors. Awaiting human review/approval before
+  this task is marked done and removed from `TASKS.md`.

@@ -54,7 +54,7 @@
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
-- [ ] Multi-task messaging & logging
+- [ ] Multi-task messaging & logging (@claude)
   - **ID**: multi-task-messaging-logging
   - **Tags**: harness, logging, multi-domain-task-selection
   - **Candidate ID**: S5 (`CANDIDATE_TASKS.md`)

@@ -311,7 +311,7 @@ def burn_cost_check_node(state: WorkflowState) -> dict:
     # deterministic-shaped tasks.
     task_result = TaskResult(status="ran", findings=findings, cost=0.0, latency=latency)
     logger.info(
-        "Burn-Cost Check: loss ratio %.2f, %d finding(s)",
+        "[burn_cost_check] Burn-Cost Check: loss ratio %.2f, %d finding(s)",
         loss_ratio,
         len(findings),
     )
