@@ -134,7 +134,7 @@ discussion on how document quality drives task shape (see
 |---|---|---|---|---|---|---|---|
 | 1 | S1 | Domain task registry & metadata | ✅ Done | Deterministic | N/A | S | — |
 | 2 | S2 | Workflow refactor: split shared pipeline from per-task analysis nodes | ✅ Done | Deterministic | N/A | L | S1 |
-| 3 | S3 | Multi-task result aggregation & state schema | 📋 In TASKS.md | Deterministic | N/A | M | S2 |
+| 3 | S3 | Multi-task result aggregation & state schema | ✅ Done | Deterministic | N/A | M | S2 |
 | 4 | S4 | Per-task cost estimation (pre-run) & actual cost tracking (post-run) | ✅ Done | Hybrid | N/A | M | S1 |
 | 5 | S5 | Multi-task messaging & logging | 📋 In TASKS.md | Deterministic | N/A | S/M | S2, S3 |
 | 6 | S6 | Task selection UI (checkboxes, disabled/blurred not-implemented tasks, live cost readout) | 📋 In TASKS.md | Deterministic | N/A | M | S1, S4 |
@@ -460,10 +460,17 @@ selector read from).
   *Deterministic. Effort: L — likely its own multi-task chain once
   graduated (same pattern as `B4`). Answer type: N/A (infrastructure).*
 - **S3. Multi-task result aggregation & state schema** — Priority 3 —
-  📋 In TASKS.md as `multi-task-result-aggregation-schema` — replace `WorkflowState.report: AnomalyReport | None` with a
-  `task_results: dict[str, TaskResult]` (one entry per selected task:
-  status `ran`/`skipped_not_implemented`/`failed`, findings, cost,
-  latency), so the UI can render N independent results instead of one.
+  ✅ Done (shipped as `multi-task-result-aggregation-schema`) — add
+  `WorkflowState.task_results: dict[str, TaskResult]` alongside (not
+  replacing) `WorkflowState.report: AnomalyReport | None` — one entry
+  per task that actually ran: status `ran`/`skipped_not_implemented`/
+  `failed`, findings, cost, latency — so a future UI can eventually
+  render N independent results instead of one. Shipped scope narrowed
+  from the original "replace `report`" plan after `src/app.py`'s heavy
+  dependency on it was discovered; see `TASKS.md`'s "Recently
+  completed" history / `REASONING.md`'s 2026-09-10 entries for the
+  full scope-revision writeup. Migrating `src/app.py` off `report`
+  onto `task_results` is `S7`'s job.
   *Deterministic, depends on S2. Effort: M. Answer type: N/A
   (infrastructure).*
 - **S4. Per-task cost estimation (pre-run) & actual cost tracking

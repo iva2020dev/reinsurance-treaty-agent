@@ -42,6 +42,7 @@
      ✅ 2026-09-09 18:03:57 Domain task registry & metadata (domain-task-registry)
      ✅ 2026-09-10 15:13:52 Workflow refactor: split shared pipeline from per-task analysis nodes (workflow-refactor-multi-task-pipeline)
      ✅ 2026-09-10 15:25:39 Per-task cost estimation (pre-run) & actual cost tracking (post-run) (per-task-cost-estimation)
+     ✅ 2026-09-10 15:49:37 Multi-task result aggregation & state schema (multi-task-result-aggregation-schema)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -51,46 +52,6 @@
 ## P1
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
-
-- [ ] Multi-task result aggregation & state schema (@claude)
-  - **ID**: multi-task-result-aggregation-schema
-  - **Tags**: harness, refactor, multi-domain-task-selection
-  - **Candidate ID**: S3 (`CANDIDATE_TASKS.md`)
-  - **Blocked by**: workflow-refactor-multi-task-pipeline
-  - **Details**: Graduated from `CANDIDATE_TASKS.md` (`S3`, Priority 3
-    of 8). **Scope revised 2026-09-10** after discovering `src/app.py`
-    (not in this task's `Files`) depends heavily on
-    `WorkflowState.report` today (report rendering, save/download, PDF
-    export — all built after `S3` was originally drafted): rather than
-    *replacing* `report`, add `WorkflowState.task_results:
-    dict[str, TaskResult]` **alongside** it, additive and non-breaking
-    — `report` stays exactly as-is so `src/app.py` keeps working
-    unchanged. `task_results` is keyed by domain-task id (e.g.
-    `"burn_cost_check"`), each entry a `TaskResult` with `status`
-    (`ran` / `skipped_not_implemented` / `failed`), `findings`, `cost`,
-    `latency` — ready to hold multiple entries once more than one
-    domain task can run on the same treaty (the same `S2` guard against
-    >1 implemented task still applies; this task only wires the schema
-    and populates `"ran"` entries for tasks that actually executed).
-    Populating `skipped_not_implemented`/`failed` entries for the full
-    selected-task-ids set (not just what ran) is `S5`'s job ("combined-
-    run summary... which tasks ran/skipped/failed"), not this task's —
-    `S5` needs `selected_task_ids` threaded into runtime state to know
-    what was skipped, which is a bigger change out of scope here.
-    Migrating `src/app.py` off `report` onto `task_results` entirely is
-    `S7`'s job.
-  - **Files**: `src/models.py` (new `TaskResult` model), `src/workflow.py`,
-    `tests/test_workflow.py`
-  - **Acceptance**: A new `TaskResult` Pydantic model in `src/models.py`
-    with `status`/`findings`/`cost`/`latency` fields; `WorkflowState`
-    gains `task_results` keyed by domain-task id, populated alongside
-    (not instead of) the existing `report` field; selecting only `B0`
-    produces `task_results == {"burn_cost_check": TaskResult(status=
-    "ran", findings=<same findings as report.findings>, cost=0.0,
-    latency=<measured>)}`; `report` is completely unchanged for every
-    existing caller/test; `python -m pytest -q` passes with new tests
-    for `task_results`'s presence/shape, on top of (not replacing) the
-    existing `report`-based assertions.
 
 - [ ] Multi-task messaging & logging
   - **ID**: multi-task-messaging-logging
