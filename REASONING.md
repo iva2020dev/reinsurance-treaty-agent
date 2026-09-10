@@ -3852,3 +3852,18 @@ This file contains the reasoning transcript of the AI agent for the current sess
   cases still 100%. Manually booted `streamlit run src/app.py` —
   healthy, no server-log errors. Awaiting human review/approval before
   this task is marked done and removed from `TASKS.md`.
+
+## 2026-09-10 17:04:17 — Closing task: Multi-task messaging & logging (multi-task-messaging-logging)
+
+- PR #77 merged into `main` at `38d0e99`. Human explicitly approved
+  marking `multi-task-messaging-logging` done. Removing it from
+  `TASKS.md`'s P1 section (and adding it to the "Recently completed"
+  list) on this `close/multi-task-messaging-logging` branch/PR, titled
+  `Closing task as "Done": Multi-task messaging & logging`, per the
+  mandatory task-closing workflow. Also updated `CANDIDATE_TASKS.md`'s
+  `S5` Status (summary row + detailed heading) from `📋 In TASKS.md` to
+  `✅ Done (shipped as \`multi-task-messaging-logging\`)`, and rewrote
+  its detailed entry to describe the shipped scope (only the per-task
+  node tagged, not "every node"; additive alongside `format_
+  extraction_status()`, not replacing it) rather than the original
+  wording — same pattern as `S3`'s closing entry.
