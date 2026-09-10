@@ -3892,3 +3892,77 @@ This file contains the reasoning transcript of the AI agent for the current sess
   Not implemented yet — this is the task-creation step only, per the
   "Add any new tasks discovered during work" step of the mandatory
   workflow.
+
+## 2026-09-10 17:19:42 — Task: Dynamic graph fan-out for multi-task selection (multi-task-graph-fanout)
+
+- **Goal**: Implement `multi-task-graph-fanout` (P1, added directly to
+  `TASKS.md`): replace `build_workflow_graph()`'s single-node special
+  case + `NotImplementedError` guard with real parallel fan-out to
+  every selected+implemented task, leaving the shared pipeline nodes
+  untouched.
+- **Verified before writing code, not assumed**: confirmed via
+  `inspect.signature`/docstring that LangGraph 1.2.11's `add_
+  conditional_edges` routing function genuinely supports returning a
+  `Sequence[Hashable]` for multi-target fan-out (this was an assertion
+  I made when drafting the task's Acceptance criteria — checked it
+  rather than trusting my own earlier claim). Then ran a minimal
+  throwaway two-node fan-out graph to see the *actual* runtime
+  behavior, not just the type signature — this surfaced a real gap the
+  task description missed: LangGraph's default state channel
+  (`last_value` reducer) raises `InvalidUpdateError` if two nodes
+  write to the *same* state key in the same step, unconditionally
+  (doesn't compare values, just rejects a second write). Since two
+  parallel task nodes would each return a `task_results` dict update,
+  `WorkflowState.task_results` needs an `Annotated[..., reducer]` merge
+  function to combine concurrent partial dict writes, or real fan-out
+  would immediately break the moment a second implemented task
+  existed — exactly the scenario this task exists to prepare for.
+- **Decision**: Add a small `_merge_task_results()` reducer and type
+  `task_results` as `Annotated[dict[str, TaskResult],
+  _merge_task_results]` in `WorkflowState`. Leave `report` unannotated
+  (no reducer) — it's deliberately `burn_cost_check`-specific per
+  `S3`'s decision, and no other node should ever write it, so a
+  same-step conflict on `report` should stay a real error if it ever
+  happens (signals a future task wrongly writing to a field that isn't
+  its own), not something to silently paper over with a reducer.
+- **Action**: Claimed `multi-task-graph-fanout` and branched
+  `task/multi-task-graph-fanout` off `main` before writing code.
+  Implementing the reducer, the general fan-out loop in
+  `build_workflow_graph()`, and replacing the now-obsolete multi-
+  implemented-task-raises test with one that actually proves two
+  distinct task nodes both run in parallel next.
+
+- **Outcome**: Implemented in `src/workflow.py`: `_merge_task_results()`
+  reducer + `task_results: Annotated[dict[str, TaskResult],
+  _merge_task_results]` on `WorkflowState`; `build_workflow_graph()`'s
+  single-node special case and `NotImplementedError` guard replaced
+  with a loop that adds a node + edge-to-`END` for every task in
+  `active_tasks`, and a routing function returning the full
+  `active_task_ids` list (LangGraph's real multi-target fan-out) or
+  `END`. Replaced the now-obsolete `test_build_workflow_graph_rejects_
+  more_than_one_implemented_task` with `test_build_workflow_graph_fans_
+  out_to_multiple_implemented_tasks`, which monkeypatches a second,
+  genuinely distinct node function into `src.workflow`'s namespace
+  (not reusing `burn_cost_check_node` twice, to prove real independent
+  execution) and confirms both tasks' `task_results` entries appear
+  after a real `run_workflow()` call — not just that the graph compiles
+  without raising. Also fixed `test_run_workflow_empty_selection_
+  produces_no_task_results` (found by running the suite, not
+  anticipated): with `task_results` now reducer-backed, LangGraph seeds
+  it with `{}` even when no node writes to it, instead of omitting the
+  key entirely — `src/app.py` was already defensive (`.get(...,  {})`)
+  so this needed no production-code change, only the test's expectation
+  updated to match the new (still-correct) contract.
+- **Verification**: `python -m pytest -q` — 131 passed (same count:
+  1 obsolete test removed, 1 new one added, 1 existing one fixed for
+  the reducer-seeding behavior). Coverage: `src/workflow.py` 99%. Ran
+  `python -m tests.eval.run_eval` manually — all 5 golden cases still
+  100%, confirming byte-identical behavior for today's real single-task
+  selection. Confirmed via `git diff` that the shared pipeline node
+  functions (`extractor_node`, `llm_extraction_fallback`,
+  `verifier_node`) have zero diff, and that `data/workflow_graph.png`/
+  `README.md`'s diagram is completely unchanged (default selection
+  still resolves to the same single-node shape). Manually booted
+  `streamlit run src/app.py` — healthy, no server-log errors. Awaiting
+  human review/approval before this task is marked done and removed
+  from `TASKS.md`.

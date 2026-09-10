@@ -10,7 +10,6 @@ import pytest
 from src.models import ClaimsData, Severity, TaskResult, TreatyTerms
 from src.parser import PageSection, extract_treaty_sections
 from src.workflow import (
-    build_workflow_graph,
     burn_cost_check_node,
     extract_treaty_terms,
     extractor_node,
@@ -388,7 +387,10 @@ def test_run_workflow_task_results_matches_report_for_burn_cost_check():
 def test_run_workflow_empty_selection_produces_no_task_results():
     result = run_workflow(WELL_FORMED_SECTIONS, selected_task_ids=set())
 
-    assert result.get("task_results") is None
+    # task_results is now a reducer-backed channel (Annotated merge, for
+    # multi-task fan-out) -- LangGraph seeds those with their empty default
+    # even when no node writes to them, rather than omitting the key.
+    assert result.get("task_results") == {}
 
 
 def test_run_workflow_default_selection_matches_explicit_burn_cost_check_selection():
@@ -412,8 +414,14 @@ def test_run_workflow_selecting_only_a_not_implemented_task_skips_it_gracefully(
     assert result.get("report") is None
 
 
-def test_build_workflow_graph_rejects_more_than_one_implemented_task(monkeypatch):
+def test_build_workflow_graph_fans_out_to_multiple_implemented_tasks(monkeypatch):
+    import src.workflow as workflow_module
     from src.domain_tasks import DomainTask
+
+    def _second_task_node(state):
+        return {"task_results": {"second_task": TaskResult(status="ran", findings=[], cost=0.0, latency=0.0)}}
+
+    monkeypatch.setattr(workflow_module, "_second_task_node", _second_task_node, raising=False)
 
     two_implemented = [
         DomainTask(
@@ -430,10 +438,16 @@ def test_build_workflow_graph_rejects_more_than_one_implemented_task(monkeypatch
             candidate_id="B1",
             implementation_status="implemented",
             shape="deterministic",
-            workflow_node="burn_cost_check_node",
+            workflow_node="_second_task_node",
         ),
     ]
-    monkeypatch.setattr("src.workflow.DOMAIN_TASKS", two_implemented)
+    monkeypatch.setattr(workflow_module, "DOMAIN_TASKS", two_implemented)
 
-    with pytest.raises(NotImplementedError):
-        build_workflow_graph({"burn_cost_check", "second_task"})
+    result = run_workflow(WELL_FORMED_SECTIONS, selected_task_ids={"burn_cost_check", "second_task"})
+
+    assert set(result["task_results"]) == {"burn_cost_check", "second_task"}
+    assert result["task_results"]["burn_cost_check"].status == "ran"
+    assert result["task_results"]["second_task"].status == "ran"
+    # burn_cost_check_node's own dedicated `report` field is unaffected by a
+    # second, unrelated task node running alongside it in the same step.
+    assert result["report"] is not None

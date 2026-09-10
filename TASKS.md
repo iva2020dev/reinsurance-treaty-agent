@@ -55,7 +55,7 @@
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
-- [ ] Dynamic graph fan-out for multi-task selection
+- [ ] Dynamic graph fan-out for multi-task selection (@claude)
   - **ID**: multi-task-graph-fanout
   - **Tags**: harness, refactor, multi-domain-task-selection
   - **Candidate ID**: N/A (not graduated from `CANDIDATE_TASKS.md`; a

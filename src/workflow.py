@@ -4,7 +4,7 @@ import logging
 import re
 import time
 from pathlib import Path
-from typing import Literal, TypedDict
+from typing import Annotated, Literal, TypedDict
 
 from dotenv import load_dotenv
 from langgraph.graph import END, StateGraph
@@ -88,6 +88,21 @@ LOSS_RATIO_MEDIUM_THRESHOLD = 0.5
 LOSS_RATIO_HIGH_THRESHOLD = 1.0
 
 
+def _merge_task_results(
+    left: dict[str, TaskResult] | None, right: dict[str, TaskResult] | None
+) -> dict[str, TaskResult]:
+    """Combine concurrent per-task result writes into one dict.
+
+    LangGraph's default state channel rejects a second write to the same
+    key within one step -- when multiple analysis nodes run in parallel
+    (multi-task fan-out), each returns its own {task_id: TaskResult} entry
+    for the *same* `task_results` key, so it needs this reducer to merge
+    rather than conflict. Each node only ever writes its own task_id, so a
+    plain dict union is safe -- no two nodes should ever share a key.
+    """
+    return {**(left or {}), **(right or {})}
+
+
 class WorkflowState(TypedDict, total=False):
     """State passed between workflow nodes."""
 
@@ -102,9 +117,10 @@ class WorkflowState(TypedDict, total=False):
     report: AnomalyReport | None
     # Additive alongside `report` (not a replacement) -- keyed by domain-task
     # id (src/domain_tasks.py), populated only for tasks that actually ran.
-    # Ready to hold multiple entries once more than one implemented task can
-    # run on the same treaty; today that's just {"burn_cost_check": ...}.
-    task_results: dict[str, TaskResult]
+    # Annotated with a merge reducer so multiple analysis nodes running in
+    # parallel (multi-task fan-out) each contribute their own entry instead
+    # of conflicting -- see _merge_task_results().
+    task_results: Annotated[dict[str, TaskResult], _merge_task_results]
 
 
 def _extract_exclusions(sections: list[PageSection]) -> tuple[list[str], int | None]:
@@ -349,18 +365,7 @@ def build_workflow_graph(selected_task_ids: set[str] | None = None):
     active_tasks = [
         task for task in DOMAIN_TASKS if task.id in selected and task.implementation_status == "implemented"
     ]
-    if len(active_tasks) > 1:
-        # Running more than one implemented task in the same graph needs S3's
-        # multi-task result aggregation (WorkflowState.task_results) to avoid
-        # multiple nodes overwriting the single WorkflowState.report field --
-        # not built yet, and unreachable today since DOMAIN_TASKS has only one
-        # implemented entry, but guard against it explicitly rather than
-        # silently letting one task's result clobber another's.
-        raise NotImplementedError(
-            "Running more than one implemented domain task in the same graph "
-            "requires S3's multi-task result aggregation (not yet built) -- "
-            f"select at most one of: {sorted(task.id for task in active_tasks)}."
-        )
+    active_task_ids = [task.id for task in active_tasks]
 
     graph = StateGraph(WorkflowState)
     graph.add_node("extractor", extractor_node)
@@ -375,22 +380,24 @@ def build_workflow_graph(selected_task_ids: set[str] | None = None):
     )
     graph.add_edge("llm_extraction_fallback", "verifier")
 
-    if active_tasks:
-        task = active_tasks[0]
+    # Fan out from Verifier to every active task's own node, each feeding
+    # into END independently -- LangGraph runs all targets a conditional
+    # edge's routing function returns in the same step as parallel branches.
+    # With 0 or 1 active tasks this behaves exactly as before (no branching,
+    # or a single path); it only actually fans out once a second implemented
+    # task exists (unreachable today, since DOMAIN_TASKS has only one).
+    for task in active_tasks:
         node_fn = globals()[task.workflow_node]
         graph.add_node(task.id, node_fn)
         graph.add_edge(task.id, END)
 
-        def _route_after_verifier(state: WorkflowState) -> str:
-            return task.id if state.get("complete") else END
-
-        graph.add_conditional_edges("verifier", _route_after_verifier, {task.id: task.id, END: END})
-    else:
-
-        def _route_after_verifier(state: WorkflowState) -> str:
+    def _route_after_verifier(state: WorkflowState) -> str | list[str]:
+        if not active_task_ids or not state.get("complete"):
             return END
+        return active_task_ids
 
-        graph.add_conditional_edges("verifier", _route_after_verifier, {END: END})
+    path_map = {task_id: task_id for task_id in active_task_ids} | {END: END}
+    graph.add_conditional_edges("verifier", _route_after_verifier, path_map)
 
     return graph.compile()
 
