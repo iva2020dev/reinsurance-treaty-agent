@@ -3547,3 +3547,56 @@ This file contains the reasoning transcript of the AI agent for the current sess
   from `📋 In TASKS.md` to `✅ Done (shipped as \`workflow-refactor-
   multi-task-pipeline\`)`, matching the pattern used for `S1`/`A1`-
   `A3`/`A11`.
+
+## 2026-09-10 15:18:32 — Task: Per-task cost estimation (pre-run) & actual cost tracking (post-run) (per-task-cost-estimation)
+
+- **Goal**: Implement `per-task-cost-estimation` (P1, graduated from
+  `S4`): a cost-math module providing a pre-run per-task $ estimate
+  (near-zero for `deterministic` tasks, document-length-scaled for
+  `llm`/`hybrid` tasks) and a post-run actual-cost conversion from real
+  token counts — module only, no UI wiring (that's `S6`).
+- **Analysis**: No existing pricing constants anywhere in this repo
+  (`src/llm_client.py` and `src/workflow.py` only ever log raw token
+  counts, never convert to $). Used the `claude-api` skill (triggered
+  per this session's own instructions, since I was about to hardcode
+  Anthropic pricing) to get authoritative, current published pricing
+  for Claude Haiku 4.5 (`src/workflow.py`'s `_LLM_MODEL =
+  "claude-haiku-4-5-20251001"`) rather than recalling a possibly-stale
+  number from training: **$1.00 / 1M input tokens, $5.00 / 1M output
+  tokens**.
+- **Decision**: Kept the pre-run estimate deliberately rough and
+  clearly labeled as such — a fixed "~500 input tokens/page" heuristic
+  and a fixed small output-token estimate for a single structured
+  tool-use response, not a real token count (that would need actually
+  tokenizing the document, which is out of scope for a pre-run
+  estimate before any node has run). `estimate_task_cost(task,
+  page_count)` branches purely on `task.shape` — `deterministic` is
+  always `0.0` regardless of page count, since no LLM call is
+  involved; `llm`/`hybrid` scale linearly with `page_count`.
+  `actual_task_cost(input_tokens, output_tokens)` is a pure function
+  over real numbers, no estimation involved — this is what `S4`'s
+  Acceptance calls the "actual" side, fed by `llm_extraction_fallback`'s
+  already-logged usage once a later task (`S5`/`S6`) wires it in.
+- **Action**: Claimed `per-task-cost-estimation` and branched
+  `task/per-task-cost-estimation` off `main` before writing any code
+  (learned from the previous task's ordering slip). Creating
+  `src/cost_estimation.py` and `tests/test_cost_estimation.py` next.
+
+- **Outcome**: Implemented `src/cost_estimation.py`: `HAIKU_INPUT_
+  PRICE_PER_TOKEN`/`HAIKU_OUTPUT_PRICE_PER_TOKEN` constants ($1.00/
+  $5.00 per 1M tokens), `estimate_task_cost(task, page_count)` (0.0
+  for `deterministic`, linearly page-scaled for `llm`/`hybrid`), and
+  `actual_task_cost(input_tokens, output_tokens)` (pure $ conversion).
+  Added `tests/test_cost_estimation.py` with 7 direct unit tests:
+  deterministic is always zero (including at high page counts),
+  llm-shaped cost scales with page count, hybrid-shaped is non-zero,
+  actual cost matches the published per-token prices at 1M tokens,
+  actual cost matches a known real example (500/60 tokens, the same
+  numbers used in `tests/test_app.py`'s mock LLM client), and zero
+  tokens costs zero.
+- **Verification**: `python -m pytest -q` — 118 passed (111 previously
+  + 7 new), 100% coverage on the new module. `src/app.py` and
+  `src/workflow.py` untouched, confirming no wiring into the UI or
+  workflow yet, per this task's explicit scope limit (that's `S6`'s
+  job). Awaiting human review/approval before this task is marked done
+  and removed from `TASKS.md`.
