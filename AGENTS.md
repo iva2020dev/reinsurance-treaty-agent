@@ -82,11 +82,19 @@ convention, regardless of domain. Only the specific command
     self-approve a task as complete.
 11. **Remove** completed tasks from TASKS.md only after that approval
     (history is tracked in git), committing the removal on its own
-    branch/PR titled `Closing task as "Done": <task title>` (e.g.
+    branch named `close/<id>` (e.g. `close/build-agentic-workflow-graph`)
+    with a PR titled `Closing task as "Done": <task title>` (e.g.
     `Closing task as "Done": Build the Agentic Workflow Graph`) — every
     PR whose only purpose is closing an approved task uses this exact
-    naming
-12. **Add** new tasks discovered during work to the appropriate priority section
+    branch and title naming
+12. **Add** new tasks discovered during work to the appropriate priority
+    section. If the addition can ride along on the branch/PR of a task
+    already in progress, just add it there. If it's discovered outside
+    any in-progress task's scope, make the addition its own standalone,
+    docs-only change on a branch named `add-task/<id>` (e.g.
+    `add-task/document-branch-naming-conventions`) — separate from
+    `task/<id>`, which is still used later when that new task is
+    actually picked up and implemented
 
 ### Branch and PR Discipline — 🔧 Harness (repo-agnostic)
 
@@ -102,6 +110,14 @@ git checkout -b task/<short-name>
 # ...work, commit...
 git push -u origin task/<short-name>
 ```
+
+Three branch prefixes are used in this repo, matching what each
+commit is actually for: `task/<id>` for implementing a claimed task
+(step 5 above), `close/<id>` for the removal-from-TASKS.md commit
+after human approval (step 11), and `add-task/<id>` for a standalone,
+docs-only addition of a newly discovered task to TASKS.md itself
+(step 12) — never mix these onto one branch even when they touch the
+same files.
 
 A PR is what triggers this repo's automated review workflow —
 committing straight to `main` skips that independent check entirely,

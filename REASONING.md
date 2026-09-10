@@ -4071,3 +4071,44 @@ This file contains the reasoning transcript of the AI agent for the current sess
   aren't linted documentation.
 - **Outcome**: `python -m pytest -q` — 131 passed, no regressions
   (docs-only change, no source touched).
+
+## 2026-09-10 — Task: Document close/ and add-task/ branch-naming conventions in AGENTS.md (document-branch-naming-conventions)
+
+- **Goal**: Implement `document-branch-naming-conventions` (P2): name
+  `close/<id>` and `add-task/<id>` explicitly in `AGENTS.md`'s
+  Mandatory Workflow / Branch and PR Discipline sections, alongside
+  the existing `task/<id>`, since this session has used all three
+  conventions consistently but only `task/<id>` was documented.
+- **Analysis**: `AGENTS.md`'s Mandatory Workflow step 5 documents
+  `task/<id>`. Step 11 (closing an approved-done task) currently
+  documents only the PR *title* convention
+  (`Closing task as "Done": <task title>`) without naming the branch
+  itself — this session has consistently used `close/<id>` there (see
+  e.g. `close/multi-task-graph-fanout`, PR #82). Step 12 ("Add new
+  tasks discovered during work") doesn't distinguish between two
+  different real situations: adding a task as part of an already-open
+  task's own branch/PR (no separate branch needed), versus adding it
+  as a standalone docs-only change with its own branch/PR when
+  discovered outside any in-progress task's scope — this session has
+  used `add-task/<id>` for the latter case (e.g.
+  `add-task/document-branch-naming-conventions` itself, PR #83).
+- **Decision**: Edit step 11 to name the branch as
+  `close/<id>` (e.g. `close/document-branch-naming-conventions`)
+  alongside the existing PR-title naming. Edit step 12 to name
+  `add-task/<id>` for the standalone-docs-PR case specifically,
+  while noting `task/<id>` still applies once that task is later
+  picked up and actually implemented — so the distinction between
+  "adding the task" and "doing the task" stays clear. Kept both edits
+  minimal and additive: no restructuring of the checklist's numbering
+  or existing prose beyond inserting the missing branch names.
+- **Action**: Edited `AGENTS.md`'s Mandatory Workflow steps 11 and 12
+  to name `close/<id>` and `add-task/<id>` respectively, and added a
+  short paragraph to the "Branch and PR Discipline" section right
+  after its existing `task/<short-name>` example, summarizing all
+  three branch prefixes and what each is for — since the acceptance
+  criterion named both sections explicitly, not just the checklist.
+- **Outcome**: `python -m pytest -q` — 131 passed, no regressions
+  (docs-only change, no source touched). Reviewed the full diff: only
+  the three targeted spots changed, no unrelated restructuring.
+  Awaiting human review/approval before this task is marked done and
+  removed from `TASKS.md`.
