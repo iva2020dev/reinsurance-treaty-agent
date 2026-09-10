@@ -3762,3 +3762,16 @@ This file contains the reasoning transcript of the AI agent for the current sess
   src/app.py` — healthy, no server-log errors. Awaiting human review/
   approval before this task is marked done and removed from
   `TASKS.md`.
+
+## 2026-09-10 16:12:54 — Closing task: Task selection UI (multi-task-selection-ui)
+
+- PR #75 merged into `main` at `950f7b1`. Human explicitly approved
+  marking `multi-task-selection-ui` done. Removing it from
+  `TASKS.md`'s P1 section (and adding it to the "Recently completed"
+  list) on this `close/multi-task-selection-ui` branch/PR, titled
+  `Closing task as "Done": Task selection UI (checkboxes, disabled/
+  blurred not-implemented tasks, live cost readout)`, per the
+  mandatory task-closing workflow. Also updated `CANDIDATE_TASKS.md`'s
+  `S6` Status (summary row + detailed heading) from `📋 In TASKS.md` to
+  `✅ Done (shipped as \`multi-task-selection-ui\`)`, matching the
+  pattern used for `S1`-`S4`/`A1`-`A3`/`A11`.
