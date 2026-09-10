@@ -50,7 +50,7 @@
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
-- [ ] Workflow refactor: split shared pipeline from per-task analysis nodes
+- [ ] Workflow refactor: split shared pipeline from per-task analysis nodes (@claude)
   - **ID**: workflow-refactor-multi-task-pipeline
   - **Tags**: harness, refactor, multi-domain-task-selection
   - **Candidate ID**: S2 (`CANDIDATE_TASKS.md`)

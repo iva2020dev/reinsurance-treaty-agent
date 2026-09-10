@@ -331,7 +331,7 @@ def test_app_debug_panel_shows_log_lines_and_state_on_success():
     log_text = "\n".join(c.value for c in at.code)
     assert "src.workflow" in log_text
     assert "Extractor" in log_text
-    assert "Analyst" in log_text
+    assert "Burn-Cost Check" in log_text
 
     debug_state = json.loads(at.json[0].value)
     assert debug_state["treaty"]["cedent_name"] == "Acme Insurance Co."

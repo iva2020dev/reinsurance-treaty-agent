@@ -28,7 +28,7 @@ def test_only_b0_is_implemented():
     assert len(implemented) == 1
     assert implemented[0].candidate_id == "B0"
     assert implemented[0].title == "Burn-Cost Check"
-    assert implemented[0].workflow_node == "analyst_node"
+    assert implemented[0].workflow_node == "burn_cost_check_node"
 
 
 def test_non_implemented_tasks_have_no_workflow_node():

@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from langgraph.graph import END, StateGraph
 from pydantic import ValidationError
 
+from src.domain_tasks import DOMAIN_TASKS
 from src.llm_client import call_with_retry, get_client
 from src.models import AnomalyFinding, AnomalyReport, ClaimsData, Severity, TreatyTerms
 from src.parser import PageSection, extract_treaty_sections
@@ -259,8 +260,8 @@ def verifier_node(state: WorkflowState) -> dict:
     return {"complete": True, "claims": claims}
 
 
-def analyst_node(state: WorkflowState) -> dict:
-    """Compare treaty terms against historical claims and flag anomalies."""
+def burn_cost_check_node(state: WorkflowState) -> dict:
+    """Compare treaty terms against historical claims and flag anomalies (the Burn-Cost Check, B0)."""
     treaty = state["treaty"]
     claims = state.get("claims", [])
     loss_ratio = calculate_loss_ratio(treaty.attachment_point, treaty.limit, claims)
@@ -299,7 +300,7 @@ def analyst_node(state: WorkflowState) -> dict:
 
     report = AnomalyReport(treaty=treaty, claims=claims, loss_ratio=loss_ratio, findings=findings)
     logger.info(
-        "Analyst: loss ratio %.2f, %d finding(s)",
+        "Burn-Cost Check: loss ratio %.2f, %d finding(s)",
         loss_ratio,
         len(findings),
     )
@@ -310,17 +311,50 @@ def _route_after_extractor(state: WorkflowState) -> str:
     return "llm_extraction_fallback" if state.get("missing_fields") else "verifier"
 
 
-def _route_after_verifier(state: WorkflowState) -> str:
-    return "analyst" if state.get("complete") else END
+# Today's only implemented domain task (B0) -- matches src/domain_tasks.py's
+# DOMAIN_TASKS entry with implementation_status="implemented". Used as the
+# default selection so build_workflow_graph()/run_workflow() called with no
+# selected_task_ids behave exactly like the previous fixed single-task graph.
+_DEFAULT_SELECTED_TASK_IDS = frozenset({"burn_cost_check"})
 
 
-def build_workflow_graph():
-    """Build and compile the Extractor -> [LLM Extraction Fallback] -> Verifier -> Analyst LangGraph state machine."""
+def build_workflow_graph(selected_task_ids: set[str] | None = None):
+    """Build and compile the workflow graph.
+
+    The shared Extractor -> [LLM Extraction Fallback] -> Verifier pipeline
+    always runs. Only the analysis node(s) for tasks that are both in
+    selected_task_ids and marked implemented in src/domain_tasks.py's
+    DOMAIN_TASKS registry then run -- a task selected but not yet
+    implemented (or not selected at all) is simply skipped, same as if it
+    didn't exist. The registry's `workflow_node` field names the actual
+    node function to wire in, so this is the only place that decision is
+    made -- src/domain_tasks.py can't drift from what actually runs.
+
+    selected_task_ids defaults to {"burn_cost_check"} (B0, today's only
+    implemented task) when not given, matching this function's previous
+    fixed-graph behavior exactly.
+    """
+    selected = frozenset(selected_task_ids) if selected_task_ids is not None else _DEFAULT_SELECTED_TASK_IDS
+    active_tasks = [
+        task for task in DOMAIN_TASKS if task.id in selected and task.implementation_status == "implemented"
+    ]
+    if len(active_tasks) > 1:
+        # Running more than one implemented task in the same graph needs S3's
+        # multi-task result aggregation (WorkflowState.task_results) to avoid
+        # multiple nodes overwriting the single WorkflowState.report field --
+        # not built yet, and unreachable today since DOMAIN_TASKS has only one
+        # implemented entry, but guard against it explicitly rather than
+        # silently letting one task's result clobber another's.
+        raise NotImplementedError(
+            "Running more than one implemented domain task in the same graph "
+            "requires S3's multi-task result aggregation (not yet built) -- "
+            f"select at most one of: {sorted(task.id for task in active_tasks)}."
+        )
+
     graph = StateGraph(WorkflowState)
     graph.add_node("extractor", extractor_node)
     graph.add_node("llm_extraction_fallback", llm_extraction_fallback)
     graph.add_node("verifier", verifier_node)
-    graph.add_node("analyst", analyst_node)
 
     graph.set_entry_point("extractor")
     graph.add_conditional_edges(
@@ -329,24 +363,43 @@ def build_workflow_graph():
         {"llm_extraction_fallback": "llm_extraction_fallback", "verifier": "verifier"},
     )
     graph.add_edge("llm_extraction_fallback", "verifier")
-    graph.add_conditional_edges("verifier", _route_after_verifier, {"analyst": "analyst", END: END})
-    graph.add_edge("analyst", END)
+
+    if active_tasks:
+        task = active_tasks[0]
+        node_fn = globals()[task.workflow_node]
+        graph.add_node(task.id, node_fn)
+        graph.add_edge(task.id, END)
+
+        def _route_after_verifier(state: WorkflowState) -> str:
+            return task.id if state.get("complete") else END
+
+        graph.add_conditional_edges("verifier", _route_after_verifier, {task.id: task.id, END: END})
+    else:
+
+        def _route_after_verifier(state: WorkflowState) -> str:
+            return END
+
+        graph.add_conditional_edges("verifier", _route_after_verifier, {END: END})
 
     return graph.compile()
 
 
-def run_workflow(sections: list[PageSection]) -> WorkflowState:
-    """Run the full workflow graph on parsed treaty sections."""
-    app = build_workflow_graph()
+def run_workflow(sections: list[PageSection], selected_task_ids: set[str] | None = None) -> WorkflowState:
+    """Run the full workflow graph on parsed treaty sections.
+
+    See build_workflow_graph() for selected_task_ids' meaning and default.
+    """
+    app = build_workflow_graph(selected_task_ids)
     return app.invoke({"sections": sections, "extraction_method": "none"})
 
 
-def run_workflow_from_pdf(path: str | Path) -> WorkflowState:
+def run_workflow_from_pdf(path: str | Path, selected_task_ids: set[str] | None = None) -> WorkflowState:
     """Parse a treaty PDF and run the full workflow graph on it.
 
     Raises ParserError (propagated from extract_treaty_sections) if the
-    PDF cannot be read or has no extractable text.
+    PDF cannot be read or has no extractable text. See build_workflow_graph()
+    for selected_task_ids' meaning and default.
     """
     sections = extract_treaty_sections(path)
     logger.info("Parsed %d page(s) from %s", len(sections), path)
-    return run_workflow(sections)
+    return run_workflow(sections, selected_task_ids)

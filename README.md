@@ -19,11 +19,17 @@ retried. On success, `check_treaty_grounding()` (`src/tools.py`) then
 verifies each extracted field against its cited page's actual text,
 flagging (not blocking) any field the source text doesn't actually
 support. The Verifier Node then checks completeness and (if complete)
-looks up historical claims for the cedent, and the Analyst Node
-computes the loss ratio and flags anomalies. If extraction is still
-incomplete after the LLM fallback (including its retries), the graph
-ends right after the Verifier Node instead of running the Analyst
-Node.
+looks up historical claims for the cedent, and the Burn-Cost Check
+Node computes the loss ratio and flags anomalies. If extraction is
+still incomplete after the LLM fallback (including its retries), the
+graph ends right after the Verifier Node instead of running the
+Burn-Cost Check Node. The graph builder (`build_workflow_graph()`)
+also accepts an optional set of selected domain-task IDs (defaulting
+to just the Burn-Cost Check) — only implemented tasks in that set
+(per `src/domain_tasks.py`'s registry) get wired in after the Verifier
+Node; this is currently the only implemented task, in preparation for
+future domain tasks (see `CANDIDATE_TASKS.md`'s Multi Domain-Task
+Selection section).
 
 <!-- workflow-graph:start -->
 ```mermaid
@@ -37,15 +43,15 @@ graph TD;
 	extractor(extractor)
 	llm_extraction_fallback(llm_extraction_fallback)
 	verifier(verifier)
-	analyst(analyst)
+	burn_cost_check(burn_cost_check)
 	__end__([<p>__end__</p>]):::last
 	__start__ --> extractor;
 	extractor -.-> llm_extraction_fallback;
 	extractor -.-> verifier;
 	llm_extraction_fallback --> verifier;
 	verifier -.-> __end__;
-	verifier -.-> analyst;
-	analyst --> __end__;
+	verifier -.-> burn_cost_check;
+	burn_cost_check --> __end__;
 	classDef default fill:#f2f0ff,line-height:1.2
 	classDef first fill-opacity:0
 	classDef last fill:#bfb6fc
@@ -132,7 +138,7 @@ process does; press `Ctrl+C` there to stop it.
    - A caption naming which extraction path this run took (Regex only,
      LLM Extraction Fallback, or both attempts failed and why).
    - A per-node execution log (Extractor (Regex) → [LLM Extraction
-     Fallback] → Verifier → Analyst), each line timestamped — including
+     Fallback] → Verifier → Burn-Cost Check), each line timestamped — including
      a line for each retry attempt if a transient LLM failure occurred,
      noting the backoff delay before the next attempt.
    - The raw workflow state as JSON (parsed sections, extracted treaty
@@ -409,8 +415,8 @@ tests/test_tools.py::test_calculate_loss_ratio_claim_exceeding_layer_top_is_capp
 | `test_check_treaty_grounding_skips_fields_with_no_citation` | A field absent from `page_citations` isn't checked at all, even if its value wouldn't match any page |
 | `test_calculate_loss_ratio_claim_exceeding_layer_top_is_capped` | A claim far exceeding the layer's top is capped at the limit → ratio of `1.0` |
 
-Run just the workflow tests (the Extractor/Verifier/Analyst nodes,
-from `src/workflow.py`):
+Run just the workflow tests (the Extractor/Verifier/Burn-Cost Check
+nodes, from `src/workflow.py`):
 
 ```bash
 python3 -m pytest tests/test_workflow.py -v
@@ -456,8 +462,8 @@ tests/test_workflow.py::test_analyst_node_flags_at_least_one_anomaly PASSED [100
 | `test_run_workflow_stays_incomplete_when_llm_extraction_fallback_also_fails` | End-to-end: regex fails, the LLM extraction fallback also fails (mocked), and the run ends with `complete=False`, not a crash |
 | `test_verifier_node_complete_triggers_historical_claims_lookup` | A valid treaty triggers a real `query_historical_claims` call and returns the cedent's claims |
 | `test_verifier_node_flags_incompleteness_without_calling_tools` | `treaty=None` marks the run incomplete and skips the tool call entirely (empty claims) |
-| `test_analyst_node_no_anomalies` | A moderate loss ratio with claims data present produces `findings == []` |
-| `test_analyst_node_flags_at_least_one_anomaly` | Zero historical claims produces a `LOW` "no historical data" finding |
+| `test_burn_cost_check_node_no_anomalies` | A moderate loss ratio with claims data present produces `findings == []` |
+| `test_burn_cost_check_node_flags_at_least_one_anomaly` | Zero historical claims produces a `LOW` "no historical data" finding |
 
 Run just the LLM-calling harness tests (`get_client()`/
 `call_with_retry()`, from `src/llm_client.py`), isolated from
