@@ -176,6 +176,32 @@
 
 <!-- policy: P2 tasks are valuable but not blocking. Do after P0 and P1 are clear. -->
 
+- [ ] Document close/ and add-task/ branch-naming conventions in AGENTS.md (@claude)
+  - **ID**: document-branch-naming-conventions
+  - **Tags**: docs, maintenance
+  - **Candidate ID**: N/A (found directly while reviewing `AGENTS.md`
+    for needed updates, at the human's request)
+  - **Details**: This session established two branch-naming
+    conventions in actual practice that aren't documented anywhere in
+    `AGENTS.md`'s "Mandatory Workflow" / "Branch and PR Discipline"
+    sections (only `task/<id>`, step 5, is written down): `close/<id>`
+    for step 11's task-closing branch (the PR *title* convention is
+    specified there, but not the branch name), and `add-task/<id>` for
+    step 12 ("Add new tasks discovered during work") when the addition
+    itself is a standalone docs-only change needing its own branch/PR,
+    separate from actually picking up and implementing that task later
+    (which still uses `task/<id>`). (A stray, unmatched `</id></id>`
+    was also found at the end of the file while reviewing it, but
+    turned out to be a purely local, uncommitted artifact — not in git
+    history at all — so it needed discarding, not a fix commit; noting
+    here only so it isn't rediscovered and mistaken for a real bug.)
+  - **Files**: `AGENTS.md`
+  - **Acceptance**: `AGENTS.md`'s Mandatory Workflow/Branch and PR
+    Discipline sections name `close/<id>` and `add-task/<id>`
+    explicitly, alongside the existing `task/<id>`, so all three
+    branch-naming conventions actually used in this repo's history are
+    documented, not just inferred from precedent.
+
 - [ ] Fix Claude Code Review CI Check (missing API key secret)
   - **ID**: fix-claude-review-ci-secret
   - **Tags**: ci, github-actions, maintenance

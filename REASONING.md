@@ -3966,3 +3966,44 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `streamlit run src/app.py` — healthy, no server-log errors. Awaiting
   human review/approval before this task is marked done and removed
   from `TASKS.md`.
+
+## 2026-09-10 — New task discovered: Document branch-naming conventions in AGENTS.md (document-branch-naming-conventions)
+
+- **Goal**: Human asked to "check updates in AGENTS" — review
+  `AGENTS.md` for anything needing an update given how this session has
+  actually been working.
+- **Analysis**: Re-read `AGENTS.md` in full. Its "Mandatory Workflow"
+  (step 5) and "Branch and PR Discipline" sections only document
+  `task/<id>` as a branch-naming convention. In actual practice this
+  session, two more conventions have been used consistently but never
+  written down: `close/<id>` for step 11's task-closing branch (only
+  the PR *title* convention, `Closing task as "Done": <title>`, is
+  documented — not the branch name), and `add-task/<id>` for a
+  standalone docs-only branch when step 12 ("Add new tasks discovered
+  during work") is done as its own PR, separate from later picking up
+  and implementing that task (which still uses `task/<id>`). This is
+  exactly the pattern being followed right now to add this very task.
+  Also noticed a stray, unmatched `</id></id>` fragment at the end of
+  the working-tree copy of `AGENTS.md`; checked `git log -- AGENTS.md`
+  and `git show HEAD:AGENTS.md` before treating it as a real bug — the
+  committed file was clean, so this was a local, uncommitted artifact
+  only. Discarded it via `git checkout -- AGENTS.md` rather than filing
+  a fix task for a bug that doesn't exist in git history.
+- **Decision**: Add a new P2 task, `document-branch-naming-conventions`,
+  directly to `TASKS.md` (bypassing `CANDIDATE_TASKS.md` staging, per
+  the precedent set by `multi-task-graph-fanout`/`multi-task-graph-
+  diagram-example` — this is a fix discovered while doing requested
+  review work, not a new candidate needing prioritization). Scoped to
+  `AGENTS.md` only: name `close/<id>` and `add-task/<id>` explicitly
+  alongside `task/<id>` so all three real conventions are documented.
+- **Action**: Added the task to `TASKS.md`'s P2 section (`Candidate ID:
+  N/A`, `Files: AGENTS.md`). Following the very convention this task is
+  about documenting, this addition is being made on its own
+  `add-task/document-branch-naming-conventions` branch/PR — not on
+  `close/multi-task-graph-fanout` (where it was originally drafted by
+  mistake; moved off via `git stash` before switching branches) and not
+  bundled with actually implementing the task later.
+- **Outcome**: Docs-only change to `TASKS.md`; no source code touched,
+  so no test run needed beyond confirming the repo still discovers
+  tests normally. Will run the full suite anyway before pushing, as a
+  sanity check on a clean tree.
