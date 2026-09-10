@@ -40,6 +40,7 @@
      ✅ 2026-09-09 16:48:06 Auto-clear Analysis Results when a new treaty is selected (auto-clear-results-on-new-selection)
      ✅ 2026-09-09 17:08:35 Add Multi Domain-Task Selection (S) candidates to CANDIDATE_TASKS.md (candidate-s-section-multi-domain-task-selection)
      ✅ 2026-09-09 18:03:57 Domain task registry & metadata (domain-task-registry)
+     ✅ 2026-09-10 15:13:52 Workflow refactor: split shared pipeline from per-task analysis nodes (workflow-refactor-multi-task-pipeline)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -49,38 +50,6 @@
 ## P1
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
-
-- [ ] Workflow refactor: split shared pipeline from per-task analysis nodes (@claude)
-  - **ID**: workflow-refactor-multi-task-pipeline
-  - **Tags**: harness, refactor, multi-domain-task-selection
-  - **Candidate ID**: S2 (`CANDIDATE_TASKS.md`)
-  - **Details**: Graduated from `CANDIDATE_TASKS.md` (`S2`, Priority 2
-    of 8 in the Multi Domain-Task Selection list). Today's
-    `Extractor → [LLM Extraction Fallback] → Verifier` stays a shared
-    pipeline every domain task needs (produces `TreatyTerms` +
-    `claims`); rename/scope `analyst_node` to `burn_cost_check_node`
-    (`B0`'s Burn-Cost Check logic, unchanged), and parameterize
-    `build_workflow_graph()` by a set of selected task IDs (using
-    `src/domain_tasks.py`'s registry to resolve IDs to node functions)
-    — it always runs the shared pipeline, then only the analysis
-    node(s) for tasks that are both selected and
-    `implementation_status="implemented"` (today: only `B0`/
-    `burn_cost_check_node`). Selecting only `B0` must behave exactly
-    like today's single-task graph (regression safety net) — no
-    caller-visible behavior change until a second domain task actually
-    exists.
-  - **Files**: `src/workflow.py`, `tests/test_workflow.py`,
-    `tests/test_integration.py`
-  - **Acceptance**: `build_workflow_graph(selected_task_ids: set[str])`
-    (or equivalent) always runs Extractor → [LLM Fallback] → Verifier,
-    then only `burn_cost_check_node` when `"burn_cost_check"` (`B0`) is
-    in `selected_task_ids`; calling it with just `B0` selected produces
-    identical output/behavior to today's fixed graph on every existing
-    fixture; `python -m pytest -q` passes with `analyst_node`
-    references updated to `burn_cost_check_node` throughout the test
-    suite; likely its own multi-task chain once picked up (Effort: L,
-    same pattern as the `B4`/hybrid-extraction chains), not a single
-    commit.
 
 - [ ] Multi-task result aggregation & state schema
   - **ID**: multi-task-result-aggregation-schema
