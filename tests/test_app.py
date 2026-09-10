@@ -15,6 +15,7 @@ from src.app import (
     extract_llm_usage_summary,
     format_extraction_status,
     format_log_header,
+    format_multi_task_status,
     format_report_markdown,
     format_results_document,
     format_results_filename,
@@ -28,7 +29,7 @@ from src.app import (
     slugify_treaty_name,
 )
 from src.domain_tasks import DOMAIN_TASKS
-from src.models import AnomalyFinding, AnomalyReport, ClaimsData, Severity, TreatyTerms
+from src.models import AnomalyFinding, AnomalyReport, ClaimsData, Severity, TaskResult, TreatyTerms
 from src.parser import ParserError
 
 RICH_TREATY_PATH = "data/sample_rich_treaty.pdf"
@@ -404,6 +405,9 @@ def test_app_debug_panel_shows_log_lines_and_state_on_success():
     assert debug_state["treaty"]["cedent_name"] == "Acme Insurance Co."
     assert debug_state["complete"] is True
 
+    markdown_text = "\n".join(m.value for m in at.markdown)
+    assert "- **burn_cost_check**: ran (0 finding(s)" in markdown_text
+
 
 def test_app_debug_panel_shows_log_lines_on_parser_failure():
     at = AppTest.from_file("../src/app.py")
@@ -424,6 +428,53 @@ def test_format_extraction_status_for_each_extraction_method():
         {"extraction_method": "none", "llm_error": "boom"}
     )
     assert "was not run" in format_extraction_status({"extraction_method": "none"})
+
+
+def test_format_multi_task_status_no_tasks_selected():
+    assert format_multi_task_status(set(), {}) == "No domain tasks were selected."
+
+
+def test_format_multi_task_status_ran_task_shows_findings_cost_and_latency():
+    task_results = {
+        "burn_cost_check": TaskResult(
+            status="ran",
+            findings=[AnomalyFinding(field="loss_ratio", description="x", severity=Severity.HIGH)],
+            cost=0.001,
+            latency=0.05,
+        )
+    }
+
+    status = format_multi_task_status({"burn_cost_check"}, task_results)
+
+    assert "burn_cost_check" in status
+    assert "ran" in status
+    assert "1 finding(s)" in status
+    assert "$0.0010" in status
+    assert "0.05s" in status
+
+
+def test_format_multi_task_status_not_implemented_task_shows_skipped():
+    not_implemented_id = next(
+        t.id for t in DOMAIN_TASKS if t.implementation_status == "not_implemented"
+    )
+
+    status = format_multi_task_status({not_implemented_id}, {})
+
+    assert f"- **{not_implemented_id}**: skipped (not implemented)" in status
+
+
+def test_format_multi_task_status_implemented_but_missing_result_shows_incomplete():
+    status = format_multi_task_status({"burn_cost_check"}, {})
+
+    assert "- **burn_cost_check**: did not run (extraction incomplete)" in status
+
+
+def test_format_multi_task_status_failed_task_shows_failed_status():
+    task_results = {"burn_cost_check": TaskResult(status="failed")}
+
+    status = format_multi_task_status({"burn_cost_check"}, task_results)
+
+    assert "- **burn_cost_check**: failed" in status
 
 
 def test_app_shows_llm_extraction_fallback_note_and_state_on_success(monkeypatch):

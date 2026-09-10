@@ -365,6 +365,18 @@ def test_burn_cost_check_node_also_populates_task_results_alongside_report():
     assert task_result.latency >= 0.0
 
 
+def test_burn_cost_check_node_log_line_is_tagged_with_its_task_id(caplog):
+    treaty = TreatyTerms(
+        cedent_name="X", attachment_point=1_000_000, limit=5_000_000, reinsurance_premium=250_000
+    )
+
+    with caplog.at_level("INFO", logger="src.workflow"):
+        burn_cost_check_node({"treaty": treaty, "claims": []})
+
+    messages = [record.message for record in caplog.records]
+    assert any(message.startswith("[burn_cost_check] ") for message in messages)
+
+
 def test_run_workflow_task_results_matches_report_for_burn_cost_check():
     result = run_workflow(WELL_FORMED_SECTIONS)
 

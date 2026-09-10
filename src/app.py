@@ -21,7 +21,7 @@ from fpdf import FPDF
 
 from src.cost_estimation import estimate_task_cost
 from src.domain_tasks import DOMAIN_TASKS
-from src.models import AnomalyReport
+from src.models import AnomalyReport, TaskResult
 from src.parser import ParserError, extract_treaty_sections
 from src.sample_treaties import SAMPLE_TREATIES, get_sample_bytes
 from src.workflow import WorkflowState, run_workflow_from_pdf
@@ -137,6 +137,40 @@ def format_extraction_status(state: WorkflowState) -> str:
         "Regex extraction failed to find required fields, and the LLM "
         "Extraction Fallback was not run."
     )
+
+
+def format_multi_task_status(selected_task_ids: set[str], task_results: dict[str, TaskResult]) -> str:
+    """Human-readable summary of which selected domain task(s) ran, were
+    skipped, or failed, for the debug panel and the saved log file.
+
+    Additional to (not a replacement for) format_extraction_status() above --
+    that reports *how* extraction happened (regex vs. LLM fallback), this
+    reports *which domain tasks* ran, which is an orthogonal question.
+    task_results (from src.workflow.WorkflowState) only ever holds entries
+    for tasks that actually ran, so a selected id absent from it was either
+    skipped (not implemented) or never reached (extraction incomplete) --
+    distinguished here via src.domain_tasks.DOMAIN_TASKS' implementation_status.
+    """
+    if not selected_task_ids:
+        return "No domain tasks were selected."
+
+    implemented_ids = {task.id for task in DOMAIN_TASKS if task.implementation_status == "implemented"}
+    lines = []
+    for task_id in sorted(selected_task_ids):
+        result = task_results.get(task_id)
+        if result is not None:
+            if result.status == "ran":
+                lines.append(
+                    f"- **{task_id}**: ran ({len(result.findings)} finding(s), "
+                    f"${result.cost:,.4f}, {result.latency:.2f}s)"
+                )
+            else:
+                lines.append(f"- **{task_id}**: {result.status}")
+        elif task_id not in implemented_ids:
+            lines.append(f"- **{task_id}**: skipped (not implemented)")
+        else:
+            lines.append(f"- **{task_id}**: did not run (extraction incomplete)")
+    return "\n".join(lines)
 
 
 def format_log_header(filename: str, when: datetime | None = None) -> str:
@@ -357,6 +391,7 @@ def _run_workflow_with_logging(
         "log_lines": log_lines,
         "parser_error": parser_error,
         "selected_name": display_name,
+        "selected_task_ids": selected_task_ids or set(),
         "fingerprint": _fingerprint(file_bytes),
     }
 
@@ -487,6 +522,7 @@ def main() -> None:
         log_lines: list[str] = run_result["log_lines"]
         parser_error: str | None = run_result["parser_error"]
         result_name: str = run_result["selected_name"]
+        result_selected_task_ids: set[str] = run_result.get("selected_task_ids", set())
 
         if parser_error is not None:
             st.error(f"Could not read this PDF: {parser_error}")
@@ -553,6 +589,10 @@ def main() -> None:
                 )
             else:
                 st.caption(format_extraction_status(state))
+            multi_task_status = format_multi_task_status(
+                result_selected_task_ids, (state or {}).get("task_results", {})
+            )
+            st.markdown(multi_task_status)
             if log_lines:
                 st.code("\n".join(log_lines), language="text")
             else:
@@ -573,7 +613,7 @@ def main() -> None:
             if submitted:
                 if log_lines:
                     header = format_log_header(result_name)
-                    save_logs_to_file([header, *log_lines, ""], mode=save_mode.lower())
+                    save_logs_to_file([header, multi_task_status, *log_lines, ""], mode=save_mode.lower())
                     st.success(f"Saved {len(log_lines)} log line(s) to {DEFAULT_LOG_FILE} ({save_mode.lower()}).")
                 else:
                     st.warning("No log lines to save.")
