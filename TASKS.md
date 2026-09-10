@@ -41,6 +41,7 @@
      ✅ 2026-09-09 17:08:35 Add Multi Domain-Task Selection (S) candidates to CANDIDATE_TASKS.md (candidate-s-section-multi-domain-task-selection)
      ✅ 2026-09-09 18:03:57 Domain task registry & metadata (domain-task-registry)
      ✅ 2026-09-10 15:13:52 Workflow refactor: split shared pipeline from per-task analysis nodes (workflow-refactor-multi-task-pipeline)
+     ✅ 2026-09-10 15:25:39 Per-task cost estimation (pre-run) & actual cost tracking (post-run) (per-task-cost-estimation)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -75,35 +76,6 @@
     equivalent to today's `AnomalyReport`; `python -m pytest -q`
     passes with existing single-report assertions updated to read from
     `task_results["burn_cost_check"]`.
-
-- [ ] Per-task cost estimation (pre-run) & actual cost tracking (post-run) (@claude)
-  - **ID**: per-task-cost-estimation
-  - **Tags**: harness, cost-observability, multi-domain-task-selection
-  - **Candidate ID**: S4 (`CANDIDATE_TASKS.md`)
-  - **Details**: Graduated from `CANDIDATE_TASKS.md` (`S4`, Priority 4
-    of 8). The first real $-cost logic in this app — narrower/scoped
-    version of `A6` ("Cost & latency observability"), specific to
-    per-task estimate/actual display rather than `A6`'s broader
-    always-on observability. Pre-run: a rough per-task cost estimate
-    from document page/token count × task shape (`src/domain_tasks.py`'s
-    `shape` field) — near-zero for `deterministic` tasks, a
-    model-price-based estimate for `llm`/`hybrid` tasks — plus a live
-    cumulative total as the `S6` UI's checkboxes toggle. Post-run:
-    convert `llm_extraction_fallback`'s already-logged `input_tokens`/
-    `output_tokens` (same log line `extract_llm_usage_summary()` in
-    `src/app.py` already parses for the saved-results feature) into an
-    actual $ figure via the model's published per-token price,
-    replacing the estimate once a task completes.
-  - **Files**: `src/cost_estimation.py` (new), `tests/test_cost_estimation.py`
-    (new)
-  - **Acceptance**: An `estimate_task_cost(task, page_count)` function
-    (or equivalent) returns near-zero for every `deterministic`-shaped
-    task and a non-zero, page-count-scaled estimate for `llm`/`hybrid`-
-    shaped ones; an `actual_task_cost(input_tokens, output_tokens)`
-    function converts real token counts into a $ figure using the
-    model's published price; direct unit tests for both; this task
-    only adds the cost-math module — it does not wire estimates into
-    the UI yet (that's `S6`).
 
 - [ ] Multi-task messaging & logging
   - **ID**: multi-task-messaging-logging
