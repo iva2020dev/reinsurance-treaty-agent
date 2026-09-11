@@ -48,6 +48,7 @@
      ✅ 2026-09-10 21:58:20 Dynamic graph fan-out for multi-task selection (multi-task-graph-fanout)
      ✅ 2026-09-10 19:25:28 Document close/ and add-task/ branch-naming conventions in AGENTS.md (document-branch-naming-conventions)
      ✅ 2026-09-11 10:58:38 Multi-task results UI (per-task sections + combined summary) (multi-task-results-ui)
+     ✅ 2026-09-11 12:19:38 End-to-end test coverage for multi-task selection (multi-task-e2e-test-coverage)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -95,32 +96,6 @@
     test) verifies this second diagram also stays in sync with the
     live graph, the same way the existing single-task one does;
     `python -m pytest -q` passes.
-
-- [ ] End-to-end test coverage for multi-task selection (@claude)
-  - **ID**: multi-task-e2e-test-coverage
-  - **Tags**: testing, multi-domain-task-selection
-  - **Candidate ID**: S8 (`CANDIDATE_TASKS.md`)
-  - **Details**: Graduated from `CANDIDATE_TASKS.md` (`S8`, Priority 8
-    of 8, the last item in the Multi Domain-Task Selection chain).
-    Dedicated end-to-end coverage across the whole `S2`-`S7` chain,
-    beyond each task's own unit tests: selecting only `B0` behaves
-    exactly like today (regression safety net); selecting a mix of
-    implemented + not-implemented tasks skips the latter gracefully
-    with a clear per-task message; cost estimates/actuals round-trip
-    correctly end-to-end; the new `task_results` schema serializes
-    correctly for the debug panel (`serialize_state_for_debug()` in
-    `src/app.py`).
-  - **Files**: `tests/test_integration.py`, `tests/test_app.py`,
-    `src/app.py` (added: `serialize_state_for_debug()` was found to
-    genuinely never include `task_results`, contradicting this task's
-    own Acceptance line below — a real gap, not just a testing one)
-  - **Acceptance**: A new end-to-end test (or small suite) exercises a
-    real multi-task selection through `run_workflow`/the running app,
-    covering: `B0`-only selection matches today's baseline exactly; a
-    mixed implemented/not-implemented selection produces the right
-    per-task statuses; cost figures round-trip from estimate to
-    actual; the debug JSON dump includes `task_results` without
-    crashing; `python -m pytest -q` passes.
 
 - [ ] CI-Integrated Regression Eval Gate
   - **ID**: extraction-eval-ci-gate

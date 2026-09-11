@@ -4327,3 +4327,21 @@ This file contains the reasoning transcript of the AI agent for the current sess
   still 100%, confirming no extraction-accuracy regression from the
   `serialize_state_for_debug()` change. Awaiting human review/approval
   before this task is marked done and removed from `TASKS.md`.
+
+## 2026-09-11 12:19:38 — Closing task: End-to-end test coverage for multi-task selection (multi-task-e2e-test-coverage)
+
+- PR #89 merged into `main` at 2026-09-11T12:19:38Z. Human explicitly
+  approved marking `multi-task-e2e-test-coverage` done. Removing it
+  from `TASKS.md`'s P1 section (and adding it to the "Recently
+  completed" list) on this `close/multi-task-e2e-test-coverage`
+  branch/PR, titled `Closing task as "Done": End-to-end test coverage
+  for multi-task selection`, per the mandatory task-closing workflow.
+  Updated `CANDIDATE_TASKS.md`'s `S8` row and detailed entry to
+  `` ✅ Done (shipped as `multi-task-e2e-test-coverage`) ``, per
+  "Keeping CANDIDATE_TASKS.md in Sync." This closes out the entire
+  Multi Domain-Task Selection chain (`S1`-`S8`, `candidate-s-section-
+  multi-domain-task-selection` through this task) — every candidate in
+  that section is now either shipped or, for `multi-task-graph-
+  diagram-example` (added directly to `TASKS.md`, never a
+  `CANDIDATE_TASKS.md` candidate), still open pending a second real
+  domain task.

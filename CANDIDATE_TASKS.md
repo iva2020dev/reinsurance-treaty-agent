@@ -139,7 +139,7 @@ discussion on how document quality drives task shape (see
 | 5 | S5 | Multi-task messaging & logging | ✅ Done | Deterministic | N/A | S/M | S2, S3 |
 | 6 | S6 | Task selection UI (checkboxes, disabled/blurred not-implemented tasks, live cost readout) | ✅ Done | Deterministic | N/A | M | S1, S4 |
 | 7 | S7 | Multi-task results UI (per-task sections + combined summary) | ✅ Done | Deterministic | N/A | M | S3, S5 |
-| 8 | S8 | End-to-end test coverage for multi-task selection | 📋 In TASKS.md | Deterministic | N/A | M | S2-S7 |
+| 8 | S8 | End-to-end test coverage for multi-task selection | ✅ Done | Deterministic | N/A | M | S2-S7 |
 
 ---
 
@@ -522,8 +522,8 @@ selector read from).
   `format_report_markdown` call.
   *Deterministic, depends on S3, S5. Effort: M. Answer type: N/A
   (infrastructure/UX).*
-- **S8. End-to-end test coverage** — Priority 8 — 📋 In TASKS.md as
-  `multi-task-e2e-test-coverage` — verifies: selecting
+- **S8. End-to-end test coverage** — Priority 8 — ✅ Done (shipped as
+  `multi-task-e2e-test-coverage`) — verifies: selecting
   only `B0` behaves exactly like today (regression safety net),
   selecting a mix of implemented + not-implemented tasks skips the
   latter gracefully with a clear per-task message, cost estimates/
