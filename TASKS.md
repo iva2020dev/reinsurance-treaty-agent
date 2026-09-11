@@ -167,6 +167,51 @@
     tests are updated to match the new structure (exact-equality
     assertions become structural/substring assertions where the
     content legitimately changed); `python -m pytest -q` passes.
+    **Further refinements (same pass, four real bugs found by the
+    human actually using the app)**:
+    (1) The checklist's pre-run "Estimated cost" for Burn-Cost Check
+    showed a nonzero figure while its post-run "Total actual cost"
+    always shows $0.0000 — because `src/domain_tasks.py` labels it
+    `shape="hybrid"` (implying it might call an LLM) but
+    `burn_cost_check_node` never calls one at all (pure regex/
+    arithmetic); `estimate_task_cost()` charges non-deterministic
+    shapes a nonzero estimate regardless. Fix: correct the registry
+    entry to `shape="deterministic"`, matching what the node actually
+    does — makes the estimate genuinely $0.0000, consistent with the
+    real actual cost.
+    (2) The Findings block's colored `<div style="...">` HTML leaked
+    onto the screen as literal visible text — `st.markdown()` doesn't
+    render raw HTML by default (correctly, since treaty-derived text
+    like exclusions is user-uploaded PDF content, and enabling
+    `unsafe_allow_html=True` on it would be a stored-HTML-injection
+    risk). Fix: on-screen rendering must never emit the HTML wrapper;
+    only the saved-file path (`format_results_document()`/PDF, never
+    passed through a browser) may.
+    (3) Burn-Cost Check's own section never showed "Cost: $X ·
+    Latency: Ys" the way every other task's section does, even though
+    that data exists in its own `TaskResult` — its renderer only ever
+    read from `report` (no cost/latency fields), ignoring the
+    `task_result` parameter it's actually given. Fix: include the
+    Cost/Latency line for Burn-Cost Check too.
+    (4) Severity emoji (⚠️/🚨/ℹ️) already survive in the saved `.md`
+    file (UTF-8, no stripping) but are silently dropped from the PDF
+    (fpdf2's core Helvetica font is Latin-1-only). Fix: bundle DejaVu
+    Sans (public-domain-friendly Bitstream Vera license,
+    `assets/fonts/`) and use it for PDF rendering; low/medium map to
+    their plain-Unicode counterparts (`ℹ`/`⚠`, DejaVu has these);
+    high substitutes `‼` (DejaVu lacks the astral 🚨 glyph, as does
+    essentially every non-color-emoji font).
+  - **Files (further updated)**: `src/app.py`, `src/domain_tasks.py`,
+    `tests/test_app.py`, `assets/fonts/DejaVuSans.ttf`,
+    `assets/fonts/DejaVuSans-Bold.ttf`,
+    `assets/fonts/DEJAVU_LICENSE.txt` (new)
+  - **Acceptance (further updated)**: Burn-Cost Check's registry shape
+    is `deterministic` and its pre-run estimate is $0.0000, matching
+    its real $0.0000 actual cost; the on-screen view never shows raw
+    `<div>`/`</div>` text, only real Streamlit-rendered color; Burn-Cost
+    Check's on-screen/file section shows Cost/Latency like every other
+    task; the PDF renders `ℹ`/`⚠`/`‼` severity symbols instead of
+    dropping them silently; `python -m pytest -q` passes.
 
 - [ ] Regenerate workflow diagram for a multi-task selection example
   - **ID**: multi-task-graph-diagram-example

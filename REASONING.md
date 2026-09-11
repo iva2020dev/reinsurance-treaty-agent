@@ -4956,3 +4956,142 @@ This file contains the reasoning transcript of the AI agent for the current sess
   tasks' findings grouped by task heading. Awaiting human review/
   approval before this task is marked done and removed from
   `TASKS.md`.
+
+- **2026-09-11 (sync — four real bugs found using the app)**: Human
+  reported, from actually running the just-implemented styling: (1)
+  Burn-Cost Check's pre-run "Estimated cost" ($0.0030) didn't match
+  its post-run "Total actual cost" ($0.0000); (2) the colored Findings
+  `<div>` was visible as raw HTML text on screen, not rendered; (3)
+  Burn-Cost Check's section was missing the "Cost: $X · Latency: Ys"
+  line every other task's section shows; (4) asked to keep severity
+  emoji in the file for all findings. Synced `TASKS.md`'s Details/
+  Files/Acceptance.
+- **Analysis (1)**: `src/domain_tasks.py`'s `burn_cost_check` entry is
+  `shape="hybrid"`, but `burn_cost_check_node` (`src/workflow.py`)
+  never calls an LLM — it's pure `calculate_loss_ratio()` arithmetic
+  plus threshold checks on already-extracted data. `estimate_task_
+  cost()` (`src/cost_estimation.py`) only returns `0.0` for
+  `shape="deterministic"`; any other shape gets a nonzero page-count-
+  based estimate. The `"hybrid"` label was inherited from
+  `CANDIDATE_TASKS.md`'s B0 description ("Hybrid (regex-first, LLM
+  fallback)"), which describes the *shared extraction pipeline's*
+  behavior (regex, falling back to an LLM), not `burn_cost_check_
+  node`'s own behavior — a latent mislabeling from `domain-task-
+  registry` (S1) that stayed invisible until cost estimates were
+  actually compared against real actuals.
+- **Analysis (2)**: `st.markdown()` doesn't render raw HTML unless
+  `unsafe_allow_html=True` is passed — Streamlit's sane default. The
+  Findings `<div>` wrapper (`_wrap_findings_block()`) is reused by both
+  the on-screen expander (`st.markdown(format_task_section_
+  markdown(...))`, no `unsafe_allow_html`) and the saved-file path,
+  which is why it rendered as colored HTML in the PDF's own separate
+  parser but as literal visible text on screen. Enabling `unsafe_
+  allow_html=True` on that call would be a real stored-content risk:
+  `format_treaty_terms_markdown()` embeds `treaty.cedent_name`/
+  `exclusions` verbatim, and those strings originate from an uploaded
+  PDF the extractor doesn't sanitize — a crafted treaty could inject
+  arbitrary HTML/markup into the analyst's own browser session.
+- **Analysis (3)**: `format_task_section_markdown()`'s `burn_cost_
+  check` branch calls `_burn_cost_check_body_markdown(report)`, which
+  only ever reads `report` (no `cost`/`latency` fields) — it never
+  looks at the `task_result` parameter the function is actually given
+  (`task_results["burn_cost_check"]`, populated by `burn_cost_check_
+  node` with real `cost`/`latency` values), even though every other
+  task's branch reads exactly that.
+- **Analysis (4)**: Confirmed empirically the `.md` file already keeps
+  emoji (UTF-8 `encode("utf-8")`, no stripping) — only `render_report_
+  pdf()` drops them, via its `line.encode("latin-1", "ignore")` step
+  (fpdf2's core Helvetica is a base-14 Latin-1-only font). Checked
+  glyph coverage with `fontTools` before assuming a font choice would
+  work: DejaVu Sans (downloaded from the project's own GitHub release,
+  Bitstream Vera license — permissive, redistributable, no bundled
+  font shipped with the installed `fpdf2` package to reuse instead)
+  contains `ℹ` (U+2139) and `⚠` (U+26A0) but not the astral `🚨`
+  (U+1F6A8, a color/bitmap emoji glyph essentially no general-purpose
+  TTF includes) — confirmed human's preference (asked via
+  `AskUserQuestion`) to bundle the font and substitute `‼` (U+203C,
+  present in DejaVu) for high severity rather than leave the PDF
+  icon-less.
+- **Decision**: (1) Change `src/domain_tasks.py`'s `burn_cost_check`
+  entry to `shape="deterministic"` — a one-line fix; also updates its
+  "Type" column display from "hybrid" to "deterministic" (also
+  correct). (2) Split the "colored Findings" concern into two
+  independent renderings: keep `_wrap_findings_block()`'s HTML-div
+  version for the saved file only; add plain (unstyled) findings
+  rendering for on-screen use, then apply color on screen via
+  Streamlit's own native `st.error`/`st.warning`/`st.info`/`st.
+  success` (chosen by `highest_severity_label()`) around the plain
+  findings markdown in `main()` — safe (no raw HTML, no injection
+  surface) and idiomatic Streamlit. (3) Add the same "Cost: $X ·
+  Latency: Ys" line to `_burn_cost_check_body_markdown()`, threading
+  `task_result` into it. (4) Add `assets/fonts/DejaVuSans.ttf` +
+  `DejaVuSans-Bold.ttf` + `DEJAVU_LICENSE.txt`; `render_report_pdf()`
+  calls `pdf.add_font(...)` for both and uses "DejaVu" instead of
+  "Helvetica" throughout; introduce `_PDF_SEVERITY_SYMBOLS = {"low":
+  "ℹ", "medium": "⚠", "high": "‼"}` used only by the PDF path (the
+  Markdown/on-screen path keeps the original color emoji, since those
+  render fine everywhere except this one PDF generator).
+- **Action**: Implementing all four fixes in `src/domain_tasks.py` and
+  `src/app.py`; adding the bundled font files; updating/adding tests
+  in `tests/test_app.py` for each (shape assertion, no-raw-HTML-on-
+  screen, Cost/Latency line present for Burn-Cost Check, PDF text
+  extraction includes the Unicode symbols).
+- **Outcome**: (1) Changed `src/domain_tasks.py`'s `burn_cost_check`
+  entry to `shape="deterministic"` (with a comment explaining the
+  distinction between the node's own behavior and the shared pipeline's).
+  Fixed 4 tests whose hardcoded `$0.0010` estimate assumed the old
+  `"hybrid"` shape (now `$0.0000`, matching the real actual cost);
+  added a 5th test (`test_app_cost_estimate_increases_with_a_larger_
+  selected_document`) monkeypatching a synthetic `llm`-shaped task
+  (since neither real implemented task scales with page count anymore)
+  to keep exercising `estimate_task_cost()`'s real scaling behavior.
+  (2)+(3) Refactored `format_task_section_markdown()` into a shared
+  `_task_section_content()` parameterized by a `findings_markdown`
+  callback: `format_task_section_markdown()` (plain, on-screen/base
+  use) passes `_findings_heading_and_bullets_markdown` (no HTML);
+  `_format_task_section_markdown_for_file()` (saved-file use only)
+  passes `_wrap_findings_block` (HTML-colored). Both branches now
+  include Burn-Cost Check's Cost/Latency line from `task_result`,
+  fixing (3) as a side effect of the same refactor. Added
+  `_task_findings_for_severity()` (returns the findings to color by,
+  or `None` if the task didn't run) and `_SEVERITY_STREAMLIT_
+  CONTAINERS` (`st.error`/`warning`/`info`/`success` keyed by
+  `highest_severity_label()`); `main()`'s per-task expander loop now
+  renders each ran task's section inside the matching native container
+  instead of `st.markdown()`, fixing (2) — no raw HTML, no
+  `unsafe_allow_html`, and Streamlit's own escaping still protects
+  against the treaty-derived text rendered elsewhere on the page.
+  (4) Downloaded DejaVu Sans + DejaVu Sans Bold (Bitstream Vera
+  license) from the project's own GitHub release into `assets/fonts/`
+  (plus its license text); `render_report_pdf()` now calls `pdf.
+  add_font("DejaVu", ...)` for both and uses `"DejaVu"` instead of
+  `"Helvetica"`; replaced the `.encode("latin-1", "ignore")` stripping
+  step with a targeted `_EMOJI_TO_PDF_SYMBOL` substitution (color
+  emoji → DejaVu-supported plain symbols) applied before the general
+  whitespace cleanup.
+  Added/updated tests: `test_app_shows_treaty_terms_as_their_own_
+  shared_section_on_screen` (now checks `.success[0].value` instead of
+  `.markdown`, since content moved into a native container),
+  `test_app_burn_cost_check_section_shows_cost_and_latency_like_
+  every_other_task` (new), `test_app_findings_section_never_shows_
+  raw_html_on_screen` (new — asserts no `<div`/`</div`/`style=` in any
+  rendered text, and that Burn-Cost Check's 0-findings "clean" section
+  lands in `st.success`, not `st.markdown`), `test_render_report_pdf_
+  renders_unicode_severity_symbols_not_dropped` (new — asserts `‼`/`⚠`
+  appear in the PDF's extracted text). Fixed 2 more tests whose
+  assertions checked `at.markdown` for content that now lives in a
+  severity-colored container — added a shared `_all_rendered_text()`
+  test helper (markdown + error + warning + info + success) reused by
+  both. `python -m pytest -q` — 170 passed (net new: 5 tests; several
+  more updated in place for the intentional structural changes).
+  `python -m tests.eval.run_eval` — all 5 golden cases still 100%
+  (unaffected). Manually generated and read back a real two-task PDF:
+  confirmed Burn-Cost Check's section now shows "Cost: $0.0000 ·
+  Latency: 0.01s", the HIGH finding shows `‼` and the MEDIUM finding
+  shows `⚠` (both visible, not dropped), and colors/rules/headings are
+  otherwise unchanged from the prior visual check. Also manually
+  confirmed via a standalone `AppTest` run that the on-screen view no
+  longer shows raw `<div style="...">` text — each task's section now
+  renders inside a colored `st.success`/`st.warning`/etc. box. Awaiting
+  human review/approval before this task is marked done and removed
+  from `TASKS.md`.

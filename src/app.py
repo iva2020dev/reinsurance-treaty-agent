@@ -5,6 +5,7 @@ import logging
 import re
 import sys
 import tempfile
+from collections.abc import Callable
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
@@ -237,40 +238,58 @@ def _findings_bullets_markdown(findings: list[AnomalyFinding]) -> str:
     return "\n".join(lines)
 
 
+def _findings_heading_and_bullets_markdown(findings: list[AnomalyFinding]) -> str:
+    """Plain "### Findings (N)" heading + bullets, no coloring/HTML -- used
+    on screen (colored natively via Streamlit containers instead, see
+    _SEVERITY_STREAMLIT_CONTAINERS) and as the base for the saved file's
+    colored version (_wrap_findings_block()).
+    """
+    return f"### Findings ({len(findings)})\n{_findings_bullets_markdown(findings)}"
+
+
 def _wrap_findings_block(findings: list[AnomalyFinding]) -> str:
-    """A task's "### Findings (N)" block, wrapped in an HTML div with a
-    severity-colored background (via highest_severity_label()) so it
-    stands out visually in the saved report. Plain HTML embedded in
-    Markdown -- GitHub-flavored Markdown has no native colored-callout
-    syntax, and this degrades gracefully to plain text in viewers that
-    strip raw HTML.
+    """The Findings block wrapped in an HTML div with a severity-colored
+    background (via highest_severity_label()), for the saved file ONLY.
+    Never render this through st.markdown() on screen -- Streamlit doesn't
+    render raw HTML by default (correctly: treaty-derived text elsewhere
+    on the page comes from an uploaded PDF the extractor doesn't sanitize,
+    so enabling unsafe_allow_html would be a stored-HTML-injection risk).
+    A saved/downloaded file has no such risk (fpdf2 treats these markers as
+    plain text cues, never executes them; a Markdown viewer either renders
+    the div or safely ignores it).
     """
     color = _FINDINGS_BACKGROUND_COLORS[highest_severity_label(findings)]
-    body = f"### Findings ({len(findings)})\n{_findings_bullets_markdown(findings)}"
+    body = _findings_heading_and_bullets_markdown(findings)
     return f'<div style="background-color:{color}; border-radius:6px; padding:10px 16px; margin:8px 0;">\n\n{body}\n\n</div>'
 
 
-def _burn_cost_check_body_markdown(report: AnomalyReport) -> str:
-    """burn_cost_check's own section content: loss ratio + findings only --
-    treaty terms are rendered once, separately (format_treaty_terms_markdown()),
-    since every selected task analyzes the same treaty, not just this one.
-    """
-    return f"### Loss ratio: {report.loss_ratio:.2f}\n\n{_wrap_findings_block(report.findings)}"
-
-
-def format_task_section_markdown(
-    task_id: str, task_result: TaskResult | None, report: AnomalyReport | None
+def _task_section_content(
+    task_id: str,
+    task_result: TaskResult | None,
+    report: AnomalyReport | None,
+    findings_markdown: Callable[[list[AnomalyFinding]], str],
 ) -> str:
-    """Markdown body for one selected task's own expandable results section
-    (results only -- no treaty terms, which are shared across every task).
+    """Shared body for one task's results section (results only -- no
+    treaty terms, which are shared across every task): Cost/Latency (when
+    available) + Loss ratio (burn_cost_check only) + findings, with the
+    findings portion rendered by `findings_markdown` -- plain for on-screen
+    use (format_task_section_markdown()), HTML-colored for the saved file
+    (_format_task_section_markdown_for_file()).
 
     `burn_cost_check` is special-cased since it's the only task that
-    populates `report` today (see S3's decision in REASONING.md). Every
-    other task renders generically from its own TaskResult, since that's
-    all a future domain task will ever populate.
+    populates `report` today (see S3's decision in REASONING.md); it still
+    shows its own Cost/Latency line from `task_result`, exactly like every
+    other task, since burn_cost_check_node always returns one when it runs.
     """
     if task_id == "burn_cost_check" and report is not None:
-        return _burn_cost_check_body_markdown(report)
+        lines = []
+        if task_result is not None:
+            lines.append(f"**Cost:** ${task_result.cost:,.4f}  ·  **Latency:** {task_result.latency:.2f}s")
+            lines.append("")
+        lines.append(f"### Loss ratio: {report.loss_ratio:.2f}")
+        lines.append("")
+        lines.append(findings_markdown(report.findings))
+        return "\n".join(lines)
 
     if task_result is None:
         implemented_ids = {t.id for t in DOMAIN_TASKS if t.implementation_status == "implemented"}
@@ -282,8 +301,50 @@ def format_task_section_markdown(
         return f"_{task_result.status}._"
 
     lines = [f"**Cost:** ${task_result.cost:,.4f}  ·  **Latency:** {task_result.latency:.2f}s", ""]
-    lines.append(_wrap_findings_block(task_result.findings))
+    lines.append(findings_markdown(task_result.findings))
     return "\n".join(lines)
+
+
+def format_task_section_markdown(
+    task_id: str, task_result: TaskResult | None, report: AnomalyReport | None
+) -> str:
+    """Plain Markdown body for one selected task's own expandable results
+    section -- no HTML/coloring (see _task_findings_for_severity() for how
+    the on-screen view applies color natively instead).
+    """
+    return _task_section_content(task_id, task_result, report, _findings_heading_and_bullets_markdown)
+
+
+def _format_task_section_markdown_for_file(
+    task_id: str, task_result: TaskResult | None, report: AnomalyReport | None
+) -> str:
+    """Same content as format_task_section_markdown(), but with the
+    Findings block wrapped in a severity-colored HTML div -- for the saved
+    file only (format_results_document()).
+    """
+    return _task_section_content(task_id, task_result, report, _wrap_findings_block)
+
+
+def _task_findings_for_severity(
+    task_id: str, task_result: TaskResult | None, report: AnomalyReport | None
+) -> list[AnomalyFinding] | None:
+    """The findings to color a task's on-screen section by, or None if the
+    task didn't actually run (skipped/failed/not-implemented sections are
+    shown plain, with no severity to color by).
+    """
+    if task_id == "burn_cost_check" and report is not None:
+        return report.findings
+    if task_result is not None and task_result.status == "ran":
+        return task_result.findings
+    return None
+
+
+_SEVERITY_STREAMLIT_CONTAINERS = {
+    "high": st.error,
+    "medium": st.warning,
+    "low": st.info,
+    "clean": st.success,
+}
 
 
 def format_combined_results_summary(selected_task_ids: set[str], task_results: dict[str, TaskResult]) -> str:
@@ -363,7 +424,7 @@ def format_report_markdown(report: AnomalyReport) -> str:
     the multi-task saved-file path (format_results_document) renders the
     treaty separately instead, since every selected task shares it.
     """
-    return f"{format_treaty_terms_markdown(report)}\n\n{_burn_cost_check_body_markdown(report)}"
+    return f"{format_treaty_terms_markdown(report)}\n\n{format_task_section_markdown('burn_cost_check', None, report)}"
 
 
 def slugify_treaty_name(name: str, max_length: int = 40) -> str:
@@ -458,7 +519,7 @@ def format_results_document(
             lines.append("")
             lines.append(f"## {_task_title(task_id)}")
             lines.append("")
-            lines.append(format_task_section_markdown(task_id, task_results.get(task_id), report))
+            lines.append(_format_task_section_markdown_for_file(task_id, task_results.get(task_id), report))
         lines.append("")
         lines.append("---")
         lines.append("")
@@ -468,6 +529,19 @@ def format_results_document(
 
 _PDF_HEADING_FONT_SIZES = {1: 16, 2: 14, 3: 12}
 _DIV_BACKGROUND_COLOR_RE = re.compile(r'<div style="background-color:(#[0-9a-fA-F]{6})[^"]*">')
+
+# fpdf2's core fonts (Helvetica etc.) are base-14 Latin-1-only, so the color
+# severity emoji (SEVERITY_ICONS) never survived PDF rendering. DejaVu Sans
+# (bundled under assets/fonts/, Bitstream Vera license -- redistributable)
+# is a real Unicode TTF, but even it has no glyph for the astral/color
+# emoji SEVERITY_ICONS uses (🚨 etc. are outside what any general-purpose
+# non-color-emoji font includes) -- substitute plain Unicode symbols DejaVu
+# does contain (verified via fontTools before choosing these) instead.
+_FONTS_DIR = Path(__file__).resolve().parent.parent / "assets" / "fonts"
+_DEJAVU_REGULAR_PATH = _FONTS_DIR / "DejaVuSans.ttf"
+_DEJAVU_BOLD_PATH = _FONTS_DIR / "DejaVuSans-Bold.ttf"
+_PDF_SEVERITY_SYMBOLS = {"low": "ℹ", "medium": "⚠", "high": "‼"}
+_EMOJI_TO_PDF_SYMBOL = {SEVERITY_ICONS[severity]: symbol for severity, symbol in _PDF_SEVERITY_SYMBOLS.items()}
 
 
 def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
@@ -484,17 +558,20 @@ def render_report_pdf(
 ) -> bytes:
     """Render an AnomalyReport as PDF bytes, mirroring format_results_document's content.
 
-    Uses fpdf2's core (Latin-1-only) fonts, so this strips Markdown syntax
-    and drops any character that can't be encoded (e.g. the severity emoji)
-    rather than crashing -- the `[HIGH]`/`[MEDIUM]`/`[LOW]` label already
-    carries that information in plain text. Heading levels (#/##/###) get
-    genuinely different font sizes (not one flat "heading" size), a literal
-    `---` line is drawn as a real horizontal rule, and the HTML
+    Uses the bundled DejaVu Sans (a real Unicode TTF, not fpdf2's Latin-1-only
+    core fonts) so severity symbols survive -- SEVERITY_ICONS' color emoji are
+    substituted for plain Unicode equivalents DejaVu actually contains
+    (_EMOJI_TO_PDF_SYMBOL), since no general-purpose font includes true
+    color/astral emoji glyphs. Heading levels (#/##/###) get genuinely
+    different font sizes (not one flat "heading" size), a literal `---` line
+    is drawn as a real horizontal rule, and the HTML
     `<div style="background-color:...">`/`</div>` markers around a Findings
     block toggle a filled cell background matching format_results_document's
     Markdown styling.
     """
     pdf = FPDF()
+    pdf.add_font("DejaVu", "", str(_DEJAVU_REGULAR_PATH))
+    pdf.add_font("DejaVu", "B", str(_DEJAVU_BOLD_PATH))
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
 
@@ -530,12 +607,13 @@ def render_report_pdf(
         line = re.sub(r"^#+\s*", "", line)
         line = line.replace("**", "")
         line = line.replace("_(", "(").replace(")_", ")")
-        line = line.encode("latin-1", "ignore").decode("latin-1")
+        for emoji, symbol in _EMOJI_TO_PDF_SYMBOL.items():
+            line = line.replace(emoji, symbol)
         line = re.sub(r"\s+", " ", line).strip()
         if not line:
             continue
         size = _PDF_HEADING_FONT_SIZES.get(heading_level, 11)
-        pdf.set_font("Helvetica", style="B" if heading_level else "", size=size)
+        pdf.set_font("DejaVu", style="B" if heading_level else "", size=size)
         if fill_color is not None:
             pdf.set_fill_color(*fill_color)
         # multi_cell defaults to leaving the cursor at the right edge of the
@@ -825,7 +903,13 @@ def main() -> None:
                 st.markdown(format_combined_results_summary(result_selected_task_ids, task_results))
                 for task_id in sorted(result_selected_task_ids):
                     with st.expander(_task_title(task_id), expanded=True):
-                        st.markdown(format_task_section_markdown(task_id, task_results.get(task_id), report))
+                        task_result = task_results.get(task_id)
+                        section_markdown = format_task_section_markdown(task_id, task_result, report)
+                        findings = _task_findings_for_severity(task_id, task_result, report)
+                        if findings is None:
+                            st.markdown(section_markdown)
+                        else:
+                            _SEVERITY_STREAMLIT_CONTAINERS[highest_severity_label(findings)](section_markdown)
 
                 format_choice = st.radio(
                     "Result file format",

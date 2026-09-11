@@ -49,6 +49,20 @@ def _click_button(at: AppTest, label: str) -> AppTest:
     return button.click().run()
 
 
+def _all_rendered_text(at: AppTest) -> str:
+    """Every bit of rendered text that could plausibly contain results
+    content: plain markdown plus the four severity-colored native
+    containers (_SEVERITY_STREAMLIT_CONTAINERS) a task's own section might
+    be wrapped in instead of plain st.markdown.
+    """
+    parts = [m.value for m in at.markdown]
+    parts += [e.value for e in at.error]
+    parts += [w.value for w in at.warning]
+    parts += [i.value for i in at.info]
+    parts += [s.value for s in at.success]
+    return "\n".join(parts)
+
+
 def _upload_and_click_analyze(at: AppTest, filename: str, file_bytes: bytes) -> AppTest:
     """Upload a PDF via the uploader path and click Analyze, returning the rerun app."""
     at.file_uploader[0].set_value([(filename, file_bytes, "application/pdf")])
@@ -207,7 +221,7 @@ def test_app_total_estimated_cost_value_aligns_under_the_per_task_value_column()
     total_columns = list(total_cost_row.children.values())
     assert len(total_columns) == 2
     assert list(total_columns[0].children.values())[0].value == "**Total estimated cost:**"
-    assert list(total_columns[1].children.values())[0].value == "**$0.0010**"
+    assert list(total_columns[1].children.values())[0].value == "**$0.0000**"
 
     task_row = next(
         block
@@ -229,17 +243,18 @@ def test_app_total_estimated_cost_always_visible_even_with_nothing_selected():
     at = AppTest.from_file("../src/app.py")
     at.run()
 
-    # Burn-Cost Check defaults to checked, so the total starts nonzero --
-    # confirms the caption is present even before any user interaction.
+    # Confirms the caption is present even before any user interaction
+    # (Burn-Cost Check defaults to checked, but is deterministic -- no LLM
+    # call -- so its estimate is $0.0000 both before and after unchecking).
     captions = [c.value for c in at.caption]
     assert "**Total estimated cost:**" in captions
-    assert "**$0.0010**" in captions
+    assert "**$0.0000**" in captions
 
     burn_cost_checkbox = next(c for c in at.checkbox if c.label == "Burn-Cost Check")
     at = burn_cost_checkbox.uncheck().run()
 
     # With nothing selected, the line stays visible rather than
-    # disappearing -- only its value drops to $0.0000.
+    # disappearing.
     captions = [c.value for c in at.caption]
     assert "**Total estimated cost:**" in captions
     assert "**$0.0000**" in captions
@@ -275,15 +290,15 @@ def test_app_burn_cost_check_defaults_checked_and_shows_cost_estimate():
 
     burn_cost_checkbox = next(c for c in at.checkbox if c.label == "Burn-Cost Check")
     assert burn_cost_checkbox.value is True
-    # B0 is hybrid-shaped, so estimate_task_cost() includes the fixed
-    # output-token estimate even with no document selected (page_count=0).
-    # Label and value are separate captions (own columns), so check both
-    # are present rather than one combined string.
+    # B0 is deterministic-shaped (pure arithmetic, no LLM call), so its
+    # estimate is always $0.0000, matching its real actual cost. Label and
+    # value are separate captions (own columns), so check both are present
+    # rather than one combined string.
     captions = [c.value for c in at.caption]
     assert "Estimated cost:" in captions
-    assert "$0.0010" in captions
+    assert "$0.0000" in captions
     assert "**Total estimated cost:**" in captions
-    assert "**$0.0010**" in captions
+    assert "**$0.0000**" in captions
 
 
 def test_app_analyze_disabled_when_no_task_is_selected():
@@ -304,9 +319,31 @@ def test_app_analyze_disabled_when_no_task_is_selected():
     assert analyze_button.disabled
 
 
-def test_app_cost_estimate_increases_with_a_larger_selected_document():
+def test_app_cost_estimate_increases_with_a_larger_selected_document(monkeypatch):
+    """Neither real implemented task today is llm/hybrid-shaped (both
+    Burn-Cost Check and the exclusion checklist are pure arithmetic/keyword
+    matching, $0.0000 regardless of document size) -- monkeypatch a
+    synthetic llm-shaped task, explicitly checked, to exercise
+    estimate_task_cost()'s real page-count scaling.
+    """
+    from src.domain_tasks import DomainTask
+
+    llm_shaped_tasks = list(DOMAIN_TASKS) + [
+        DomainTask(
+            id="synthetic_llm_task",
+            title="Synthetic LLM Task",
+            candidate_id="SYNTHETIC",
+            implementation_status="implemented",
+            shape="llm",
+            workflow_node="_synthetic_llm_task_node",
+        )
+    ]
+    monkeypatch.setattr("src.domain_tasks.DOMAIN_TASKS", llm_shaped_tasks)
+
     at = AppTest.from_file("../src/app.py")
     at.run()
+    synthetic_checkbox = next(c for c in at.checkbox if c.label == "Synthetic LLM Task")
+    at = synthetic_checkbox.check().run()
 
     with open(MINIMAL_TREATY_PATH, "rb") as f:
         at.file_uploader[0].set_value([("sample_treaty.pdf", f.read(), "application/pdf")])
@@ -355,8 +392,50 @@ def test_app_shows_treaty_terms_as_their_own_shared_section_on_screen():
     markdown_text = "\n".join(m.value for m in at.markdown)
     assert "## Treaty: Acme Insurance Co." in markdown_text
     burn_cost_section = next(e for e in at.expander if e.label == "Burn-Cost Check")
-    section_markdown = "\n".join(m.value for m in burn_cost_section.markdown)
-    assert "Treaty:" not in section_markdown
+    assert "Treaty:" not in burn_cost_section.success[0].value
+
+
+def test_app_burn_cost_check_section_shows_cost_and_latency_like_every_other_task():
+    """Burn-Cost Check's own section shows "Cost: $X * Latency: Ys" just
+    like every other task's section -- it has a real TaskResult with these
+    values, so it shouldn't be the one section that omits them.
+    """
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    with open(MINIMAL_TREATY_PATH, "rb") as f:
+        at = _upload_and_click_analyze(at, "sample_treaty.pdf", f.read())
+
+    assert not at.exception
+    burn_cost_section = next(e for e in at.expander if e.label == "Burn-Cost Check")
+    section_text = burn_cost_section.success[0].value
+    assert "Cost:" in section_text
+    assert "Latency:" in section_text
+
+
+def test_app_findings_section_never_shows_raw_html_on_screen():
+    """The Findings block's severity coloring is applied via a native
+    Streamlit container (st.success/info/warning/error), never a raw HTML
+    <div> -- st.markdown() doesn't render unsafe HTML by default, and this
+    content includes user-uploaded-PDF-derived text elsewhere on the page,
+    so raw HTML must never leak into any rendered text as literal markup.
+    """
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    with open(MINIMAL_TREATY_PATH, "rb") as f:
+        at = _upload_and_click_analyze(at, "sample_treaty.pdf", f.read())
+
+    assert not at.exception
+    rendered_text = _all_rendered_text(at)
+    assert "<div" not in rendered_text
+    assert "</div>" not in rendered_text
+    assert "style=" not in rendered_text
+    # Burn-Cost Check has 0 findings here -- a "clean" severity, rendered
+    # via st.success (a green box), not plain st.markdown.
+    burn_cost_section = next(e for e in at.expander if e.label == "Burn-Cost Check")
+    assert len(burn_cost_section.success) == 1
+    assert len(burn_cost_section.markdown) == 0
 
 
 def test_app_results_ui_shows_one_section_per_task_and_combined_header_for_two_implemented_tasks(monkeypatch):
@@ -430,12 +509,15 @@ def test_app_results_ui_shows_one_section_per_task_and_combined_header_for_two_i
     assert "Burn-Cost Check" in labels
     assert "Second Task" in labels
 
-    markdown_text = "\n".join(m.value for m in at.markdown)
-    assert "second task finding" in markdown_text
+    # "second task finding" is a LOW-severity finding, rendered via
+    # st.info() instead of plain st.markdown() (severity-colored on-screen
+    # containers, not raw HTML) -- check across all of them.
+    rendered_text = _all_rendered_text(at)
+    assert "second task finding" in rendered_text
     # Combined header: 0 burn_cost_check findings + 1 second_task finding.
-    assert "1 finding(s)" in markdown_text
-    assert "$0.0050" in markdown_text
-    assert "Skipped" not in markdown_text
+    assert "1 finding(s)" in rendered_text
+    assert "$0.0050" in rendered_text
+    assert "Skipped" not in rendered_text
 
 
 def test_app_cost_estimate_shown_pre_run_and_actual_cost_round_trips_to_debug_json(monkeypatch):
@@ -962,9 +1044,11 @@ def test_app_shows_llm_extraction_fallback_note_and_state_on_success(monkeypatch
 
     assert not at.exception
     assert any("LLM Extraction Fallback" in w.value for w in at.warning)
-    markdown_text = "\n".join(m.value for m in at.markdown)
-    assert "Sentinel Mutual Assurance" in markdown_text
-    assert "0.70" in markdown_text
+    # Loss ratio 0.70 with 1 finding renders inside a severity-colored
+    # container (st.warning, for a MEDIUM finding), not plain st.markdown.
+    rendered_text = _all_rendered_text(at)
+    assert "Sentinel Mutual Assurance" in rendered_text
+    assert "0.70" in rendered_text
 
     debug_state = json.loads(at.json[0].value)
     assert debug_state["extraction_method"] == "llm"
@@ -1294,6 +1378,37 @@ def test_render_report_pdf_multi_task_renders_findings_summary_and_hides_raw_mar
     assert "---" not in text
     assert "<div" not in text
     assert "</div>" not in text
+
+
+def test_render_report_pdf_renders_unicode_severity_symbols_not_dropped():
+    """fpdf2's core fonts are Latin-1-only and would silently drop the
+    color severity emoji entirely; the bundled DejaVu Sans font plus
+    plain-Unicode substitutes (_EMOJI_TO_PDF_SYMBOL) keep a visible symbol
+    for every severity instead.
+    """
+    from pypdf import PdfReader
+
+    report = _sample_report()  # one HIGH finding
+    task_results = {
+        "burn_cost_check": TaskResult(status="ran", findings=report.findings, cost=0.0, latency=0.01),
+        "exclusion_completeness_checklist": TaskResult(
+            status="ran",
+            findings=[AnomalyFinding(field="exclusions", description="Missing cyber.", severity=Severity.MEDIUM)],
+            cost=0.0,
+            latency=0.02,
+        ),
+    }
+
+    pdf_bytes = render_report_pdf(
+        report,
+        when=datetime(2026, 9, 9, 14, 5, 30),
+        selected_task_ids={"burn_cost_check", "exclusion_completeness_checklist"},
+        task_results=task_results,
+    )
+
+    text = PdfReader(io.BytesIO(pdf_bytes)).pages[0].extract_text()
+    assert "‼" in text  # HIGH substitute (DejaVu lacks the astral 🚨 glyph)
+    assert "⚠" in text  # MEDIUM substitute
 
 
 def test_render_report_bytes_dispatches_by_extension():
