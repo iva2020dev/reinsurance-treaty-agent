@@ -138,7 +138,7 @@ discussion on how document quality drives task shape (see
 | 4 | S4 | Per-task cost estimation (pre-run) & actual cost tracking (post-run) | ✅ Done | Hybrid | N/A | M | S1 |
 | 5 | S5 | Multi-task messaging & logging | ✅ Done | Deterministic | N/A | S/M | S2, S3 |
 | 6 | S6 | Task selection UI (checkboxes, disabled/blurred not-implemented tasks, live cost readout) | ✅ Done | Deterministic | N/A | M | S1, S4 |
-| 7 | S7 | Multi-task results UI (per-task sections + combined summary) | 📋 In TASKS.md | Deterministic | N/A | M | S3, S5 |
+| 7 | S7 | Multi-task results UI (per-task sections + combined summary) | ✅ Done | Deterministic | N/A | M | S3, S5 |
 | 8 | S8 | End-to-end test coverage for multi-task selection | 📋 In TASKS.md | Deterministic | N/A | M | S2-S7 |
 
 ---
@@ -514,8 +514,8 @@ selector read from).
   plus a running cumulative total across all checked tasks.
   *Deterministic, depends on S1, S4. Effort: M. Answer type: N/A
   (infrastructure/UX).*
-- **S7. Multi-task results UI** — Priority 7 — 📋 In TASKS.md as
-  `multi-task-results-ui` — one expandable section
+- **S7. Multi-task results UI** — Priority 7 — ✅ Done (shipped as
+  `multi-task-results-ui`) — one expandable section
   per selected+implemented task (its own findings/log/actual cost),
   plus a combined header (total findings across tasks, total actual
   cost, which tasks were skipped and why), replacing today's single
