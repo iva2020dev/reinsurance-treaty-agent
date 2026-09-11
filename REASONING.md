@@ -4444,3 +4444,123 @@ This file contains the reasoning transcript of the AI agent for the current sess
   appearing as their own separate captions. Awaiting human review/
   approval before this task is marked done and removed from
   `TASKS.md`.
+
+- **2026-09-11 (sync — refinement)**: Human asked for the "Total
+  estimated cost" line to always be visible, only its value changing
+  as tasks are (un)checked — today's `if selected_task_ids:` guard
+  hides it entirely when nothing is selected. Synced `TASKS.md`'s
+  Details/Acceptance. Decision: drop the guard, always render the
+  caption; `total_estimated_cost` already defaults to `0.0` before the
+  loop, so no other logic changes — this renders `$0.0000` when
+  nothing's selected instead of nothing at all.
+- **Outcome**: Removed the `if selected_task_ids:` guard around the
+  total-cost caption. Added
+  `test_app_total_estimated_cost_always_visible_even_with_nothing_
+  selected`: confirms the line is present at page load (Burn-Cost
+  Check defaults checked, so it starts at `$0.0010`, not absent), then
+  confirms it's still present — now at `$0.0000` — after unchecking
+  it. `python -m pytest tests/test_app.py -q` — 70 passed.
+
+- **2026-09-11 (sync — refinement)**: Human asked to move the "Review
+  treaty" button above "Domain tasks to run" (currently paired with
+  "Analyze" below the checklist), keeping its existing functionality
+  unchanged. Synced `TASKS.md`'s Details/Acceptance. Decision:
+  reviewing a treaty's raw parsed text doesn't depend on which domain
+  tasks are selected, so it belongs right after treaty source
+  selection, before the task checklist even renders — "Analyze" stays
+  where it is (its disabled state genuinely depends on
+  `selected_task_ids`, computed inside the checklist loop). Moving
+  "Review treaty" out of its shared `st.columns(2)` with "Analyze"
+  into its own standalone `st.button` call at the new location; kept
+  its `disabled=not has_selection` condition and the
+  `_show_review_dialog(...)` call on click completely unchanged — only
+  position moves, not behavior.
+- **Outcome**: Moved the `review_clicked = st.button("Review treaty",
+  disabled=not has_selection)` call (and its
+  `if review_clicked and ...: _show_review_dialog(...)` trigger) to
+  right after the `has_selection`/`selected_fingerprint` computation,
+  before `st.subheader("Domain tasks to run")`. "Analyze" now renders
+  alone (no longer split across `st.columns(2)` with "Review treaty")
+  after the checklist and total-cost caption. Added
+  `test_app_review_treaty_button_renders_before_domain_tasks_checklist`,
+  walking `at.main.children` to confirm "Review treaty"'s index is
+  before the "Domain tasks to run" subheader's, which is before
+  "Analyze"'s. Existing `test_app_analyze_button_disabled_until_
+  treaty_selected` (label-based, not position-based) and
+  `test_app_review_treaty_shows_selected_document_text_in_modal`/
+  `test_app_review_treaty_shows_error_for_malformed_pdf` (functional
+  behavior) all pass unchanged, confirming the move didn't alter
+  either button's actual behavior.
+
+- **2026-09-11 (sync — refinement)**: Human asked to right-align the
+  "Total estimated cost" caption so its value lines up under the
+  per-task "Estimated cost" column (the `status_col`, the third of the
+  three `st.columns([3, 1, 2])`). Synced `TASKS.md`'s Details/
+  Acceptance. Decision: render the total inside its own
+  `st.columns([3, 1, 2])` row, placing the caption in the third column
+  only (leaving the first two empty) — this reuses the exact same
+  column-width ratios as each task row, so the total's text starts at
+  the same horizontal position as "Estimated cost: $X" above it,
+  without hardcoding pixel offsets.
+- **Outcome**: Replaced the bare `st.caption(f"**Total estimated
+  cost...")` call with `_, _, total_cost_col = st.columns([3, 1, 2],
+  vertical_alignment="center")` and rendering the caption inside
+  `total_cost_col`. Added
+  `test_app_total_estimated_cost_aligns_under_the_per_task_cost_column`:
+  locates the total-cost row's `flex_container` block, confirms it has
+  3 columns, the first two empty, the third holding exactly the total
+  caption, with the same `2/6` weight as each task row's third column.
+  `python -m pytest -q` — 151 passed (4 net new tests across this
+  entire UI-polish session: row ordering, alignment, and the
+  always-visible total). `python -m tests.eval.run_eval` — all 5
+  golden cases still 100% (unaffected — no extraction/workflow logic
+  touched throughout this whole pass). Awaiting human review/approval
+  before this task is marked done and removed from `TASKS.md`.
+
+- **2026-09-11 (sync — refinement, iteration 2 on alignment)**: Human
+  clarified twice more: the *value* specifically (not the whole
+  caption string) should align with the per-task value column, and the
+  "Total estimated cost:" label should shift left to make room for
+  that, since it's longer text than "Estimated cost:". The single
+  combined-string approach from the previous entry can't satisfy this
+  — a shared column start point doesn't make two differently-long
+  label prefixes end at the same x position. Synced `TASKS.md`'s
+  Details/Acceptance to describe the real fix.
+- **Decision**: Split each task row into four columns instead of
+  three: `checkbox_col, shape_col, label_col, value_col =
+  st.columns(_TASK_ROW_COLUMN_WEIGHTS)` where
+  `_TASK_ROW_COLUMN_WEIGHTS = [3, 1, 2, 1]` (module-level constant, so
+  the total row can reuse it exactly). `label_col` renders "Not
+  implemented" or "Estimated cost:" (no `$` figure); `value_col`
+  renders only `f"${estimated_cost:,.4f}"` when applicable. The total
+  row merges the first three weights into one wide label column
+  (`sum(_leading_weights)`) and keeps the last weight
+  (`_value_weight`) for its own value — so the value columns of every
+  row share the exact same width and rightmost position, while the
+  total's label gets 6/7 of the row's width to comfortably fit its
+  longer text, visually "shifted left" relative to where a
+  same-width-as-task-rows label would have started.
+- **Outcome**: Implemented as described. Fixed 4 tests that broke from
+  splitting one caption into two: `test_app_burn_cost_check_defaults_
+  checked_and_shows_cost_estimate` and
+  `test_app_total_estimated_cost_always_visible_even_with_nothing_
+  selected` now check for the label and value as two separate caption
+  values rather than one combined substring;
+  `test_app_cost_estimate_increases_with_a_larger_selected_document`'s
+  `_total_cost()` helper now finds the value caption immediately after
+  the `"**Total estimated cost:**"` label caption in the captions list,
+  rather than parsing a combined string; renamed and rewrote
+  `test_app_total_estimated_cost_aligns_under_the_per_task_cost_column`
+  to `..._value_aligns_under_the_per_task_value_column`, which now
+  locates both the total row and a real task row (Burn-Cost Check) and
+  asserts their value columns' weights match exactly. `python -m
+  pytest tests/test_app.py -q` — 73 passed. Full suite `python -m
+  pytest -q` — 151 passed, no other regressions. `python -m
+  tests.eval.run_eval` — all 5 golden cases still 100%. Manually
+  verified via a standalone `AppTest` run: task rows show
+  "Estimated cost:" and "$0.0010" (or "$0.0042") as separate captions
+  in adjacent columns of matching width to the total row's; the total
+  row shows "**Total estimated cost:**" in a wide left column and
+  "**$0.0010**" in the same-width value column as every task's own
+  value. Awaiting human review/approval before this task is marked
+  done and removed from `TASKS.md`.

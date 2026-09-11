@@ -164,6 +164,83 @@ def test_app_shows_one_checkbox_per_domain_task_only_implemented_enabled():
             assert not checkbox.value
 
 
+def test_app_review_treaty_button_renders_before_domain_tasks_checklist():
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    main_children = list(at.main.children.values())
+    review_index = next(i for i, block in enumerate(main_children) if getattr(block, "label", None) == "Review treaty")
+    subheader_index = next(
+        i
+        for i, block in enumerate(main_children)
+        if getattr(block, "value", None) == "Domain tasks to run"
+    )
+    analyze_index = next(i for i, block in enumerate(main_children) if getattr(block, "label", None) == "Analyze")
+
+    assert review_index < subheader_index < analyze_index
+
+
+def test_app_total_estimated_cost_value_aligns_under_the_per_task_value_column():
+    """The total row's value ("$X") sits in a column with the same weight
+    (fraction of row width) as each task row's own value column, so the
+    dollar figures line up vertically even though "Total estimated cost:"
+    is longer text than "Estimated cost:" (label column widened instead).
+    """
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    main_children = list(at.main.children.values())
+    total_cost_row = next(
+        block
+        for block in reversed(main_children)
+        if getattr(block, "type", None) == "flex_container"
+        and any(
+            getattr(caption, "value", "") == "**Total estimated cost:**"
+            for col in block.children.values()
+            for caption in getattr(col, "children", {}).values()
+        )
+    )
+    total_columns = list(total_cost_row.children.values())
+    assert len(total_columns) == 2
+    assert list(total_columns[0].children.values())[0].value == "**Total estimated cost:**"
+    assert list(total_columns[1].children.values())[0].value == "**$0.0010**"
+
+    task_row = next(
+        block
+        for block in main_children
+        if getattr(block, "type", None) == "flex_container"
+        and any(
+            getattr(cb, "label", None) == "Burn-Cost Check"
+            for col in block.children.values()
+            for cb in getattr(col, "children", {}).values()
+        )
+    )
+    task_columns = list(task_row.children.values())
+    assert len(task_columns) == 4
+    # Total's value column weight matches the task row's own value column.
+    assert total_columns[1].weight == pytest.approx(task_columns[3].weight)
+
+
+def test_app_total_estimated_cost_always_visible_even_with_nothing_selected():
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    # Burn-Cost Check defaults to checked, so the total starts nonzero --
+    # confirms the caption is present even before any user interaction.
+    captions = [c.value for c in at.caption]
+    assert "**Total estimated cost:**" in captions
+    assert "**$0.0010**" in captions
+
+    burn_cost_checkbox = next(c for c in at.checkbox if c.label == "Burn-Cost Check")
+    at = burn_cost_checkbox.uncheck().run()
+
+    # With nothing selected, the line stays visible rather than
+    # disappearing -- only its value drops to $0.0000.
+    captions = [c.value for c in at.caption]
+    assert "**Total estimated cost:**" in captions
+    assert "**$0.0000**" in captions
+
+
 def test_app_shows_each_domain_task_shape_in_its_own_column():
     at = AppTest.from_file("../src/app.py")
     at.run()
@@ -181,9 +258,13 @@ def test_app_burn_cost_check_defaults_checked_and_shows_cost_estimate():
     assert burn_cost_checkbox.value is True
     # B0 is hybrid-shaped, so estimate_task_cost() includes the fixed
     # output-token estimate even with no document selected (page_count=0).
-    captions = "\n".join(c.value for c in at.caption)
-    assert "Estimated cost: $0.0010" in captions
-    assert "Total estimated cost: $0.0010" in captions
+    # Label and value are separate captions (own columns), so check both
+    # are present rather than one combined string.
+    captions = [c.value for c in at.caption]
+    assert "Estimated cost:" in captions
+    assert "$0.0010" in captions
+    assert "**Total estimated cost:**" in captions
+    assert "**$0.0010**" in captions
 
 
 def test_app_analyze_disabled_when_no_task_is_selected():
@@ -211,16 +292,18 @@ def test_app_cost_estimate_increases_with_a_larger_selected_document():
     with open(MINIMAL_TREATY_PATH, "rb") as f:
         at.file_uploader[0].set_value([("sample_treaty.pdf", f.read(), "application/pdf")])
     at = at.run()
-    small_captions = "\n".join(c.value for c in at.caption)
+    small_captions = [c.value for c in at.caption]
 
     with open(RICH_TREATY_PATH, "rb") as f:
         at.file_uploader[0].set_value([("sample_rich_treaty.pdf", f.read(), "application/pdf")])
     at = at.run()
-    large_captions = "\n".join(c.value for c in at.caption)
+    large_captions = [c.value for c in at.caption]
 
-    def _total_cost(captions: str) -> float:
-        line = next(line for line in captions.splitlines() if "Total estimated cost" in line)
-        return float(line.split("$")[1].strip("*"))
+    def _total_cost(captions: list[str]) -> float:
+        # The total's value is its own caption, immediately after the
+        # "**Total estimated cost:**" label caption (separate columns).
+        label_index = captions.index("**Total estimated cost:**")
+        return float(captions[label_index + 1].strip("$*"))
 
     assert _total_cost(large_captions) > _total_cost(small_captions)
 

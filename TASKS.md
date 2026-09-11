@@ -144,14 +144,49 @@
     dedicated column, rather than appended as `"(shape)"` text after
     the title — a cleaner three-column row (checkbox+title | shape |
     status/cost) instead of stuffing more text into the label itself.
+    **Further refinement (same pass)**: the "Total estimated cost"
+    line should always be visible (even at $0.0000 with nothing
+    selected), not conditionally shown only once at least one task is
+    checked — so it reads as a constant, live-updating total rather
+    than appearing/disappearing. **Further refinement (same pass)**:
+    move the "Review treaty" button above "Domain tasks to run"
+    (right after treaty source selection), rather than alongside
+    "Analyze" below the task checklist — reviewing the treaty's raw
+    text doesn't depend on which domain tasks are selected, so it
+    reads more naturally earlier in the flow. "Analyze" keeps its
+    current position and disabled logic (needs both a selected treaty
+    and at least one selected task); "Review treaty" keeps its
+    existing behavior (disabled until a treaty is selected, opens the
+    same modal) — only its position on the page changes. **Further
+    refinement (same pass, iterated twice)**: rather than one combined
+    "Estimated cost: $X" string per task, split each task's row into
+    four columns (checkbox+title, shape, a label column, a value
+    column) so the dollar *value* specifically — not just the whole
+    caption text — lines up vertically across every task row. The
+    "Total estimated cost:" row reuses the exact same value-column
+    width, merging checkbox+shape+label into one wide label column
+    (since "Total estimated cost:" is longer text than "Estimated
+    cost:", its label needs more room, achieved by shifting it left
+    into where shape/label would otherwise start) so its `$X` value
+    still lands in the same horizontal position as every task's own
+    value.
   - **Files**: `src/app.py`, `tests/test_app.py`
   - **Acceptance**: Each domain task renders its checkbox + title,
     its shape, and its status/cost text on the same visual row (via
-    `st.columns`, three columns), not two stacked lines and not shape
-    concatenated into the checkbox label; existing behavior is
-    unchanged (implemented tasks still checkable with a live cost
-    estimate, not-implemented tasks still disabled with a "Not
-    implemented" message, running total still shown); existing
+    `st.columns`, four columns: checkbox+title, shape, label, value),
+    not two stacked lines and not shape concatenated into the checkbox
+    label; the "Total estimated cost" value column has the same weight
+    as each task row's own value column, so dollar figures align
+    vertically; the "Total estimated cost" caption is always rendered,
+    showing `$0.0000` when no task is
+    selected and updating live as tasks are checked/unchecked, and is
+    positioned in the same column as each task's "Estimated cost"
+    text; "Review treaty" renders before the "Domain tasks to run"
+    checklist and still opens the same review modal, disabled exactly
+    as before until a treaty is selected;
+    existing behavior is otherwise unchanged (implemented tasks still
+    checkable with a live cost estimate, not-implemented tasks still
+    disabled with a "Not implemented" message); existing
     `AppTest`-based checklist tests continue to pass with only
     superficial widget-location updates, not behavior changes;
     `python -m pytest -q` passes.

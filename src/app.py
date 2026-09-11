@@ -30,6 +30,11 @@ SEVERITY_ICONS = {"low": "ℹ️", "medium": "⚠️", "high": "🚨"}
 DEFAULT_LOG_FILE = Path("logs/workflow.log")
 DEFAULT_RESULTS_DIR = Path("results")
 _SEVERITY_RANK = {"low": 0, "medium": 1, "high": 2}
+# Domain-task checklist row: checkbox+title, shape, label ("Estimated
+# cost:"/"Not implemented"), value ("$X"). The total-cost row reuses these
+# same weights (merging the first three into one wide label column) so its
+# dollar value lines up under each task's own value column.
+_TASK_ROW_COLUMN_WEIGHTS = [3, 1, 2, 1]
 # Tall enough to fit st.file_uploader's drag-and-drop box (the taller of the
 # two treaty-source inputs) without clipping. Both the uploader and the
 # selectbox render inside a bordered container of this same fixed height, so
@@ -535,13 +540,19 @@ def main() -> None:
     has_selection = selected_bytes is not None
     selected_fingerprint = _fingerprint(selected_bytes) if selected_bytes is not None else None
 
+    review_clicked = st.button("Review treaty", disabled=not has_selection)
+    if review_clicked and selected_bytes is not None and selected_name is not None:
+        _show_review_dialog(selected_bytes, selected_name)
+
     st.subheader("Domain tasks to run")
     page_count = get_pdf_page_count(selected_bytes) if selected_bytes is not None else 0
     selected_task_ids: set[str] = set()
     total_estimated_cost = 0.0
     for task in DOMAIN_TASKS:
         is_implemented = task.implementation_status == "implemented"
-        checkbox_col, shape_col, status_col = st.columns([3, 1, 2], vertical_alignment="center")
+        checkbox_col, shape_col, label_col, value_col = st.columns(
+            _TASK_ROW_COLUMN_WEIGHTS, vertical_alignment="center"
+        )
         with checkbox_col:
             checked = st.checkbox(
                 task.title,
@@ -551,27 +562,33 @@ def main() -> None:
             )
         with shape_col:
             st.caption(task.shape)
-        with status_col:
+        with label_col:
             if not is_implemented:
                 st.caption("Not implemented")
             elif checked:
                 selected_task_ids.add(task.id)
                 estimated_cost = estimate_task_cost(task, page_count)
                 total_estimated_cost += estimated_cost
-                st.caption(f"Estimated cost: ${estimated_cost:,.4f}")
-    if selected_task_ids:
-        st.caption(f"**Total estimated cost: ${total_estimated_cost:,.4f}**")
+                st.caption("Estimated cost:")
+        with value_col:
+            if is_implemented and checked:
+                st.caption(f"${estimated_cost:,.4f}")
+    # Same overall row width as _TASK_ROW_COLUMN_WEIGHTS (checkbox+shape+label
+    # merged into one wide label column, since "Total estimated cost:" is
+    # longer than "Estimated cost:"), so the value column -- and therefore
+    # each dollar figure -- lines up in the same horizontal position.
+    *_leading_weights, _value_weight = _TASK_ROW_COLUMN_WEIGHTS
+    total_label_col, total_value_col = st.columns(
+        [sum(_leading_weights), _value_weight], vertical_alignment="center"
+    )
+    with total_label_col:
+        st.caption("**Total estimated cost:**")
+    with total_value_col:
+        st.caption(f"**${total_estimated_cost:,.4f}**")
 
-    review_col, analyze_col = st.columns(2)
-    with review_col:
-        review_clicked = st.button("Review treaty", disabled=not has_selection)
-    with analyze_col:
-        analyze_clicked = st.button(
-            "Analyze", type="primary", disabled=not has_selection or not selected_task_ids
-        )
-
-    if review_clicked and selected_bytes is not None and selected_name is not None:
-        _show_review_dialog(selected_bytes, selected_name)
+    analyze_clicked = st.button(
+        "Analyze", type="primary", disabled=not has_selection or not selected_task_ids
+    )
 
     if analyze_clicked and selected_bytes is not None and selected_name is not None:
         st.session_state["workflow_run"] = _run_workflow_with_logging(
