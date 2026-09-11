@@ -131,6 +131,21 @@ def test_analyze_uploaded_pdf_malformed_raises_parser_error():
         analyze_uploaded_pdf(b"not a pdf at all")
 
 
+def test_app_injects_wider_main_container_css_targeting_stable_selector():
+    """Widens the main container via the stable data-testid hook, not any
+    Streamlit-internal st-emotion-cache-* hash class (those can change on
+    any Streamlit version bump).
+    """
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    assert not at.exception
+    style_blocks = [m.value for m in at.markdown if "stMainBlockContainer" in m.value]
+    assert len(style_blocks) == 1
+    assert "846px" in style_blocks[0]
+    assert "st-emotion-cache" not in style_blocks[0]
+
+
 def test_app_analyze_button_disabled_until_treaty_selected():
     at = AppTest.from_file("../src/app.py")
     at.run()
