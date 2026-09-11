@@ -43,9 +43,9 @@ DOMAIN_TASKS: list[DomainTask] = [
         id="exclusion_completeness_checklist",
         title="Mandatory-clause / exclusion completeness checklist",
         candidate_id="B1",
-        implementation_status="not_implemented",
+        implementation_status="implemented",
         shape="deterministic",
-        workflow_node=None,
+        workflow_node="exclusion_completeness_checklist_node",
     ),
     DomainTask(
         id="key_date_renewal_calendar_extraction",

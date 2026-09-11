@@ -11,10 +11,12 @@ from src.models import ClaimsData, Severity, TaskResult, TreatyTerms
 from src.parser import PageSection, extract_treaty_sections
 from src.workflow import (
     burn_cost_check_node,
+    exclusion_completeness_checklist_node,
     extract_treaty_terms,
     extractor_node,
     llm_extraction_fallback,
     run_workflow,
+    run_workflow_from_pdf,
     verifier_node,
 )
 
@@ -376,6 +378,86 @@ def test_burn_cost_check_node_log_line_is_tagged_with_its_task_id(caplog):
     assert any(message.startswith("[burn_cost_check] ") for message in messages)
 
 
+def test_exclusion_completeness_checklist_node_flags_every_missing_clause():
+    treaty = TreatyTerms(
+        cedent_name="X",
+        attachment_point=1_000_000,
+        limit=5_000_000,
+        reinsurance_premium=250_000,
+        exclusions=["War and warlike operations", "Nuclear reaction or contamination"],
+    )
+
+    result = exclusion_completeness_checklist_node({"treaty": treaty})
+
+    task_result = result["task_results"]["exclusion_completeness_checklist"]
+    assert task_result.status == "ran"
+    missing_clauses = {f.field for f in task_result.findings}  # sanity: field is always "exclusions"
+    assert missing_clauses == {"exclusions"}
+    descriptions = " ".join(f.description for f in task_result.findings)
+    assert "cyber" in descriptions
+    assert "pandemic" in descriptions
+    assert "sanctions" in descriptions
+    assert "tria" in descriptions
+    assert "war" not in descriptions
+    assert "nuclear" not in descriptions
+    assert len(task_result.findings) == 4
+    assert all(f.severity == "medium" for f in task_result.findings)
+
+
+def test_exclusion_completeness_checklist_node_flags_only_the_one_missing_clause():
+    treaty = TreatyTerms(
+        cedent_name="X",
+        attachment_point=1_000_000,
+        limit=5_000_000,
+        reinsurance_premium=250_000,
+        exclusions=[
+            "War, invasion, act of foreign enemy, hostilities or warlike operations",
+            "Nuclear reaction, nuclear radiation, or radioactive contamination",
+            "Terrorism, as defined under the Terrorism Risk Insurance Act (TRIA)",
+            "Cyber-attack, data breach, or loss of electronic data",
+            "Communicable disease, pandemic, or epidemic-related business interruption",
+        ],
+    )
+
+    result = exclusion_completeness_checklist_node({"treaty": treaty})
+
+    task_result = result["task_results"]["exclusion_completeness_checklist"]
+    assert len(task_result.findings) == 1
+    assert "sanctions" in task_result.findings[0].description
+
+
+def test_exclusion_completeness_checklist_node_no_findings_when_all_clauses_present():
+    treaty = TreatyTerms(
+        cedent_name="X",
+        attachment_point=1_000_000,
+        limit=5_000_000,
+        reinsurance_premium=250_000,
+        exclusions=["war", "nuclear", "cyber", "pandemic", "sanctions", "terrorism"],
+    )
+
+    result = exclusion_completeness_checklist_node({"treaty": treaty})
+
+    assert result["task_results"]["exclusion_completeness_checklist"].findings == []
+
+
+def test_run_workflow_real_two_implemented_tasks_both_run_via_real_pdf():
+    """Unlike test_build_workflow_graph_fans_out_to_multiple_implemented_tasks
+    (which monkeypatches a stand-in second task), this exercises two
+    genuinely implemented domain tasks (B0 and B1) running together through
+    the real run_workflow_from_pdf() entry point -- no mocking at all.
+    """
+    result = run_workflow_from_pdf(
+        "data/sample_treaty.pdf", selected_task_ids={"burn_cost_check", "exclusion_completeness_checklist"}
+    )
+
+    assert set(result["task_results"]) == {"burn_cost_check", "exclusion_completeness_checklist"}
+    assert result["task_results"]["burn_cost_check"].status == "ran"
+    assert result["task_results"]["exclusion_completeness_checklist"].status == "ran"
+    # sample_treaty.pdf only has war/nuclear exclusions -- 4 missing clauses.
+    assert len(result["task_results"]["exclusion_completeness_checklist"].findings) == 4
+    assert result["report"] is not None
+
+
 def test_run_workflow_task_results_matches_report_for_burn_cost_check():
     result = run_workflow(WELL_FORMED_SECTIONS)
 
@@ -408,7 +490,9 @@ def test_run_workflow_empty_selection_completes_but_runs_no_analysis_task():
 
 
 def test_run_workflow_selecting_only_a_not_implemented_task_skips_it_gracefully():
-    result = run_workflow(WELL_FORMED_SECTIONS, selected_task_ids={"exclusion_completeness_checklist"})
+    # exclusion_completeness_checklist is now implemented (B1) -- use a
+    # still-not-implemented registry id (B2) for this "skip gracefully" case.
+    result = run_workflow(WELL_FORMED_SECTIONS, selected_task_ids={"key_date_renewal_calendar_extraction"})
 
     assert result["complete"] is True
     assert result.get("report") is None
@@ -435,7 +519,7 @@ def test_build_workflow_graph_fans_out_to_multiple_implemented_tasks(monkeypatch
         DomainTask(
             id="second_task",
             title="Second Task",
-            candidate_id="B1",
+            candidate_id="SYNTHETIC",
             implementation_status="implemented",
             shape="deterministic",
             workflow_node="_second_task_node",

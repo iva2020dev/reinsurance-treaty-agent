@@ -4645,3 +4645,129 @@ This file contains the reasoning transcript of the AI agent for the current sess
   per the "sync" step of the mandatory workflow rather than opening
   separate tasks for each — appropriate since every iteration modified
   the exact same checklist the previous one had just built.
+
+## 2026-09-11 — Task: Mandatory-clause / exclusion completeness checklist (exclusion-completeness-checklist)
+
+- **Goal**: Graduate `CANDIDATE_TASKS.md`'s `B1` into `TASKS.md` and
+  implement it: a new, genuinely-implemented domain task comparing a
+  treaty's extracted `exclusions` against a configurable list of
+  mandatory clauses, flagging any missing ones.
+- **Analysis**: `src/domain_tasks.py`'s `DOMAIN_TASKS` already has a
+  placeholder entry (`id="exclusion_completeness_checklist"`,
+  `candidate_id="B1"`, `implementation_status="not_implemented"`,
+  `shape="deterministic"`, `workflow_node=None`) from
+  `domain-task-registry` — this task fills that placeholder in, not
+  creating a new registry row. `TreatyTerms.exclusions` is
+  `list[str]` — free-text clause strings, one per line/item, as
+  extracted today (regex or LLM). Checked real fixture content
+  (`data/*_parsed.json`) rather than assuming: the minimal fixture
+  (`sample_treaty.pdf`) only has "War and warlike operations" and
+  "Nuclear reaction or contamination" — missing cyber/pandemic/
+  sanctions/TRIA entirely; the rich fixture
+  (`sample_rich_treaty.pdf`) has war/nuclear/terrorism(TRIA)/
+  pollution/asbestos/cyber/pandemic/pre-inception/fraud/currency but
+  no explicit "sanctions" clause — missing exactly one. These two
+  real fixtures give meaningful non-monkeypatched test cases (a
+  mostly-missing case and a nearly-complete case) without needing a
+  synthetic fixture. `build_workflow_graph()`'s fan-out machinery
+  (`multi-task-graph-fanout`) already generalizes to any number of
+  implemented tasks via `globals()[task.workflow_node]` — no graph-
+  building changes needed, only a new node function plus the registry
+  flip to `implemented`. This is also the second real (non-
+  monkeypatched) domain task, which is what `multi-task-graph-
+  diagram-example` (still open) has been waiting on — noting that
+  connection here, but not picking that task up as part of this one.
+- **Decision**: Match by case-insensitive substring search over the
+  joined exclusions text (not exact clause-name equality) — real
+  exclusion clauses are full sentences ("War and warlike operations,"
+  "Nuclear reaction or contamination"), not bare keywords, so a
+  substring test per mandatory-clause keyword is what "a configurable
+  list of expected clauses" in the candidate description actually
+  requires to work against real text, matching B1's own "Answer type:
+  Extraction (a set comparison over already-extracted clause names,
+  no semantic judgment)" classification — still deterministic, no LLM
+  call, no shape change needed (`shape="deterministic"` in the
+  registry stays correct). One `AnomalyFinding` per missing mandatory
+  clause (not one combined finding) — matches the existing pattern
+  (`burn_cost_check_node` appends one finding per distinct anomaly),
+  and lets the UI's per-task findings list show exactly which clauses
+  are missing, not just a count. Severity `MEDIUM` for every missing
+  clause — a real compliance/coverage gap worth a human's attention,
+  but not on the same footing as `burn_cost_check`'s `HIGH` (an
+  actual historical-loss overrun); no basis in the task description
+  for differentiating severity by which clause is missing, so a single
+  uniform level avoids inventing an unrequested ranking. Node writes
+  only its own `task_results` key, not `report` — `report` stays
+  deliberately `burn_cost_check`-specific per `S3`'s decision.
+- **Action**: Claimed `exclusion-completeness-checklist`, branched
+  `task/exclusion-completeness-checklist` off `main`. Graduated `B1`
+  in `CANDIDATE_TASKS.md` (row + detailed entry →
+  `` 📋 In TASKS.md as `exclusion-completeness-checklist` ``) and added
+  the task to `TASKS.md`'s P1. Implementing
+  `MANDATORY_EXCLUSION_CLAUSES` (module-level dict, clause label →
+  keyword substrings) and `exclusion_completeness_checklist_node()` in
+  `src/workflow.py`; flipping `src/domain_tasks.py`'s matching entry
+  to `implemented`/`workflow_node="exclusion_completeness_checklist_
+  node"`; updating `tests/test_domain_tasks.py::test_only_b0_is_
+  implemented` (now two implemented tasks) and adding node-level and
+  real-fixture tests to `tests/test_workflow.py` next.
+- **Discovered mid-implementation, fixed in scope**: `src/app.py`'s
+  checklist checkbox used `value=is_implemented` as its default-checked
+  state — this only happened to be correct while exactly one task
+  (`burn_cost_check`) was both implemented and the workflow's actual
+  default selection (`src/workflow.py`'s
+  `_DEFAULT_SELECTED_TASK_IDS = frozenset({"burn_cost_check"})`).
+  With `exclusion_completeness_checklist` now also implemented, this
+  bug would auto-check *both* tasks by default, silently changing the
+  app's baseline behavior (a fresh page load would now run two tasks,
+  not one) — directly contradicting this task's own acceptance
+  criterion that `burn_cost_check`-alone behavior stay byte-identical.
+  Caught by two existing tests failing
+  (`test_app_analyze_disabled_when_no_task_is_selected` and
+  `test_app_debug_panel_shows_log_lines_and_state_on_success`, the
+  latter suddenly showing 3 expanders instead of 2) when running the
+  full suite, not anticipated in advance. Fixed by promoting
+  `src/workflow.py`'s `_DEFAULT_SELECTED_TASK_IDS` to a public
+  `DEFAULT_SELECTED_TASK_IDS` (only ever used internally before;
+  `src/app.py` always passed an explicit set, never relying on
+  `build_workflow_graph()`'s own default) and importing it into
+  `src/app.py` to key the checkbox's default-checked value off
+  `task.id in DEFAULT_SELECTED_TASK_IDS` instead of `is_implemented`
+  generically — the two concepts ("is this task real" vs. "should
+  this task run by default") are genuinely different and were only
+  accidentally conflated before a second task existed to reveal it.
+  Also fixed 2 monkeypatched `AppTest` tests in `tests/test_app.py`
+  (`test_app_results_ui_shows_one_section_per_task_and_combined_
+  header_for_two_implemented_tasks`,
+  `test_app_cost_estimate_shown_pre_run_and_actual_cost_round_trips_
+  to_debug_json`) that had relied on their synthetic "Second Task"
+  defaulting checked — now explicitly checking it, since it's
+  correctly not in `DEFAULT_SELECTED_TASK_IDS`. Renamed those tests'
+  synthetic `candidate_id="B1"` to `"SYNTHETIC"` (also in
+  `tests/test_workflow.py`'s pre-existing fan-out test) since `B1` is
+  no longer a placeholder — reusing it for fake test data would be
+  actively misleading now that a real `B1` exists.
+- **Outcome**: Implemented `MANDATORY_EXCLUSION_CLAUSES`,
+  `_missing_mandatory_clauses()`, and
+  `exclusion_completeness_checklist_node()` in `src/workflow.py`;
+  flipped `src/domain_tasks.py`'s `B1` entry to `implemented`; fixed
+  the `DEFAULT_SELECTED_TASK_IDS` checkbox-default bug described
+  above. Added 5 tests to `tests/test_workflow.py`: missing-every-
+  clause (minimal fixture's real exclusion text), missing-only-
+  sanctions (rich fixture's real exclusion text), no-findings when
+  every clause present (synthetic), and a genuine (non-monkeypatched)
+  two-real-task selection through `run_workflow_from_pdf()` on
+  `data/sample_treaty.pdf`. Renamed `test_domain_tasks.py`'s
+  `test_only_b0_is_implemented` to `test_b0_and_b1_are_implemented`.
+  Fixed 2 `AppTest` tests and 1 stale test id as described above.
+  `python -m pytest tests/test_workflow.py tests/test_domain_tasks.py
+  tests/test_app.py -q` — all passed. Full suite `python -m pytest -q`
+  — 156 passed (10 net new/changed tests), no other regressions.
+  `python -m tests.eval.run_eval` — all 5 golden cases still 100%
+  (unaffected — extraction logic untouched). Manually verified via a
+  standalone `AppTest` run: fresh page load has only "Burn-Cost Check"
+  checked (B1 implemented-but-unchecked, matching the real default
+  selection); explicitly checking B1 and clicking Analyze runs both
+  tasks for real (no monkeypatching) and renders both as their own
+  expandable sections. Awaiting human review/approval before this task
+  is marked done and removed from `TASKS.md`.

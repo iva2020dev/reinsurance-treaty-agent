@@ -99,7 +99,7 @@ discussion on how document quality drives task shape (see
 | Pri | ID | Task | Status | Shape | Answer Type | Effort | Depends on |
 |---|---|---|---|---|---|---|---|
 | — | B0 | **Burn-Cost Check** | **✅ Done** | Hybrid | Extraction | — (shipped) | — |
-| 1 | B1 | Mandatory-clause / exclusion completeness checklist | Proposed | Deterministic | Extraction | S | — |
+| 1 | B1 | Mandatory-clause / exclusion completeness checklist | 📋 In TASKS.md | Deterministic | Extraction | S | — |
 | 2 | B2 | Key-date/renewal calendar extraction | Proposed | Deterministic | Extraction | S | — |
 | 3 | B3 | Renewal year-over-year diff | Proposed | Deterministic | Extraction | M | — |
 | 4 | B4 | Multi-layer program extraction & aggregation | Proposed | Deterministic | Extraction | L | — |
@@ -278,6 +278,7 @@ work tracked separately in `DOMAIN_TASK_SELECTION_PLAN.md`.*
     involved).*
 
 - **B1. Mandatory-clause / exclusion completeness checklist** — Priority 1 —
+  📋 In TASKS.md as `exclusion-completeness-checklist` —
   compare extracted `exclusions` against a configurable list of
   expected clauses (war, nuclear, cyber, pandemic, sanctions, TRIA);
   flag missing ones as a new finding category.

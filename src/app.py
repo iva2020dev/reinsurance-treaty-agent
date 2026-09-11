@@ -24,7 +24,7 @@ from src.domain_tasks import DOMAIN_TASKS
 from src.models import AnomalyReport, TaskResult
 from src.parser import ParserError, extract_treaty_sections
 from src.sample_treaties import SAMPLE_TREATIES, get_sample_bytes
-from src.workflow import WorkflowState, run_workflow_from_pdf
+from src.workflow import DEFAULT_SELECTED_TASK_IDS, WorkflowState, run_workflow_from_pdf
 
 SEVERITY_ICONS = {"low": "ℹ️", "medium": "⚠️", "high": "🚨"}
 DEFAULT_LOG_FILE = Path("logs/workflow.log")
@@ -568,7 +568,7 @@ def main() -> None:
         with checkbox_col:
             checked = st.checkbox(
                 task.title,
-                value=is_implemented,
+                value=task.id in DEFAULT_SELECTED_TASK_IDS,
                 disabled=not is_implemented,
                 key=f"task_checkbox_{task.id}",
             )
