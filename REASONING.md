@@ -4345,3 +4345,48 @@ This file contains the reasoning transcript of the AI agent for the current sess
   diagram-example` (added directly to `TASKS.md`, never a
   `CANDIDATE_TASKS.md` candidate), still open pending a second real
   domain task.
+
+## 2026-09-11 — Task: Compact the "Domain tasks to run" checklist rows onto one line each (compact-domain-task-checklist-rows)
+
+- **Goal**: Human is starting a pass of UI polish on the "Domain tasks
+  to run" checklist and asked first for a compaction: each task's
+  checkbox/title and its status/cost caption should render on one
+  line, not two stacked lines as today.
+- **Analysis**: `main()`'s checklist loop (`src/app.py`) calls
+  `st.checkbox(task.title, ...)` then, on the line below, either
+  `st.caption("Not implemented")` or
+  `st.caption(f"Estimated cost: ${estimated_cost:,.4f}")` — two
+  separate Streamlit elements stacked vertically per task, which is
+  where the extra vertical space comes from. Streamlit has no built-in
+  "checkbox with an inline trailing caption" widget, but `st.columns`
+  lets two elements render side-by-side in the same visual row.
+- **Decision**: Wrap each task's checkbox and caption in
+  `st.columns([3, 2])` (checkbox column wider, since task titles are
+  longer than the short cost/status text) instead of two sequential
+  top-level calls. Kept every behavioral rule unchanged (disabled
+  checkbox for not-implemented tasks, live per-task and running-total
+  cost estimates) — this task is presentation-only, not a scope change
+  to what's shown, so no acceptance criterion here should require
+  touching `estimate_task_cost()`/`DOMAIN_TASKS` at all.
+- **Action**: Editing `src/app.py`'s checklist loop to use
+  `st.columns` per task row. Existing checklist tests
+  (`test_app_shows_one_checkbox_per_domain_task_only_implemented_
+  enabled`, `test_app_burn_cost_check_defaults_checked_and_shows_
+  cost_estimate`, `test_app_cost_estimate_increases_with_a_larger_
+  selected_document`) query `at.checkbox`/`at.caption` directly, not
+  their DOM position, so they should keep passing unchanged — running
+  them to confirm, not just assuming.
+- **Outcome**: Wrapped each task's checkbox and status/cost caption in
+  `st.columns([3, 2], vertical_alignment="center")` — checkbox in the
+  wider left column, caption in the right column, same row. No
+  behavior change: disabled/enabled state, default-checked state, live
+  per-task cost estimate, and the running total are all unchanged.
+  `python -m pytest tests/test_app.py -q -k "checkbox or cost_estimate"`
+  — 4 passed unchanged, confirming the existing tests query widgets by
+  label/value rather than DOM position. Full suite `python -m pytest
+  -q` — 147 passed, no regressions. `python -m tests.eval.run_eval` —
+  all 5 golden cases still 100% (unaffected, since this change touches
+  no extraction/workflow logic). Manually verified via a standalone
+  `AppTest` run that each task now renders as one checkbox+caption row.
+  Awaiting human review/approval before this task is marked done and
+  removed from `TASKS.md`.

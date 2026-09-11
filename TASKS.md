@@ -122,6 +122,30 @@
 
 <!-- policy: P2 tasks are valuable but not blocking. Do after P0 and P1 are clear. -->
 
+- [ ] Compact the "Domain tasks to run" checklist rows onto one line each (@claude)
+  - **ID**: compact-domain-task-checklist-rows
+  - **Tags**: ui, streamlit
+  - **Candidate ID**: N/A (ad-hoc UI polish requested directly by the
+    human, not staged in `CANDIDATE_TASKS.md`)
+  - **Details**: Today's "Domain tasks to run" checklist
+    (`src/app.py`'s `main()`) renders each task as two stacked lines:
+    the `st.checkbox` on its own line, then a separate `st.caption`
+    below it ("Estimated cost: $0.0010" or "Not implemented"). The
+    human asked to make this more compact — each task's checkbox,
+    title, and status/cost caption should read as one line instead of
+    two, so a longer task list (as more `B1`-`B9`/`C1`-`C5`/`F1`-`F4`
+    tasks become implemented) doesn't take up excessive vertical space.
+  - **Files**: `src/app.py`, `tests/test_app.py`
+  - **Acceptance**: Each domain task renders its checkbox + title and
+    its status/cost text on the same visual row (e.g. via
+    `st.columns`), not two stacked lines; existing behavior is
+    unchanged (implemented tasks still checkable with a live cost
+    estimate, not-implemented tasks still disabled with a "Not
+    implemented" message, running total still shown); existing
+    `AppTest`-based checklist tests continue to pass with only
+    superficial widget-location updates, not behavior changes;
+    `python -m pytest -q` passes.
+
 - [ ] Fix Claude Code Review CI Check (missing API key secret)
   - **ID**: fix-claude-review-ci-secret
   - **Tags**: ci, github-actions, maintenance

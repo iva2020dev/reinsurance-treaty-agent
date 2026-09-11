@@ -541,19 +541,22 @@ def main() -> None:
     total_estimated_cost = 0.0
     for task in DOMAIN_TASKS:
         is_implemented = task.implementation_status == "implemented"
-        checked = st.checkbox(
-            task.title,
-            value=is_implemented,
-            disabled=not is_implemented,
-            key=f"task_checkbox_{task.id}",
-        )
-        if not is_implemented:
-            st.caption("Not implemented")
-        elif checked:
-            selected_task_ids.add(task.id)
-            estimated_cost = estimate_task_cost(task, page_count)
-            total_estimated_cost += estimated_cost
-            st.caption(f"Estimated cost: ${estimated_cost:,.4f}")
+        checkbox_col, status_col = st.columns([3, 2], vertical_alignment="center")
+        with checkbox_col:
+            checked = st.checkbox(
+                task.title,
+                value=is_implemented,
+                disabled=not is_implemented,
+                key=f"task_checkbox_{task.id}",
+            )
+        with status_col:
+            if not is_implemented:
+                st.caption("Not implemented")
+            elif checked:
+                selected_task_ids.add(task.id)
+                estimated_cost = estimate_task_cost(task, page_count)
+                total_estimated_cost += estimated_cost
+                st.caption(f"Estimated cost: ${estimated_cost:,.4f}")
     if selected_task_ids:
         st.caption(f"**Total estimated cost: ${total_estimated_cost:,.4f}**")
 
