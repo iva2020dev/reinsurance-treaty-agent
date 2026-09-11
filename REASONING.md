@@ -5368,3 +5368,25 @@ This file contains the reasoning transcript of the AI agent for the current sess
   width to a fixed 800px`, per the mandatory task-closing workflow. No
   `CANDIDATE_TASKS.md` update needed — this task was never graduated
   from there (`Candidate ID: N/A`, added directly to `TASKS.md`).
+
+## 2026-09-11 20:14:07 — Closing task: Include every selected task's results in the saved/downloaded results file, styled as a final report (multi-task-results-in-saved-file)
+
+- PR #94 merged into `main` at 2026-09-11T20:14:07Z. Human explicitly
+  approved marking `multi-task-results-in-saved-file` done. Removing
+  it from `TASKS.md`'s P1 section (and adding it to the "Recently
+  completed" list) on this `close/multi-task-results-in-saved-file`
+  branch/PR, titled `Closing task as "Done": Include every selected
+  task's results in the saved/downloaded results file, styled as a
+  final report`, per the mandatory task-closing workflow. No
+  `CANDIDATE_TASKS.md` update needed — this task was never graduated
+  from there (`Candidate ID: N/A`, a real bug reported directly). This
+  task absorbed the most follow-up iterations of the session: the
+  original bug fix, a full report-style restyling, four further real
+  bugs found by the human actually using the app (cost-shape
+  mismatch, raw HTML on screen, missing Cost/Latency, dropped PDF
+  symbols), the LLM Extraction Fallback's real cost being surfaced,
+  and three rounds of small wording/styling/math-rendering
+  refinements on the resulting combined summary line — all folded
+  into the same task/branch/PR per the "sync" step, since each was a
+  direct follow-up discovered while reviewing the immediately
+  preceding change, not an unrelated new request.
