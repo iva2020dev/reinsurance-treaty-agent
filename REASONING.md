@@ -4771,3 +4771,67 @@ This file contains the reasoning transcript of the AI agent for the current sess
   tasks for real (no monkeypatching) and renders both as their own
   expandable sections. Awaiting human review/approval before this task
   is marked done and removed from `TASKS.md`.
+
+## 2026-09-11 — Task: Include every selected task's results in the saved/downloaded results file (multi-task-results-in-saved-file)
+
+- **Goal**: Human reported the saved/downloaded results file doesn't
+  contain results from all selected tasks. Fix `format_results_
+  document()` and everything downstream to render every selected
+  task's results, matching the on-screen "Analysis Results" container.
+- **Analysis**: Confirmed by reading the code, not just trusting the
+  report: `format_results_document()` (`src/app.py`) still calls only
+  `format_report_markdown(report)` — unchanged since before `multi-
+  task-results-ui` added the on-screen per-task sections + combined
+  summary. `report` is deliberately `burn_cost_check`-specific (`S3`'s
+  decision), so any other task's `TaskResult` findings never reach the
+  saved file. This exact gap was already flagged as known future work
+  in `multi-task-results-ui`'s own `REASONING.md` entry ("Left
+  `save_analysis_result_to_file`/`render_report_bytes` ... untouched
+  ... that's implicitly future work once a second real task exists")
+  — that "second real task" now exists (`B1`, on its own still-open
+  PR), which is presumably what made this gap visible enough to report.
+  `format_combined_results_summary()`/`format_task_section_markdown()`
+  (added by `multi-task-results-ui`) already do exactly the rendering
+  needed — reusable as-is, no new formatting logic required.
+- **Decision**: Add `selected_task_ids: set[str] | None = None` and
+  `task_results: dict[str, TaskResult] | None = None` as new *optional*
+  parameters to `format_results_document()` (and thread them through
+  `render_report_bytes()`/`render_report_pdf()`/`save_analysis_result_
+  to_file()`), defaulting to `None` — additive, not a breaking
+  signature change, so every existing single-report call/test (which
+  passes only `report` plus `log_lines`/`when`) keeps working
+  unchanged. When `selected_task_ids` is `None` (omitted), fall back to
+  today's `format_report_markdown(report)`-only behavior exactly; when
+  provided, render the combined summary followed by one section per
+  task, reusing the exact on-screen helpers. `main()`'s actual Save/
+  Download call sites always pass the real `result_selected_task_ids`/
+  `task_results` for the current run, so the real app gets the fix;
+  every other existing caller (tests) is unaffected by not passing
+  them.
+- **Action**: Editing `format_results_document()`,
+  `render_report_bytes()`, `render_report_pdf()`, `save_analysis_
+  result_to_file()` in `src/app.py` to add and thread the two new
+  optional parameters; updating `main()`'s Save/Download button call
+  sites to pass them. Adding a new test selecting two tasks (reusing
+  the established monkeypatched-second-task pattern) and asserting the
+  saved file's text includes both tasks' content.
+- **Outcome**: Implemented as described. `main()`'s Save/Download
+  buttons now pass `result_selected_task_ids`/`task_results` (already
+  in scope there from `multi-task-results-ui`). Added 3 unit tests to
+  `tests/test_app.py`: `format_results_document()` with
+  `selected_task_ids` omitted matches today's exact baseline output
+  (regression safety net); with two tasks selected (one real report,
+  one synthetic `TaskResult`, no graph run needed since the function
+  only needs the same shape `main()` passes) renders both tasks'
+  content and their `### <title>` headings. Added 1 end-to-end
+  `AppTest` test (same two-real-implemented-task monkeypatch technique
+  as `multi-task-results-ui`'s own test) driving the actual "Save
+  analysis results" button and reading the written file back —
+  confirms both `burn_cost_check`'s report content and a second task's
+  finding both appear in the real saved file, the exact bug reported.
+  `python -m pytest tests/test_app.py -q -k "format_results_document
+  or saved_file_includes_every"` — 5 passed. Full suite `python -m
+  pytest -q` — 155 passed, no other regressions. `python -m
+  tests.eval.run_eval` — all 5 golden cases still 100% (unaffected —
+  no extraction logic touched). Awaiting human review/approval before
+  this task is marked done and removed from `TASKS.md`.

@@ -106,6 +106,44 @@
     produces both tasks' entries in `task_results`; `python -m pytest
     -q` passes.
 
+- [ ] Include every selected task's results in the saved/downloaded results file (@claude)
+  - **ID**: multi-task-results-in-saved-file
+  - **Tags**: bug, multi-domain-task-selection
+  - **Candidate ID**: N/A (real bug reported directly by the human;
+    also flagged as known future work in `multi-task-results-ui`'s own
+    `REASONING.md` entry: "Left `save_analysis_result_to_file`/
+    `render_report_bytes` ... untouched ... that's implicitly future
+    work once a second real task exists")
+  - **Details**: The on-screen "Analysis Results" container
+    (`multi-task-results-ui`) renders a combined summary plus one
+    section per selected task. But `format_results_document()` (and
+    everything downstream of it — `render_report_bytes()`,
+    `render_report_pdf()`, `save_analysis_result_to_file()`, and the
+    "Save"/"Download" buttons in `main()`) still only ever renders
+    `format_report_markdown(report)` — `report` is
+    `burn_cost_check`-specific (per `S3`'s decision), so any other
+    selected task's results (e.g. `exclusion_completeness_checklist`'s
+    findings, once implemented) are silently missing from the saved/
+    downloaded file even though they're visible on screen. Confirmed
+    directly by the human running the app.
+  - **Files**: `src/app.py`, `tests/test_app.py`
+  - **Acceptance**: `format_results_document()` gains optional
+    `selected_task_ids`/`task_results` parameters; when provided, the
+    saved/downloaded document renders the same combined summary +
+    per-task sections as the on-screen view (reusing
+    `format_combined_results_summary()`/`format_task_section_
+    markdown()`), not just `report` alone; when omitted (existing
+    callers/tests), behavior is unchanged (additive, not a breaking
+    change to the existing single-report signature); `render_report_
+    bytes()`/`render_report_pdf()`/`save_analysis_result_to_file()`
+    thread the new parameters through; `main()`'s Save/Download buttons
+    pass the real `result_selected_task_ids`/`task_results` for the
+    current run; a new test selects two tasks (one real, one
+    monkeypatched, following the established fan-out-test pattern) and
+    asserts both tasks' content appears in the saved file's text;
+    existing single-task save/download tests continue to pass
+    unchanged; `python -m pytest -q` passes.
+
 - [ ] Regenerate workflow diagram for a multi-task selection example
   - **ID**: multi-task-graph-diagram-example
   - **Tags**: harness, docs, multi-domain-task-selection

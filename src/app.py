@@ -352,13 +352,24 @@ def format_results_filename(report: AnomalyReport, extension: str, when: datetim
 
 
 def format_results_document(
-    report: AnomalyReport, log_lines: list[str] | None = None, when: datetime | None = None
+    report: AnomalyReport,
+    log_lines: list[str] | None = None,
+    when: datetime | None = None,
+    selected_task_ids: set[str] | None = None,
+    task_results: dict[str, TaskResult] | None = None,
 ) -> str:
     """format_report_markdown's content, for a saved/downloaded file: prefixed
     with an "Analysis Results" header (matching the on-screen container's own
     title), the run's generation timestamp, and (only if the LLM Extraction
     Fallback actually ran) its token usage -- none of these three are part of
     the on-screen report itself, which describes the treaty, not this run.
+
+    selected_task_ids/task_results are optional and additive: when omitted
+    (the default), renders exactly today's single format_report_markdown()
+    output. When provided, renders the same combined summary + per-task
+    sections as the on-screen "Analysis Results" container
+    (multi-task-results-ui), so every selected task's results end up in the
+    saved/downloaded file, not just burn_cost_check's.
     """
     timestamp = (when or datetime.now()).strftime("%Y-%m-%d %H:%M:%S")
     lines = ["## Analysis Results", f"Generated: {timestamp}"]
@@ -366,11 +377,26 @@ def format_results_document(
     if llm_usage:
         lines.append(f"LLM usage: {llm_usage}")
     lines.append("")
-    lines.append(format_report_markdown(report))
+    if selected_task_ids is None:
+        lines.append(format_report_markdown(report))
+    else:
+        task_results = task_results or {}
+        lines.append(format_combined_results_summary(selected_task_ids, task_results))
+        lines.append("")
+        for task_id in sorted(selected_task_ids):
+            lines.append(f"### {_task_title(task_id)}")
+            lines.append(format_task_section_markdown(task_id, task_results.get(task_id), report))
+            lines.append("")
     return "\n".join(lines)
 
 
-def render_report_pdf(report: AnomalyReport, log_lines: list[str] | None = None, when: datetime | None = None) -> bytes:
+def render_report_pdf(
+    report: AnomalyReport,
+    log_lines: list[str] | None = None,
+    when: datetime | None = None,
+    selected_task_ids: set[str] | None = None,
+    task_results: dict[str, TaskResult] | None = None,
+) -> bytes:
     """Render an AnomalyReport as PDF bytes, mirroring format_results_document's content.
 
     Uses fpdf2's core (Latin-1-only) fonts, so this strips Markdown syntax
@@ -382,7 +408,14 @@ def render_report_pdf(report: AnomalyReport, log_lines: list[str] | None = None,
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
 
-    for raw_line in format_results_document(report, log_lines=log_lines, when=when).split("\n"):
+    document = format_results_document(
+        report,
+        log_lines=log_lines,
+        when=when,
+        selected_task_ids=selected_task_ids,
+        task_results=task_results,
+    )
+    for raw_line in document.split("\n"):
         line = raw_line.strip()
         if not line:
             pdf.ln(4)
@@ -406,12 +439,21 @@ def render_report_pdf(report: AnomalyReport, log_lines: list[str] | None = None,
 
 
 def render_report_bytes(
-    report: AnomalyReport, extension: str, log_lines: list[str] | None = None, when: datetime | None = None
+    report: AnomalyReport,
+    extension: str,
+    log_lines: list[str] | None = None,
+    when: datetime | None = None,
+    selected_task_ids: set[str] | None = None,
+    task_results: dict[str, TaskResult] | None = None,
 ) -> bytes:
     """Render report as bytes in the given format ("md" or "pdf")."""
     if extension == "pdf":
-        return render_report_pdf(report, log_lines=log_lines, when=when)
-    return format_results_document(report, log_lines=log_lines, when=when).encode("utf-8")
+        return render_report_pdf(
+            report, log_lines=log_lines, when=when, selected_task_ids=selected_task_ids, task_results=task_results
+        )
+    return format_results_document(
+        report, log_lines=log_lines, when=when, selected_task_ids=selected_task_ids, task_results=task_results
+    ).encode("utf-8")
 
 
 def save_analysis_result_to_file(
@@ -420,6 +462,8 @@ def save_analysis_result_to_file(
     log_lines: list[str] | None = None,
     directory: Path = DEFAULT_RESULTS_DIR,
     when: datetime | None = None,
+    selected_task_ids: set[str] | None = None,
+    task_results: dict[str, TaskResult] | None = None,
 ) -> Path:
     """Write report to a new timestamped file (under a per-treaty subdirectory
     of directory) in the given format, returning its path.
@@ -428,7 +472,16 @@ def save_analysis_result_to_file(
     target_dir = results_subdirectory(report, directory)
     target_dir.mkdir(parents=True, exist_ok=True)
     path = target_dir / format_results_filename(report, extension, when=when)
-    path.write_bytes(render_report_bytes(report, extension, log_lines=log_lines, when=when))
+    path.write_bytes(
+        render_report_bytes(
+            report,
+            extension,
+            log_lines=log_lines,
+            when=when,
+            selected_task_ids=selected_task_ids,
+            task_results=task_results,
+        )
+    )
     return path
 
 
@@ -675,7 +728,13 @@ def main() -> None:
                 save_col, download_col = st.columns(2)
                 with save_col:
                     if st.button("Save analysis results", icon=":material/save:"):
-                        saved_path = save_analysis_result_to_file(report, extension, log_lines=log_lines)
+                        saved_path = save_analysis_result_to_file(
+                            report,
+                            extension,
+                            log_lines=log_lines,
+                            selected_task_ids=result_selected_task_ids,
+                            task_results=task_results,
+                        )
                         st.success(f"Saved analysis results to {saved_path}.")
                 with download_col:
                     # Streamlit Community Cloud's filesystem is ephemeral and
@@ -688,7 +747,14 @@ def main() -> None:
                     download_when = datetime.now()
                     st.download_button(
                         "Download analysis results",
-                        data=render_report_bytes(report, extension, log_lines=log_lines, when=download_when),
+                        data=render_report_bytes(
+                            report,
+                            extension,
+                            log_lines=log_lines,
+                            when=download_when,
+                            selected_task_ids=result_selected_task_ids,
+                            task_results=task_results,
+                        ),
                         file_name=format_results_filename(report, extension, when=download_when),
                         mime="application/pdf" if extension == "pdf" else "text/markdown",
                         icon=":material/download:",

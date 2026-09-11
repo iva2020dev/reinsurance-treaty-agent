@@ -1060,6 +1060,55 @@ def test_format_results_document_includes_llm_usage_when_present():
     assert "LLM usage: input tokens: 500, output tokens: 60" in doc
 
 
+def test_format_results_document_with_no_selected_task_ids_matches_today_baseline():
+    """Omitting selected_task_ids (the default) renders exactly the same
+    single-report content as before multi-task-results-in-saved-file --
+    additive, not a breaking change to existing callers.
+    """
+    report = _sample_report()
+
+    doc = format_results_document(report, when=datetime(2026, 9, 9, 14, 5, 30))
+
+    assert doc == (
+        "## Analysis Results\nGenerated: 2026-09-09 14:05:30\n\n" + format_report_markdown(report)
+    )
+
+
+def test_format_results_document_includes_every_selected_tasks_results():
+    """Selecting two tasks (one real, one a monkeypatch-free synthetic
+    TaskResult, since format_results_document() doesn't need a real graph
+    run -- just the same selected_task_ids/task_results shape main()
+    passes) renders both tasks' content in the saved document, not just
+    burn_cost_check's report.
+    """
+    report = _sample_report()
+    task_results = {
+        "burn_cost_check": TaskResult(status="ran", findings=report.findings, cost=0.0, latency=0.01),
+        "exclusion_completeness_checklist": TaskResult(
+            status="ran",
+            findings=[
+                AnomalyFinding(
+                    field="exclusions", description="Mandatory exclusion clause not found: cyber.", severity=Severity.MEDIUM
+                )
+            ],
+            cost=0.0,
+            latency=0.02,
+        ),
+    }
+
+    doc = format_results_document(
+        report,
+        when=datetime(2026, 9, 9, 14, 5, 30),
+        selected_task_ids={"burn_cost_check", "exclusion_completeness_checklist"},
+        task_results=task_results,
+    )
+
+    assert "Acme Insurance Co." in doc  # burn_cost_check's report content
+    assert "Mandatory exclusion clause not found: cyber." in doc
+    assert "### Burn-Cost Check" in doc
+    assert "### Mandatory-clause / exclusion completeness checklist" in doc
+
+
 def test_render_report_pdf_contains_the_reports_text():
     from pypdf import PdfReader
 
@@ -1146,6 +1195,70 @@ def test_app_save_analysis_results_button_writes_pdf_when_selected(tmp_path, mon
     assert not at.exception
     saved_files = list((tmp_path / "results" / "acme_insurance_co").glob("*.pdf"))
     assert len(saved_files) == 1
+
+
+def test_app_saved_file_includes_every_selected_tasks_results(tmp_path, monkeypatch):
+    """End-to-end: selecting two genuinely distinct implemented tasks
+    (same monkeypatch technique as multi-task-results-ui's own test) and
+    clicking "Save analysis results" writes a file containing both tasks'
+    content, not just burn_cost_check's -- the real bug this task fixes.
+    """
+    import src.workflow as workflow_module
+    from src.domain_tasks import DomainTask
+
+    def _second_task_node(state):
+        return {
+            "task_results": {
+                "second_task": TaskResult(
+                    status="ran",
+                    findings=[AnomalyFinding(field="x", description="second task finding", severity=Severity.LOW)],
+                    cost=0.0,
+                    latency=0.1,
+                )
+            }
+        }
+
+    monkeypatch.setattr(workflow_module, "_second_task_node", _second_task_node, raising=False)
+    two_implemented = [
+        DomainTask(
+            id="burn_cost_check",
+            title="Burn-Cost Check",
+            candidate_id="B0",
+            implementation_status="implemented",
+            shape="hybrid",
+            workflow_node="burn_cost_check_node",
+        ),
+        DomainTask(
+            id="second_task",
+            title="Second Task",
+            candidate_id="SYNTHETIC",
+            implementation_status="implemented",
+            shape="deterministic",
+            workflow_node="_second_task_node",
+        ),
+    ]
+    monkeypatch.setattr(workflow_module, "DOMAIN_TASKS", two_implemented)
+    monkeypatch.setattr("src.domain_tasks.DOMAIN_TASKS", two_implemented)
+    pdf_bytes = Path(MINIMAL_TREATY_PATH).read_bytes()
+    monkeypatch.chdir(tmp_path)
+
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+    at.file_uploader[0].set_value([("sample_treaty.pdf", pdf_bytes, "application/pdf")])
+    at.run()
+    second_task_checkbox = next(c for c in at.checkbox if c.label == "Second Task")
+    at = second_task_checkbox.check().run()
+    at = _click_button(at, "Analyze")
+    at = _click_button(at, "Save analysis results")
+
+    assert not at.exception
+    saved_files = list((tmp_path / "results" / "acme_insurance_co").glob("*.md"))
+    assert len(saved_files) == 1
+    content = saved_files[0].read_text()
+    assert "Acme Insurance Co." in content  # burn_cost_check's report content
+    assert "second task finding" in content
+    assert "### Burn-Cost Check" in content
+    assert "### Second Task" in content
 
 
 def test_app_save_analysis_results_includes_llm_usage_when_fallback_ran(tmp_path, monkeypatch):
