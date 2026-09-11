@@ -96,7 +96,7 @@
     live graph, the same way the existing single-task one does;
     `python -m pytest -q` passes.
 
-- [ ] End-to-end test coverage for multi-task selection
+- [ ] End-to-end test coverage for multi-task selection (@claude)
   - **ID**: multi-task-e2e-test-coverage
   - **Tags**: testing, multi-domain-task-selection
   - **Candidate ID**: S8 (`CANDIDATE_TASKS.md`)
@@ -110,7 +110,10 @@
     correctly end-to-end; the new `task_results` schema serializes
     correctly for the debug panel (`serialize_state_for_debug()` in
     `src/app.py`).
-  - **Files**: `tests/test_integration.py`, `tests/test_app.py`
+  - **Files**: `tests/test_integration.py`, `tests/test_app.py`,
+    `src/app.py` (added: `serialize_state_for_debug()` was found to
+    genuinely never include `task_results`, contradicting this task's
+    own Acceptance line below — a real gap, not just a testing one)
   - **Acceptance**: A new end-to-end test (or small suite) exercises a
     real multi-task selection through `run_workflow`/the running app,
     covering: `B0`-only selection matches today's baseline exactly; a

@@ -110,6 +110,10 @@ def serialize_state_for_debug(state: WorkflowState) -> dict:
         "claims": [claim.model_dump(mode="json") for claim in state.get("claims", [])],
         "complete": state.get("complete", False),
         "report": report.model_dump(mode="json") if (report := state.get("report")) else None,
+        "task_results": {
+            task_id: task_result.model_dump(mode="json")
+            for task_id, task_result in state.get("task_results", {}).items()
+        },
     }
 
 
