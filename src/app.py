@@ -541,14 +541,16 @@ def main() -> None:
     total_estimated_cost = 0.0
     for task in DOMAIN_TASKS:
         is_implemented = task.implementation_status == "implemented"
-        checkbox_col, status_col = st.columns([3, 2], vertical_alignment="center")
+        checkbox_col, shape_col, status_col = st.columns([3, 1, 2], vertical_alignment="center")
         with checkbox_col:
             checked = st.checkbox(
-                f"{task.title} ({task.shape})",
+                task.title,
                 value=is_implemented,
                 disabled=not is_implemented,
                 key=f"task_checkbox_{task.id}",
             )
+        with shape_col:
+            st.caption(task.shape)
         with status_col:
             if not is_implemented:
                 st.caption("Not implemented")

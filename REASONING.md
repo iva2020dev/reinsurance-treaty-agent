@@ -4416,3 +4416,31 @@ This file contains the reasoning transcript of the AI agent for the current sess
   (hybrid)" and "Mandatory-clause / exclusion completeness checklist
   (deterministic)". Awaiting human review/approval before this task is
   marked done and removed from `TASKS.md`.
+
+- **2026-09-11 (sync — refinement)**: Human asked to move `shape` out
+  of the checkbox label and into its own separate column instead.
+  Synced `TASKS.md`'s Details/Acceptance. Decision: three columns per
+  row now (`st.columns([3, 1, 2])`) — checkbox+title, shape (as a
+  plain `st.caption`), status/cost — rather than two; reverting the
+  checkbox label back to bare `task.title`. Since the two checklist
+  tests fixed in the previous update (`implemented_titles`/
+  `"Burn-Cost Check (hybrid)"`) were specifically compensating for the
+  now-reverted label change, reverting them back to matching bare
+  `task.title` too, rather than leaving them coincidentally still
+  passing against stale expectations.
+- **Outcome**: Checklist row is now `st.columns([3, 1, 2],
+  vertical_alignment="center")`: checkbox (bare `task.title`), a
+  `shape_col` rendering `st.caption(task.shape)`, then the existing
+  status/cost `status_col`. Reverted the checkbox label and both
+  affected tests back to bare `"Burn-Cost Check"`/`implemented_titles`.
+  Added `test_app_shows_each_domain_task_shape_in_its_own_column`
+  confirming every `DOMAIN_TASKS` entry's shape string appears among
+  the rendered captions. `python -m pytest tests/test_app.py -q -k
+  "shape or checkbox or cost_estimate"` — 5 passed. Full suite `python
+  -m pytest -q` — 148 passed, no other regressions. `python -m
+  tests.eval.run_eval` — all 5 golden cases still 100%. Manually
+  verified via a standalone `AppTest` run: checkbox labels are back to
+  bare titles ("Burn-Cost Check"), with "hybrid"/"deterministic" now
+  appearing as their own separate captions. Awaiting human review/
+  approval before this task is marked done and removed from
+  `TASKS.md`.

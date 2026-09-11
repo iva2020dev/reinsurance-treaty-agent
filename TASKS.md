@@ -137,20 +137,23 @@
     tasks become implemented) doesn't take up excessive vertical space.
     **Scope addition (same UI-polish pass, still requested directly)**:
     also show each task's `shape` (`deterministic`/`hybrid`/`llm`, from
-    `src/domain_tasks.py`'s `DomainTask.shape`) right after its title,
-    so it's visible which tasks call an LLM (and therefore have a
-    nonzero cost estimate) at a glance, without expanding anything.
+    `src/domain_tasks.py`'s `DomainTask.shape`), so it's visible which
+    tasks call an LLM (and therefore have a nonzero cost estimate) at a
+    glance, without expanding anything. **Further refinement (same
+    pass)**: shape moved out of the checkbox label into its own
+    dedicated column, rather than appended as `"(shape)"` text after
+    the title — a cleaner three-column row (checkbox+title | shape |
+    status/cost) instead of stuffing more text into the label itself.
   - **Files**: `src/app.py`, `tests/test_app.py`
-  - **Acceptance**: Each domain task renders its checkbox + title and
-    its status/cost text on the same visual row (e.g. via
-    `st.columns`), not two stacked lines; each task's title is
-    immediately followed by its shape (e.g. "Burn-Cost Check
-    (hybrid)"); existing behavior is unchanged (implemented tasks
-    still checkable with a live cost estimate, not-implemented tasks
-    still disabled with a "Not implemented" message, running total
-    still shown); existing `AppTest`-based checklist tests continue to
-    pass with only superficial widget-location updates, not behavior
-    changes;
+  - **Acceptance**: Each domain task renders its checkbox + title,
+    its shape, and its status/cost text on the same visual row (via
+    `st.columns`, three columns), not two stacked lines and not shape
+    concatenated into the checkbox label; existing behavior is
+    unchanged (implemented tasks still checkable with a live cost
+    estimate, not-implemented tasks still disabled with a "Not
+    implemented" message, running total still shown); existing
+    `AppTest`-based checklist tests continue to pass with only
+    superficial widget-location updates, not behavior changes;
     `python -m pytest -q` passes.
 
 - [ ] Fix Claude Code Review CI Check (missing API key secret)
