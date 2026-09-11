@@ -380,7 +380,7 @@ def test_app_results_ui_shows_one_section_per_task_and_combined_header_for_two_i
         DomainTask(
             id="second_task",
             title="Second Task",
-            candidate_id="B1",
+            candidate_id="SYNTHETIC",
             implementation_status="implemented",
             shape="deterministic",
             workflow_node="_second_task_node",
@@ -393,7 +393,13 @@ def test_app_results_ui_shows_one_section_per_task_and_combined_header_for_two_i
     at.run()
 
     with open(MINIMAL_TREATY_PATH, "rb") as f:
-        at = _upload_and_click_analyze(at, "sample_treaty.pdf", f.read())
+        at.file_uploader[0].set_value([("sample_treaty.pdf", f.read(), "application/pdf")])
+    at.run()
+    # "Second Task" isn't in DEFAULT_SELECTED_TASK_IDS, so it defaults
+    # unchecked -- check it explicitly to select both tasks.
+    second_task_checkbox = next(c for c in at.checkbox if c.label == "Second Task")
+    at = second_task_checkbox.check().run()
+    at = _click_button(at, "Analyze")
 
     assert not at.exception
     labels = [e.label for e in at.expander]
@@ -440,7 +446,7 @@ def test_app_cost_estimate_shown_pre_run_and_actual_cost_round_trips_to_debug_js
         DomainTask(
             id="second_task",
             title="Second Task",
-            candidate_id="B1",
+            candidate_id="SYNTHETIC",
             implementation_status="implemented",
             shape="llm",
             workflow_node="_second_task_node",
@@ -455,8 +461,12 @@ def test_app_cost_estimate_shown_pre_run_and_actual_cost_round_trips_to_debug_js
     with open(MINIMAL_TREATY_PATH, "rb") as f:
         at.file_uploader[0].set_value([("sample_treaty.pdf", f.read(), "application/pdf")])
     at = at.run()
+    # "Second Task" isn't in DEFAULT_SELECTED_TASK_IDS, so it defaults
+    # unchecked -- check it explicitly to select it alongside Burn-Cost Check.
+    second_task_checkbox = next(c for c in at.checkbox if c.label == "Second Task")
+    at = second_task_checkbox.check().run()
 
-    # Pre-run: an llm/hybrid-shaped selected task shows a nonzero estimate.
+    # Pre-run: the now-checked llm-shaped task shows a nonzero estimate.
     pre_run_captions = "\n".join(c.value for c in at.caption)
     assert "Estimated cost" in pre_run_captions
 
