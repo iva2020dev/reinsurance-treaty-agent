@@ -1048,6 +1048,37 @@ def test_format_combined_results_summary_includes_extraction_cost_in_total():
     assert "$0.0018" in summary  # 0.001 (task) + 0.0008 (extraction)
 
 
+def test_format_combined_results_summary_shows_a_named_breakdown_when_extraction_cost_is_nonzero():
+    """When extraction_cost > 0, the total isn't just a final number -- it
+    names every term ("$X (tasks) + $Y (extraction) = $Z"), so it's
+    self-evident why the total doesn't equal the sum of the visible
+    per-task Cost lines alone (none of which include this shared cost).
+    """
+    task_results = {
+        "burn_cost_check": TaskResult(status="ran", findings=[], cost=0.0, latency=0.01),
+        "exclusion_completeness_checklist": TaskResult(status="ran", findings=[], cost=0.0, latency=0.02),
+    }
+
+    summary = format_combined_results_summary(
+        {"burn_cost_check", "exclusion_completeness_checklist"}, task_results, extraction_cost=0.0028
+    )
+
+    assert "$0.0000 (tasks) + $0.0028 (extraction) = $0.0028" in summary
+
+
+def test_format_combined_results_summary_stays_plain_when_extraction_cost_is_zero():
+    """The common case (no LLM fallback) keeps today's plain single-number
+    form -- no breakdown needed since there's nothing to explain.
+    """
+    task_results = {"burn_cost_check": TaskResult(status="ran", findings=[], cost=0.001, latency=0.1)}
+
+    summary = format_combined_results_summary({"burn_cost_check"}, task_results)
+
+    assert "$0.0010" in summary
+    assert "(tasks)" not in summary
+    assert "(extraction)" not in summary
+
+
 def test_extract_llm_actual_cost_converts_real_token_usage_to_dollars():
     log_lines = [
         "2026-09-11 10:00:00,000 INFO src.workflow: LLM Extraction Fallback: "
@@ -1101,8 +1132,13 @@ def test_app_shows_llm_extraction_fallback_note_and_state_on_success(monkeypatch
     # folded into "Total actual cost" -- not just raw token counts.
     expected_extraction_cost = actual_task_cost(500, 60)
     assert any(f"Extraction: LLM Fallback used (${expected_extraction_cost:,.4f})" in c.value for c in at.caption)
-    # And folded into "Total actual cost" (rendered via plain st.markdown).
-    assert f"**${expected_extraction_cost:,.4f}** total actual cost" in rendered_text
+    # And folded into "Total actual cost" as an explicit breakdown (tasks
+    # cost here is $0.0000, since burn_cost_check never calls an LLM
+    # itself) -- the math is named in the line, not just the final number.
+    assert (
+        f"**$0.0000 (tasks) + ${expected_extraction_cost:,.4f} (extraction) = "
+        f"${expected_extraction_cost:,.4f}** total actual cost" in rendered_text
+    )
 
 
 def test_app_shows_ungrounded_field_warning_when_grounding_check_fails(monkeypatch):

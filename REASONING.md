@@ -5155,3 +5155,57 @@ This file contains the reasoning transcript of the AI agent for the current sess
   already-logged token usage is reported). Awaiting human review/
   approval before this task is marked done and removed from
   `TASKS.md`.
+
+- **2026-09-11 (sync — refinement, resolving the recurring cost
+  question)**: Human asked twice, in slightly different words, why
+  "$0.0028 total actual cost" appears when both visible per-task Cost
+  lines read "$0.0000" — reproduced locally to first confirm the
+  extraction-cost feature itself works (it does: an "Extraction: LLM
+  Fallback used ($0.0028)" caption is genuinely rendered), asked via
+  `AskUserQuestion` whether it was a stale-process false alarm (ruling
+  that out first, per this session's own recurring hot-reload
+  gotcha), then whether the design itself needed to change. Offered
+  two concrete alternatives (a breakdown, or reverting to task-only
+  totals); human's first answer ("something else") turned out to be
+  about wording only ("keep ... total actual cost" vs. shortening to
+  "total" — clarified via a second `AskUserQuestion` after two
+  slightly different phrasings, landing on "keep current wording,
+  no code change"). Human then re-asked the same root question with
+  the same example numbers, making clear the actual ask was always
+  the math-transparency fix, not the earlier wording tangent — so
+  implementing the breakdown option now, without asking a third time,
+  since it directly answers the literal question asked twice
+  ("why doesn't 0.0000 + 0.0000 = 0.0028").
+- **Decision**: When `extraction_cost > 0`, expand the combined
+  summary's total into an explicit breakdown: `"${tasks_total:,.4f}
+  (tasks) + ${extraction_cost:,.4f} (extraction) = ${grand_total:,.4f}
+  total actual cost"` — every term in the final number is named in the
+  same line, so the arithmetic is self-evident without needing to
+  notice the separate caption above it. When `extraction_cost == 0`
+  (the common case — most runs never invoke the LLM fallback), keep
+  today's plain single-number form unchanged, since there's nothing to
+  explain. Keeps the exact "total actual cost" wording the human
+  explicitly asked to preserve.
+- **Action**: Editing `format_combined_results_summary()` to branch on
+  whether `extraction_cost` is nonzero, building the breakdown string
+  in that case; updating the test that asserted the old always-plain
+  wording for a nonzero-extraction-cost scenario.
+- **Outcome**: Renamed the running-total accumulator to `tasks_cost`
+  (was `total_cost`, now reused for the grand total) to keep the two
+  quantities distinct in the code, matching the two distinct numbers
+  now shown. Updated `test_app_shows_llm_extraction_fallback_note_
+  and_state_on_success` (the real, mocked-LLM-client end-to-end test)
+  for the new breakdown text. Added 2 new unit tests:
+  `test_format_combined_results_summary_shows_a_named_breakdown_
+  when_extraction_cost_is_nonzero` and `..._stays_plain_when_
+  extraction_cost_is_zero` (confirms the common no-fallback case is
+  completely unchanged). `python -m pytest tests/test_app.py -q -k
+  format_combined_results_summary` — 5 passed. Full suite `python -m
+  pytest -q` — 176 passed, no other regressions. `python -m
+  tests.eval.run_eval` — all 5 golden cases still 100%. Manually
+  reproduced the exact scenario the human described (two tasks
+  selected, real mocked LLM fallback): confirmed the line now reads
+  `"$0.0000 (tasks) + $0.0008 (extraction) = $0.0008 total actual
+  cost"`, directly answering the "why doesn't 0+0=0.0028" question in
+  the line itself. Awaiting human review/approval before this task is
+  marked done and removed from `TASKS.md`.

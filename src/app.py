@@ -361,19 +361,27 @@ def format_combined_results_summary(
     """
     implemented_ids = {t.id for t in DOMAIN_TASKS if t.implementation_status == "implemented"}
     total_findings = 0
-    total_cost = extraction_cost
+    tasks_cost = 0.0
     skipped_lines = []
     for task_id in sorted(selected_task_ids):
         result = task_results.get(task_id)
         if result is not None and result.status == "ran":
             total_findings += len(result.findings)
-            total_cost += result.cost
+            tasks_cost += result.cost
         elif task_id not in implemented_ids:
             skipped_lines.append(f"- **{_task_title(task_id)}**: not implemented yet")
         else:
             skipped_lines.append(f"- **{_task_title(task_id)}**: did not run (extraction incomplete)")
 
-    lines = [f"**{total_findings} finding(s)** across selected task(s) · **${total_cost:,.4f}** total actual cost"]
+    total_cost = tasks_cost + extraction_cost
+    if extraction_cost:
+        # Named breakdown, not just the final number -- the total otherwise
+        # looks inconsistent with the per-task Cost lines shown below it,
+        # since none of them include this shared, not-any-one-task's-own cost.
+        cost_text = f"${tasks_cost:,.4f} (tasks) + ${extraction_cost:,.4f} (extraction) = ${total_cost:,.4f}"
+    else:
+        cost_text = f"${total_cost:,.4f}"
+    lines = [f"**{total_findings} finding(s)** across selected task(s) · **{cost_text}** total actual cost"]
     if skipped_lines:
         lines.append("")
         lines.append("**Skipped:**")

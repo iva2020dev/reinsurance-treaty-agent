@@ -229,6 +229,18 @@
     includes that amount; when the LLM wasn't invoked (regex found
     everything), no such line appears and the total is unaffected;
     `python -m pytest -q` passes.
+    **Further refinement (same pass)**: human asked twice why the
+    total didn't equal the visible sum of per-task Cost lines (e.g.
+    two tasks each showing $0.0000, but the total showing $0.0028) —
+    the separate "Extraction: LLM Fallback used ($X)" caption wasn't
+    enough to make the total's math self-evident on its own. Fix: when
+    `extraction_cost > 0`, the combined summary line itself becomes a
+    breakdown ("$0.0000 (tasks) + $0.0028 (extraction) = $0.0028 total
+    actual cost") instead of just the final number; when
+    `extraction_cost == 0` (the common case), unchanged single-number
+    form. "total actual cost" wording explicitly kept per the human's
+    stated preference.
+  - **Files (further updated)**: `src/app.py`, `tests/test_app.py`
 
 - [ ] Regenerate workflow diagram for a multi-task selection example
   - **ID**: multi-task-graph-diagram-example
