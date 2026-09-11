@@ -4869,3 +4869,14 @@ This file contains the reasoning transcript of the AI agent for the current sess
   all 5 golden cases still 100% (unaffected — pure styling). Awaiting
   human review/approval before this task is marked done and removed
   from `TASKS.md`.
+
+## 2026-09-11 19:59:18 — Closing task: Adjust main container width to a fixed 800px (adjust-main-container-width)
+
+- PR #97 merged into `main` at 2026-09-11T19:59:18Z. Human explicitly
+  approved marking `adjust-main-container-width` done. Removing it
+  from `TASKS.md`'s P1 section (and adding it to the "Recently
+  completed" list) on this `close/adjust-main-container-width`
+  branch/PR, titled `Closing task as "Done": Adjust main container
+  width to a fixed 800px`, per the mandatory task-closing workflow. No
+  `CANDIDATE_TASKS.md` update needed — this task was never graduated
+  from there (`Candidate ID: N/A`, added directly to `TASKS.md`).

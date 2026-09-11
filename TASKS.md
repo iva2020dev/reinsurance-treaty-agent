@@ -51,6 +51,7 @@
      ✅ 2026-09-11 12:19:38 End-to-end test coverage for multi-task selection (multi-task-e2e-test-coverage)
      ✅ 2026-09-11 13:06:31 Compact the "Domain tasks to run" checklist rows onto one line each (compact-domain-task-checklist-rows)
      ✅ 2026-09-11 19:41:05 Widen the main page container by 15% (widen-main-container)
+     ✅ 2026-09-11 19:59:18 Adjust main container width to a fixed 800px (adjust-main-container-width)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -60,23 +61,6 @@
 ## P1
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
-
-- [ ] Adjust main container width to a fixed 800px (@claude)
-  - **ID**: adjust-main-container-width
-  - **Tags**: ui, streamlit
-  - **Candidate ID**: N/A (ad-hoc UI polish requested directly by the
-    human, not staged in `CANDIDATE_TASKS.md`; a follow-up to the
-    already-shipped/closed `widen-main-container`)
-  - **Details**: `widen-main-container` set the main container's
-    `max-width` to `846px` (736px × 1.15). The human asked for a fixed
-    `800px` instead. Still referenced the unstable, auto-generated
-    `st-emotion-cache-1w723zb` class name directly — as before, this
-    targets the stable `[data-testid="stMainBlockContainer"]` selector
-    instead, not that hash.
-  - **Files**: `src/app.py`, `tests/test_app.py`
-  - **Acceptance**: `_MAIN_CONTAINER_MAX_WIDTH_PX` is `800`; the
-    existing test asserting the injected style's max-width value is
-    updated to match; `python -m pytest -q` passes.
 
 - [ ] Mandatory-clause / exclusion completeness checklist (@claude)
   - **ID**: exclusion-completeness-checklist
