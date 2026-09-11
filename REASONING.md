@@ -5259,3 +5259,112 @@ This file contains the reasoning transcript of the AI agent for the current sess
   regressions. `python -m tests.eval.run_eval` — all 5 golden cases
   still 100%. Awaiting human review/approval before this task is
   marked done and removed from `TASKS.md`.
+
+## 2026-09-11 — Task: Widen the main page container by 15% (widen-main-container)
+
+- **Goal**: Human asked to make the main content container 15% wider,
+  pointing at a browser-inspected class name.
+- **Analysis**: The referenced class
+  (`st-emotion-cache-1w723zb e15ve43o4`) is Streamlit's own internal,
+  auto-generated CSS-in-JS hash — confirmed by the naming pattern
+  (`st-emotion-cache-*` is emotion's own generated-class convention;
+  this repo already hit this exact caveat once before, for a different
+  element). These hashes are not part of Streamlit's public API and
+  can change on any Streamlit version bump, or even between separate
+  page loads in some emotion configurations — targeting them directly
+  in custom CSS would be fragile and could silently stop working after
+  an unrelated `pip install --upgrade streamlit`. The two other class
+  names in the same attribute, `stMainBlockContainer` and
+  `block-container`, are Streamlit's own stable, semantically-named
+  hooks for exactly this container (Streamlit also exposes it as
+  `[data-testid="stMainBlockContainer"]`) — these are the
+  community-documented, version-stable way to customize this
+  container's styling. `st.set_page_config()` (`main()`, `src/app.py`)
+  doesn't pass `layout=`, so the app uses Streamlit's default
+  "centered" layout, whose block-container has had a `736px` max-width
+  across many recent Streamlit versions (verified this is the commonly
+  cited figure for this exact scenario, though not published as a
+  guaranteed-stable constant by Streamlit itself — noting the
+  uncertainty rather than treating it as ground truth).
+- **Decision**: Inject a `<style>` block via `st.markdown(...,
+  unsafe_allow_html=True)` early in `main()`, targeting
+  `[data-testid="stMainBlockContainer"]` with `max-width: 846px
+  !important` (736 × 1.15 ≈ 846.4, rounded down) — the `!important` is
+  needed since Streamlit sets this via its own inline/emotion styles,
+  which otherwise outrank a plain CSS rule of equal specificity. Using
+  `unsafe_allow_html=True` here is safe (unlike the Findings-block
+  case fixed earlier this session) since this string is a fixed,
+  hardcoded style block with no user-controlled or treaty-derived
+  content interpolated into it.
+- **Action**: Adding a small CSS-injection call near the top of
+  `main()` in `src/app.py`; adding a test confirming the injected
+  style targets the stable selector (not a hash-suffixed class) and
+  contains the expected `846px` value.
+- **Outcome**: Added `_MAIN_CONTAINER_MAX_WIDTH_PX = 846` and
+  `_inject_wide_main_container_css()`, called right after
+  `st.set_page_config()` in `main()`. Added
+  `test_app_injects_wider_main_container_css_targeting_stable_
+  selector`: confirms exactly one injected style block referencing
+  `stMainBlockContainer`, containing `846px`, and containing no
+  `st-emotion-cache` text. `python -m pytest tests/test_app.py -q` —
+  75 passed (no other test assumed a fixed `at.markdown` index/count
+  that this new element would have shifted). Full suite `python -m
+  pytest -q` — 157 passed, no other regressions. `python -m
+  tests.eval.run_eval` — all 5 golden cases still 100% (unaffected —
+  pure styling, no extraction/workflow logic touched). Manually
+  confirmed via a standalone `AppTest` run that the exact expected
+  `<style>[data-testid="stMainBlockContainer"] { max-width: 846px
+  !important; }</style>` block renders. Awaiting human review/approval
+  before this task is marked done and removed from `TASKS.md`.
+
+## 2026-09-11 19:41:05 — Closing task: Widen the main page container by 15% (widen-main-container)
+
+- PR #95 merged into `main` at 2026-09-11T19:41:05Z. Human explicitly
+  approved marking `widen-main-container` done. Removing it from
+  `TASKS.md`'s P1 section (and adding it to the "Recently completed"
+  list) on this `close/widen-main-container` branch/PR, titled
+  `Closing task as "Done": Widen the main page container by 15%`, per
+  the mandatory task-closing workflow. No `CANDIDATE_TASKS.md` update
+  needed — this task was never graduated from there (`Candidate ID:
+  N/A`, added directly to `TASKS.md`).
+
+## 2026-09-11 — Task: Adjust main container width to a fixed 800px (adjust-main-container-width)
+
+- **Goal**: Human asked to set the main container's `max-width` to a
+  fixed `800px`, referencing the same unstable
+  `st-emotion-cache-1w723zb` class name as before.
+- **Analysis**: `widen-main-container` (already shipped/closed)
+  already added `_MAIN_CONTAINER_MAX_WIDTH_PX = 846` and
+  `_inject_wide_main_container_css()` in `src/app.py`, targeting the
+  stable `[data-testid="stMainBlockContainer"]` selector — this is
+  purely a value change, not a new mechanism. (Separately: I was asked
+  to "switch to task/multi-task-results-in-saved-file" and then given
+  this instruction; that branch predates both `widen-main-container`
+  and this fix landing on `main`, and a 7-commit rebase to pull them
+  in for a one-line value tweak was unnecessary risk — making this
+  change directly on `main` instead, on its own small branch.)
+- **Decision**: Change `_MAIN_CONTAINER_MAX_WIDTH_PX` from `846` to
+  `800` — no other code changes needed, since the CSS-injection
+  mechanism and stable-selector targeting are already correct.
+- **Action**: Editing the one constant in `src/app.py`; updating the
+  existing test's expected value.
+- **Outcome**: Changed `_MAIN_CONTAINER_MAX_WIDTH_PX` to `800` (dropped
+  the now-stale `846` comment along with it, since there's no longer a
+  736×1.15 derivation to explain). Updated
+  `test_app_injects_wider_main_container_css_targeting_stable_
+  selector`'s expected value to `"800px"`. `python -m pytest -q` —
+  157 passed, no other regressions. `python -m tests.eval.run_eval` —
+  all 5 golden cases still 100% (unaffected — pure styling). Awaiting
+  human review/approval before this task is marked done and removed
+  from `TASKS.md`.
+
+## 2026-09-11 19:59:18 — Closing task: Adjust main container width to a fixed 800px (adjust-main-container-width)
+
+- PR #97 merged into `main` at 2026-09-11T19:59:18Z. Human explicitly
+  approved marking `adjust-main-container-width` done. Removing it
+  from `TASKS.md`'s P1 section (and adding it to the "Recently
+  completed" list) on this `close/adjust-main-container-width`
+  branch/PR, titled `Closing task as "Done": Adjust main container
+  width to a fixed 800px`, per the mandatory task-closing workflow. No
+  `CANDIDATE_TASKS.md` update needed — this task was never graduated
+  from there (`Candidate ID: N/A`, added directly to `TASKS.md`).

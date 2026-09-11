@@ -795,8 +795,35 @@ def _show_review_dialog(pdf_bytes: bytes, display_name: str) -> None:
             st.text(section.text)
 
 
+_MAIN_CONTAINER_MAX_WIDTH_PX = 800
+
+
+def _inject_wide_main_container_css() -> None:
+    """Widen the main content container by 15% over Streamlit's default
+    "centered" layout width, via a fixed, hardcoded style block (safe to
+    render with unsafe_allow_html=True -- no user-controlled or treaty-
+    derived content is interpolated into it).
+
+    Targets the stable data-testid="stMainBlockContainer" hook (Streamlit's
+    own documented way to customize this container), not any
+    st-emotion-cache-* class -- those are auto-generated hashes that can
+    change on any Streamlit version bump or between reruns.
+    """
+    st.markdown(
+        f"""
+        <style>
+        [data-testid="stMainBlockContainer"] {{
+            max-width: {_MAIN_CONTAINER_MAX_WIDTH_PX}px !important;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def main() -> None:
     st.set_page_config(page_title="Reinsurance Treaty Agent", page_icon="📄")
+    _inject_wide_main_container_css()
     st.title("Reinsurance Treaty Agent")
     st.write(
         "Upload a treaty PDF, or choose one of the prepared sample "

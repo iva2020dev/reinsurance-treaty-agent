@@ -50,6 +50,8 @@
      ✅ 2026-09-11 10:58:38 Multi-task results UI (per-task sections + combined summary) (multi-task-results-ui)
      ✅ 2026-09-11 12:19:38 End-to-end test coverage for multi-task selection (multi-task-e2e-test-coverage)
      ✅ 2026-09-11 13:06:31 Compact the "Domain tasks to run" checklist rows onto one line each (compact-domain-task-checklist-rows)
+     ✅ 2026-09-11 19:41:05 Widen the main page container by 15% (widen-main-container)
+     ✅ 2026-09-11 19:59:18 Adjust main container width to a fixed 800px (adjust-main-container-width)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
