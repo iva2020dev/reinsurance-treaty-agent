@@ -174,6 +174,11 @@
     the same column weights as each task row (the last two — label and
     value — merged under one "Cost" header, since they visually form
     one grouping beneath it), so the list reads like a labeled table.
+    **Further refinement (same pass)**: narrow the combined label+value
+    (cost) columns relative to the checkbox+title column — task titles
+    need more horizontal room than the short cost text, so the row's
+    column-weight ratio shifts from `[3, 1, 2, 1]` to `[3, 1, 1, 0.5]`
+    (same 2:1 label:value ratio, smaller absolute share of the row).
   - **Files**: `src/app.py`, `tests/test_app.py`
   - **Acceptance**: Each domain task renders its checkbox + title,
     its shape, and its status/cost text on the same visual row (via

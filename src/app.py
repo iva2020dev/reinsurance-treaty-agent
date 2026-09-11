@@ -33,8 +33,10 @@ _SEVERITY_RANK = {"low": 0, "medium": 1, "high": 2}
 # Domain-task checklist row: checkbox+title, shape, label ("Estimated
 # cost:"/"Not implemented"), value ("$X"). The total-cost row reuses these
 # same weights (merging the first three into one wide label column) so its
-# dollar value lines up under each task's own value column.
-_TASK_ROW_COLUMN_WEIGHTS = [3, 1, 2, 1]
+# dollar value lines up under each task's own value column. Label:value
+# keeps a 2:1 ratio, but the pair takes a smaller share of the row overall
+# than checkbox+shape -- task titles need more room than short cost text.
+_TASK_ROW_COLUMN_WEIGHTS = [3, 1, 1, 0.5]
 # Tall enough to fit st.file_uploader's drag-and-drop box (the taller of the
 # two treaty-source inputs) without clipping. Both the uploader and the
 # selectbox render inside a bordered container of this same fixed height, so

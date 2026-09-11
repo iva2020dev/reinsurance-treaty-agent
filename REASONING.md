@@ -4599,3 +4599,32 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `["**Task**", "**Type**", "**Cost (estimated)**", "hybrid",
   "Estimated cost:", "$0.0010", ...]`. Awaiting human review/approval
   before this task is marked done and removed from `TASKS.md`.
+
+- **2026-09-11 (sync — refinement)**: Human asked (pointing at a
+  browser-rendered element's auto-generated Streamlit
+  `st-emotion-cache-*` class, which is an unstable hash that can
+  change between reruns/Streamlit versions — clarified via
+  `AskUserQuestion` which logical element it corresponded to) to make
+  the cost label+value columns narrower. Synced `TASKS.md`'s Details.
+  Decision: since `_TASK_ROW_COLUMN_WEIGHTS` is the single source of
+  truth the total row and header row both already derive from
+  (`sum(_leading_weights)`/`sum(_TASK_ROW_COLUMN_WEIGHTS[2:])`),
+  changing just this one constant propagates the narrower cost columns
+  everywhere automatically, with no other code changes needed. Chose
+  `[3, 1, 1, 0.5]` (down from `[3, 1, 2, 1]`) — same 2:1 label:value
+  ratio, but a smaller share of the row's total width, giving the
+  checkbox+title column relatively more room (task titles are often
+  much longer than "Estimated cost:"/a dollar figure).
+- **Outcome**: Changed `_TASK_ROW_COLUMN_WEIGHTS` to `[3, 1, 1, 0.5]`
+  — the only line touched; the total row and header row both derive
+  their column splits from this constant already, so no other code
+  changed. `python -m pytest tests/test_app.py -q` — 74 passed
+  (existing tests assert weight *ratios* between rows, e.g. total's
+  value column matching a task row's value column, not absolute
+  numbers, so none needed updating). Full suite `python -m pytest -q`
+  — 152 passed, no other regressions. `python -m tests.eval.run_eval`
+  — all 5 golden cases still 100%. Human confirmed via the running app
+  that the narrower cost columns look right. This closes out the
+  entire UI-polish iteration for `compact-domain-task-checklist-rows`
+  — awaiting human review/approval to mark the task done and remove it
+  from `TASKS.md`.
