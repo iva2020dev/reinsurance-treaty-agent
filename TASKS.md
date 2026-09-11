@@ -49,6 +49,7 @@
      ✅ 2026-09-10 19:25:28 Document close/ and add-task/ branch-naming conventions in AGENTS.md (document-branch-naming-conventions)
      ✅ 2026-09-11 10:58:38 Multi-task results UI (per-task sections + combined summary) (multi-task-results-ui)
      ✅ 2026-09-11 12:19:38 End-to-end test coverage for multi-task selection (multi-task-e2e-test-coverage)
+     ✅ 2026-09-11 13:06:31 Compact the "Domain tasks to run" checklist rows onto one line each (compact-domain-task-checklist-rows)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -121,86 +122,6 @@
 ## P2
 
 <!-- policy: P2 tasks are valuable but not blocking. Do after P0 and P1 are clear. -->
-
-- [ ] Compact the "Domain tasks to run" checklist rows onto one line each (@claude)
-  - **ID**: compact-domain-task-checklist-rows
-  - **Tags**: ui, streamlit
-  - **Candidate ID**: N/A (ad-hoc UI polish requested directly by the
-    human, not staged in `CANDIDATE_TASKS.md`)
-  - **Details**: Today's "Domain tasks to run" checklist
-    (`src/app.py`'s `main()`) renders each task as two stacked lines:
-    the `st.checkbox` on its own line, then a separate `st.caption`
-    below it ("Estimated cost: $0.0010" or "Not implemented"). The
-    human asked to make this more compact — each task's checkbox,
-    title, and status/cost caption should read as one line instead of
-    two, so a longer task list (as more `B1`-`B9`/`C1`-`C5`/`F1`-`F4`
-    tasks become implemented) doesn't take up excessive vertical space.
-    **Scope addition (same UI-polish pass, still requested directly)**:
-    also show each task's `shape` (`deterministic`/`hybrid`/`llm`, from
-    `src/domain_tasks.py`'s `DomainTask.shape`), so it's visible which
-    tasks call an LLM (and therefore have a nonzero cost estimate) at a
-    glance, without expanding anything. **Further refinement (same
-    pass)**: shape moved out of the checkbox label into its own
-    dedicated column, rather than appended as `"(shape)"` text after
-    the title — a cleaner three-column row (checkbox+title | shape |
-    status/cost) instead of stuffing more text into the label itself.
-    **Further refinement (same pass)**: the "Total estimated cost"
-    line should always be visible (even at $0.0000 with nothing
-    selected), not conditionally shown only once at least one task is
-    checked — so it reads as a constant, live-updating total rather
-    than appearing/disappearing. **Further refinement (same pass)**:
-    move the "Review treaty" button above "Domain tasks to run"
-    (right after treaty source selection), rather than alongside
-    "Analyze" below the task checklist — reviewing the treaty's raw
-    text doesn't depend on which domain tasks are selected, so it
-    reads more naturally earlier in the flow. "Analyze" keeps its
-    current position and disabled logic (needs both a selected treaty
-    and at least one selected task); "Review treaty" keeps its
-    existing behavior (disabled until a treaty is selected, opens the
-    same modal) — only its position on the page changes. **Further
-    refinement (same pass, iterated twice)**: rather than one combined
-    "Estimated cost: $X" string per task, split each task's row into
-    four columns (checkbox+title, shape, a label column, a value
-    column) so the dollar *value* specifically — not just the whole
-    caption text — lines up vertically across every task row. The
-    "Total estimated cost:" row reuses the exact same value-column
-    width, merging checkbox+shape+label into one wide label column
-    (since "Total estimated cost:" is longer text than "Estimated
-    cost:", its label needs more room, achieved by shifting it left
-    into where shape/label would otherwise start) so its `$X` value
-    still lands in the same horizontal position as every task's own
-    value. **Further refinement (same pass)**: add a header row
-    ("Task" / "Type" / "Cost (estimated)") above the checklist, using
-    the same column weights as each task row (the last two — label and
-    value — merged under one "Cost" header, since they visually form
-    one grouping beneath it), so the list reads like a labeled table.
-    **Further refinement (same pass)**: narrow the combined label+value
-    (cost) columns relative to the checkbox+title column — task titles
-    need more horizontal room than the short cost text, so the row's
-    column-weight ratio shifts from `[3, 1, 2, 1]` to `[3, 1, 1, 0.5]`
-    (same 2:1 label:value ratio, smaller absolute share of the row).
-  - **Files**: `src/app.py`, `tests/test_app.py`
-  - **Acceptance**: Each domain task renders its checkbox + title,
-    its shape, and its status/cost text on the same visual row (via
-    `st.columns`, four columns: checkbox+title, shape, label, value),
-    not two stacked lines and not shape concatenated into the checkbox
-    label; a header row above the checklist labels the three visual
-    groupings ("Task", "Type", "Cost (estimated)"); the "Total
-    estimated cost" value column has the same weight as each task
-    row's own value column, so dollar figures align vertically; the
-    "Total estimated cost" caption is always rendered, showing
-    `$0.0000` when no task is
-    selected and updating live as tasks are checked/unchecked, and is
-    positioned in the same column as each task's "Estimated cost"
-    text; "Review treaty" renders before the "Domain tasks to run"
-    checklist and still opens the same review modal, disabled exactly
-    as before until a treaty is selected;
-    existing behavior is otherwise unchanged (implemented tasks still
-    checkable with a live cost estimate, not-implemented tasks still
-    disabled with a "Not implemented" message); existing
-    `AppTest`-based checklist tests continue to pass with only
-    superficial widget-location updates, not behavior changes;
-    `python -m pytest -q` passes.
 
 - [ ] Fix Claude Code Review CI Check (missing API key secret)
   - **ID**: fix-claude-review-ci-secret
