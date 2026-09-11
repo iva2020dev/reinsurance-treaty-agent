@@ -301,6 +301,70 @@ def test_app_results_ui_shows_one_section_per_task_and_combined_header_for_two_i
     assert "Skipped" not in markdown_text
 
 
+def test_app_cost_estimate_shown_pre_run_and_actual_cost_round_trips_to_debug_json(monkeypatch):
+    """End-to-end (S8): a pre-run cost estimate is shown for a selected
+    llm/hybrid-shaped task, and after running, that task's real actual cost
+    (from its own TaskResult, not the estimate) round-trips correctly into
+    the debug panel's serialized JSON -- proving estimate_task_cost() (S4)
+    and TaskResult/serialize_state_for_debug() (S3/S8) are wired together
+    correctly end-to-end, not just unit-tested in isolation.
+
+    Same two-task monkeypatch technique as the results-UI test above.
+    """
+    import json as json_module
+
+    import src.workflow as workflow_module
+    from src.domain_tasks import DomainTask
+    from src.models import TaskResult
+
+    def _second_task_node(state):
+        return {"task_results": {"second_task": TaskResult(status="ran", findings=[], cost=0.0042, latency=0.4)}}
+
+    monkeypatch.setattr(workflow_module, "_second_task_node", _second_task_node, raising=False)
+    two_implemented = [
+        DomainTask(
+            id="burn_cost_check",
+            title="Burn-Cost Check",
+            candidate_id="B0",
+            implementation_status="implemented",
+            shape="hybrid",
+            workflow_node="burn_cost_check_node",
+        ),
+        DomainTask(
+            id="second_task",
+            title="Second Task",
+            candidate_id="B1",
+            implementation_status="implemented",
+            shape="llm",
+            workflow_node="_second_task_node",
+        ),
+    ]
+    monkeypatch.setattr(workflow_module, "DOMAIN_TASKS", two_implemented)
+    monkeypatch.setattr("src.domain_tasks.DOMAIN_TASKS", two_implemented)
+
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    with open(MINIMAL_TREATY_PATH, "rb") as f:
+        at.file_uploader[0].set_value([("sample_treaty.pdf", f.read(), "application/pdf")])
+    at = at.run()
+
+    # Pre-run: an llm/hybrid-shaped selected task shows a nonzero estimate.
+    pre_run_captions = "\n".join(c.value for c in at.caption)
+    assert "Estimated cost" in pre_run_captions
+
+    at = _click_button(at, "Analyze")
+    assert not at.exception
+
+    # Post-run: the debug panel's serialized state includes task_results
+    # with second_task's real actual cost -- $0.0042, not the pre-run
+    # estimate (which is a page-count-based heuristic, not this figure).
+    debug_dict = json_module.loads(at.json[0].value)
+    assert debug_dict["task_results"]["second_task"]["cost"] == pytest.approx(0.0042)
+    assert debug_dict["task_results"]["second_task"]["status"] == "ran"
+    assert debug_dict["task_results"]["burn_cost_check"]["status"] == "ran"
+
+
 def test_app_results_ui_shows_not_implemented_message_for_a_selected_but_unimplemented_task():
     """A task selected alongside an implemented one, but never populated in
     task_results because it isn't implemented, gets its own section with a
@@ -494,6 +558,36 @@ def test_serialize_state_for_debug_is_json_safe():
 
     assert debug_dict["treaty"]["cedent_name"] == "Acme Insurance Co."
     assert debug_dict["report"]["loss_ratio"] == pytest.approx(1.25)
+
+
+def test_serialize_state_for_debug_includes_task_results():
+    state = {
+        "sections": [],
+        "missing_fields": [],
+        "claims": [],
+        "complete": True,
+        "task_results": {
+            "burn_cost_check": TaskResult(
+                status="ran",
+                findings=[AnomalyFinding(field="x", description="a", severity=Severity.HIGH)],
+                cost=0.001,
+                latency=0.05,
+            )
+        },
+    }
+
+    debug_dict = serialize_state_for_debug(state)
+    json.dumps(debug_dict)  # must not raise
+
+    assert debug_dict["task_results"]["burn_cost_check"]["status"] == "ran"
+    assert debug_dict["task_results"]["burn_cost_check"]["cost"] == pytest.approx(0.001)
+    assert len(debug_dict["task_results"]["burn_cost_check"]["findings"]) == 1
+
+
+def test_serialize_state_for_debug_defaults_task_results_to_empty_dict_when_absent():
+    debug_dict = serialize_state_for_debug({"sections": [], "missing_fields": [], "claims": [], "complete": False})
+
+    assert debug_dict["task_results"] == {}
 
 
 def test_app_debug_panel_shows_log_lines_and_state_on_success():

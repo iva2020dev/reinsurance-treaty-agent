@@ -4234,3 +4234,96 @@ This file contains the reasoning transcript of the AI agent for the current sess
   unblocked. Updated `CANDIDATE_TASKS.md`'s `S7` row and detailed entry
   to `` ✅ Done (shipped as `multi-task-results-ui`) ``, per "Keeping
   CANDIDATE_TASKS.md in Sync."
+
+## 2026-09-11 — Task: End-to-end test coverage for multi-task selection (multi-task-e2e-test-coverage)
+
+- **Goal**: Implement `multi-task-e2e-test-coverage` (S8, the last item
+  in the Multi Domain-Task Selection chain): dedicated end-to-end tests
+  across the whole `S2`-`S7` chain, beyond each task's own unit tests.
+- **Analysis**: Re-read every acceptance bullet against the current
+  code, not just against each task's own past unit tests, since S8's
+  entire point is catching gaps between tasks' individual test suites.
+  Found a real, previously-uncaught gap: the acceptance criterion says
+  "the debug JSON dump includes `task_results` without crashing," but
+  `serialize_state_for_debug()` (`src/app.py`) genuinely never includes
+  a `task_results` key today — confirmed by reading the function body
+  (its returned dict lists `sections`/`treaty`/`missing_fields`/
+  `extraction_method`/`llm_error`/`ungrounded_fields`/`claims`/
+  `complete`/`report`, nothing else) and by grepping
+  `tests/test_app.py`'s existing `test_serialize_state_for_debug_is_
+  json_safe` — it doesn't put `task_results` in its input state at
+  all, so nothing ever exercised this gap before. `run_workflow`/
+  `run_workflow_from_pdf` (`src/workflow.py`) already support
+  `selected_task_ids` end-to-end (from `workflow-refactor-multi-task-
+  pipeline`/`multi-task-graph-fanout`); `tests/test_integration.py`
+  drives them with no selection argument at all today (implicitly
+  exercising only the default `{"burn_cost_check"}` path), so it has
+  no real multi-task-selection coverage yet despite already being one
+  of this task's named Files.
+- **Decision**: This task's `Files` field only lists test files
+  (`tests/test_integration.py`, `tests/test_app.py`), but the
+  `task_results`-in-debug-JSON gap is a genuine acceptance-criterion
+  failure in `src/app.py`, not a testing gap — fixing it is in scope
+  (a Files field naming only test files doesn't override an explicit
+  Acceptance line; per the "Sync" step, updating TASKS.md's Files list
+  to add `src/app.py` once this is confirmed, rather than silently
+  expanding scope). Fix: add `"task_results"` to
+  `serialize_state_for_debug()`'s returned dict, serializing each
+  `TaskResult` via its own `.model_dump(mode="json")` (matching the
+  existing pattern used for `treaty`/`claims`/`report`). For the
+  end-to-end tests themselves: reuse the same `monkeypatch.setattr(...,
+  "DOMAIN_TASKS", ...)` two-task technique already established in
+  `multi-task-graph-fanout` (`tests/test_workflow.py`) and
+  `multi-task-results-ui` (`tests/test_app.py`), rather than inventing
+  a third pattern, since it's now the repo's established way to get a
+  second real-implemented task for exercising genuine parallel
+  fan-out/aggregation end-to-end without a second real domain task
+  actually existing yet.
+- **Action**: Fixing `serialize_state_for_debug()`. Adding to
+  `tests/test_integration.py`: a `B0`-only `selected_task_ids`
+  end-to-end call (byte-identical baseline vs. today's no-argument
+  call), a monkeypatched two-implemented-task selection proving both
+  tasks' results appear in `task_results` via the real
+  `run_workflow_from_pdf()` (not the lower-level `run_workflow()` the
+  existing fan-out test already covers), and a mixed implemented +
+  not-implemented selection confirming the latter is simply absent
+  from `task_results` (the graceful-skip contract). Adding to
+  `tests/test_app.py`: a `serialize_state_for_debug()` unit test
+  confirming `task_results` round-trips through JSON correctly, and an
+  `AppTest`-level check that cost estimates (pre-run, from
+  `estimate_task_cost`) and the debug panel's actual `task_results`
+  entries are both present and consistent for a real run.
+- **Verification**: Fixed the real gap: `serialize_state_for_debug()`
+  (`src/app.py`) now includes a `"task_results"` key, each `TaskResult`
+  serialized via `.model_dump(mode="json")`. Added 4 tests to
+  `tests/test_integration.py`: explicit `{"burn_cost_check"}` selection
+  matches the no-argument default byte-for-byte (excluding `latency`,
+  which is real measured wall-clock time and legitimately differs
+  between two separate runs); a monkeypatched two-implemented-task
+  selection through the real `run_workflow_from_pdf()` entry point
+  produces both tasks' `task_results` entries; a mixed selection of a
+  real implemented task and a real not-implemented one (no
+  monkeypatching needed — genuinely reachable via today's registry)
+  completes normally with the not-implemented one simply absent from
+  `task_results`. Added 3 tests to `tests/test_app.py`:
+  `serialize_state_for_debug()` includes and correctly round-trips
+  `task_results` through `json.dumps`; defaults to `{}` when absent
+  from state; and an `AppTest`-level end-to-end check (same two-task
+  monkeypatch technique as `multi-task-results-ui`'s own test) that a
+  pre-run cost estimate is shown for an `llm`-shaped selected task, and
+  after running, that task's real actual cost round-trips correctly
+  into the debug panel's JSON (distinct from, not equal to, the
+  page-count-based pre-run estimate — the two are different
+  mechanisms, so equality isn't the correct check). Fixed one
+  self-authored test-writing mistake caught before commit: had
+  accidentally dropped an existing assertion
+  (`debug_dict["report"]["loss_ratio"]`) from
+  `test_serialize_state_for_debug_is_json_safe` while editing nearby —
+  restored it once the diff review caught the loss. `python -m pytest
+  -q` — 147 passed (6 net new tests: 3 in `tests/test_integration.py`,
+  3 in `tests/test_app.py`). `README.md` doesn't currently name an
+  exact pytest count kept in sync task-by-task, so no doc refresh was
+  needed here. `python -m tests.eval.run_eval` — all 5 golden cases
+  still 100%, confirming no extraction-accuracy regression from the
+  `serialize_state_for_debug()` change. Awaiting human review/approval
+  before this task is marked done and removed from `TASKS.md`.
