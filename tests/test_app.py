@@ -11,16 +11,20 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 from src.app import (
+    _task_title,
+    _wrap_findings_block,
     analyze_uploaded_pdf,
     extract_llm_usage_summary,
     format_combined_results_summary,
     format_extraction_status,
+    format_findings_summary,
     format_log_header,
     format_multi_task_status,
     format_report_markdown,
     format_results_document,
     format_results_filename,
     format_task_section_markdown,
+    format_treaty_terms_markdown,
     highest_severity_label,
     render_report_bytes,
     render_report_pdf,
@@ -333,6 +337,26 @@ def test_app_upload_and_render_success():
     assert not at.exception
     markdown_text = "\n".join(m.value for m in at.markdown)
     assert "Acme Insurance Co." in markdown_text
+
+
+def test_app_shows_treaty_terms_as_their_own_shared_section_on_screen():
+    """Treaty terms are rendered once, on their own, above the per-task
+    expanders -- not only inside burn_cost_check's section, since every
+    selected task analyzes the same treaty (format_task_section_markdown()
+    no longer includes treaty terms in any task's own section).
+    """
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    with open(MINIMAL_TREATY_PATH, "rb") as f:
+        at = _upload_and_click_analyze(at, "sample_treaty.pdf", f.read())
+
+    assert not at.exception
+    markdown_text = "\n".join(m.value for m in at.markdown)
+    assert "## Treaty: Acme Insurance Co." in markdown_text
+    burn_cost_section = next(e for e in at.expander if e.label == "Burn-Cost Check")
+    section_markdown = "\n".join(m.value for m in burn_cost_section.markdown)
+    assert "Treaty:" not in section_markdown
 
 
 def test_app_results_ui_shows_one_section_per_task_and_combined_header_for_two_implemented_tasks(monkeypatch):
@@ -800,7 +824,11 @@ def test_format_multi_task_status_failed_task_shows_failed_status():
     assert "- **burn_cost_check**: failed" in status
 
 
-def test_format_task_section_markdown_burn_cost_check_reuses_report_rendering():
+def test_format_task_section_markdown_burn_cost_check_excludes_treaty_terms():
+    """Treaty terms are shared across every selected task (rendered once,
+    separately, by format_treaty_terms_markdown()) -- burn_cost_check's own
+    section shows only its results (loss ratio + findings), not the treaty.
+    """
     report = AnomalyReport(
         treaty=TreatyTerms(
             cedent_name="Acme Insurance Co.",
@@ -815,7 +843,10 @@ def test_format_task_section_markdown_burn_cost_check_reuses_report_rendering():
 
     section = format_task_section_markdown("burn_cost_check", None, report)
 
-    assert section == format_report_markdown(report)
+    assert "Treaty:" not in section
+    assert "Acme Insurance Co." not in section
+    assert "Loss ratio: 0.30" in section
+    assert "No anomalies found." in section
 
 
 def test_format_task_section_markdown_ran_task_shows_its_own_findings_cost_latency():
@@ -1105,8 +1136,114 @@ def test_format_results_document_includes_every_selected_tasks_results():
 
     assert "Acme Insurance Co." in doc  # burn_cost_check's report content
     assert "Mandatory exclusion clause not found: cyber." in doc
-    assert "### Burn-Cost Check" in doc
-    assert "### Mandatory-clause / exclusion completeness checklist" in doc
+    assert "## Burn-Cost Check" in doc
+    assert "## Mandatory-clause / exclusion completeness checklist" in doc
+    # Treaty is hoisted into its own shared section, not duplicated per task.
+    assert doc.count("Acme Insurance Co.") == 1
+    # Findings Summary recaps both tasks' findings again at the end.
+    assert "# Findings Summary" in doc
+
+
+def test_format_results_document_titled_bigger_than_each_task_section_when_multi_task():
+    """"Analysis Results" is the single h1 (#); each task's own section is
+    one level down (##) -- so it reads as visibly bigger in any Markdown
+    renderer, not just conceptually "first" in the document.
+    """
+    report = _sample_report()
+
+    doc = format_results_document(
+        report,
+        when=datetime(2026, 9, 9, 14, 5, 30),
+        selected_task_ids={"burn_cost_check"},
+        task_results={"burn_cost_check": TaskResult(status="ran", findings=[], cost=0.0, latency=0.01)},
+    )
+
+    assert doc.startswith("# Analysis Results\n")
+    assert "\n## Burn-Cost Check\n" in doc
+    # Never a stray "## Analysis Results" left over from the old heading level.
+    assert "## Analysis Results" not in doc
+
+
+def test_format_results_document_separates_sections_with_horizontal_rules():
+    report = _sample_report()
+
+    doc = format_results_document(
+        report,
+        when=datetime(2026, 9, 9, 14, 5, 30),
+        selected_task_ids={"burn_cost_check"},
+        task_results={"burn_cost_check": TaskResult(status="ran", findings=[], cost=0.0, latency=0.01)},
+    )
+
+    # At least one rule after the header/treaty, one before each task
+    # section, and one before the closing Findings Summary.
+    assert doc.count("\n---\n") >= 3
+
+
+def test_wrap_findings_block_uses_severity_colored_background():
+    high_block = _wrap_findings_block(
+        [AnomalyFinding(field="x", description="bad", severity=Severity.HIGH)]
+    )
+    medium_block = _wrap_findings_block(
+        [AnomalyFinding(field="x", description="meh", severity=Severity.MEDIUM)]
+    )
+    clean_block = _wrap_findings_block([])
+
+    assert "#f8d7da" in high_block
+    assert "#fff3cd" in medium_block
+    assert "#d4edda" in clean_block
+    assert "<div style=" in clean_block and "</div>" in clean_block
+
+
+def test_format_treaty_terms_markdown_renders_terms_with_citations_but_no_findings():
+    report = _sample_report()
+
+    treaty_markdown = format_treaty_terms_markdown(report)
+
+    assert treaty_markdown.startswith("## Treaty: Acme Insurance Co.")
+    assert "(p. 1)" in treaty_markdown
+    assert "Findings" not in treaty_markdown
+    assert "Loss ratio" not in treaty_markdown
+
+
+def test_format_findings_summary_repeats_every_ran_tasks_findings_grouped_by_task():
+    report = _sample_report()
+    task_results = {
+        "burn_cost_check": TaskResult(status="ran", findings=report.findings, cost=0.0, latency=0.01),
+        "exclusion_completeness_checklist": TaskResult(
+            status="ran",
+            findings=[AnomalyFinding(field="exclusions", description="Missing cyber.", severity=Severity.MEDIUM)],
+            cost=0.0,
+            latency=0.02,
+        ),
+    }
+
+    summary = format_findings_summary(
+        {"burn_cost_check", "exclusion_completeness_checklist"}, task_results, report
+    )
+
+    assert summary.startswith("# Findings Summary")
+    assert "## Burn-Cost Check" in summary
+    assert "Losses exceeded the limit." in summary
+    assert "## Mandatory-clause / exclusion completeness checklist" in summary
+    assert "Missing cyber." in summary
+
+
+def test_format_findings_summary_omits_skipped_or_not_run_tasks():
+    """Skipped/not-run tasks are already covered by the combined summary's
+    "Skipped" list -- repeating them again here (with no real findings to
+    show) would just be noise.
+    """
+    report = _sample_report()
+    not_implemented_id = next(t.id for t in DOMAIN_TASKS if t.implementation_status == "not_implemented")
+
+    summary = format_findings_summary(
+        {"burn_cost_check", not_implemented_id},
+        {"burn_cost_check": TaskResult(status="ran", findings=[], cost=0.0, latency=0.01)},
+        report,
+    )
+
+    assert "## Burn-Cost Check" in summary
+    assert _task_title(not_implemented_id) not in summary
 
 
 def test_render_report_pdf_contains_the_reports_text():
@@ -1122,6 +1259,41 @@ def test_render_report_pdf_contains_the_reports_text():
     assert "Acme Insurance Co." in text
     assert "HIGH" in text
     assert "Losses exceeded the limit." in text
+
+
+def test_render_report_pdf_multi_task_renders_findings_summary_and_hides_raw_markers():
+    """The `---` rule markers and `<div style="background-color:...">`/`</div>`
+    Findings-block markers are consumed as PDF styling directives (a real
+    horizontal line, a filled cell background) -- not leaked into the PDF's
+    extracted text as literal characters.
+    """
+    from pypdf import PdfReader
+
+    report = _sample_report()
+    task_results = {
+        "burn_cost_check": TaskResult(status="ran", findings=report.findings, cost=0.0, latency=0.01),
+        "exclusion_completeness_checklist": TaskResult(
+            status="ran",
+            findings=[AnomalyFinding(field="exclusions", description="Missing cyber.", severity=Severity.MEDIUM)],
+            cost=0.0,
+            latency=0.02,
+        ),
+    }
+
+    pdf_bytes = render_report_pdf(
+        report,
+        when=datetime(2026, 9, 9, 14, 5, 30),
+        selected_task_ids={"burn_cost_check", "exclusion_completeness_checklist"},
+        task_results=task_results,
+    )
+
+    text = PdfReader(io.BytesIO(pdf_bytes)).pages[0].extract_text()
+    assert "Findings Summary" in text
+    assert "Mandatory-clause" in text
+    assert "Missing cyber." in text
+    assert "---" not in text
+    assert "<div" not in text
+    assert "</div>" not in text
 
 
 def test_render_report_bytes_dispatches_by_extension():
@@ -1257,8 +1429,8 @@ def test_app_saved_file_includes_every_selected_tasks_results(tmp_path, monkeypa
     content = saved_files[0].read_text()
     assert "Acme Insurance Co." in content  # burn_cost_check's report content
     assert "second task finding" in content
-    assert "### Burn-Cost Check" in content
-    assert "### Second Task" in content
+    assert "## Burn-Cost Check" in content
+    assert "## Second Task" in content
 
 
 def test_app_save_analysis_results_includes_llm_usage_when_fallback_ran(tmp_path, monkeypatch):

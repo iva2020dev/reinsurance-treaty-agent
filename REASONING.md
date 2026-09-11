@@ -4835,3 +4835,124 @@ This file contains the reasoning transcript of the AI agent for the current sess
   tests.eval.run_eval` — all 5 golden cases still 100% (unaffected —
   no extraction logic touched). Awaiting human review/approval before
   this task is marked done and removed from `TASKS.md`.
+
+- **2026-09-11 (sync — scope addition)**: Human asked, still on this
+  same still-open task, for a full "final report" restyling of the
+  saved/downloaded file: "Analysis Results" bigger than each task
+  name; tasks visually separated (rule or bordered container); a
+  colored background on Findings; a final "Findings Summary" listing
+  every task's findings again, grouped by task; overall styled like a
+  finished report, not a flat dump. Followed immediately by a second
+  clarification: treaty name/terms should be excluded from the first
+  task's own section, since every selected task analyzes the same
+  treaty (not just the first one) — it should be a shared section, not
+  something that reads as belonging to whichever task happens to be
+  listed first. Synced `TASKS.md`'s Details/Files/Acceptance.
+- **Analysis**: `format_report_markdown()` today bundles three
+  concerns into one function: treaty terms (shared across every task),
+  `burn_cost_check`'s own loss ratio, and `burn_cost_check`'s own
+  findings — and `format_task_section_markdown()`'s `burn_cost_check`
+  branch reuses the whole thing, which is exactly why treaty terms
+  currently appear to "belong" to that one task's section. `render_
+  report_pdf()`'s line-by-line parser treats every Markdown heading
+  (any number of `#`) identically (same 13pt bold), so today's heading
+  *levels* in the Markdown carry no visual weight in the PDF — fixing
+  the "Analysis Results bigger than task names" ask requires teaching
+  the PDF renderer to actually distinguish `#`/`##`/`###`, not just
+  bump heading counts in the Markdown text. `highest_severity_label()`
+  (already used for the saved filename) is the natural existing
+  function to pick a Findings block's color, since it already ranks
+  low/medium/high/no-findings into exactly the four states a color
+  scheme needs.
+- **Decision**: Split treaty rendering out of `format_report_markdown()`
+  into a new `format_treaty_terms_markdown(report)` (its own `##`
+  heading), rendered once at the top of the multi-task document,
+  before the per-task sections — not per-task. Keep
+  `format_report_markdown()` itself as a still-useful "treaty + this
+  task's own results" combination (treaty terms + loss ratio +
+  findings) for any caller that still wants the old combined shape,
+  but stop using it inside `format_task_section_markdown()`'s
+  `burn_cost_check` branch — that branch now renders only loss ratio +
+  findings (via a new small `_burn_cost_check_body_markdown()` helper),
+  matching every other task's section (results only, no treaty).
+  Findings blocks get wrapped in an HTML `<div style="background-
+  color:...">` — plain HTML embedded in Markdown, since GitHub-
+  flavored Markdown itself has no native "colored callout" syntax;
+  degrades gracefully to plain text in viewers that strip raw HTML,
+  which is an acceptable tradeoff for a locally-saved file (not a
+  security-sensitive context). Color keyed off
+  `highest_severity_label(findings)`: high→red, medium→amber,
+  low→blue, clean (no findings)→green — a semantic mapping already
+  implied by the existing severity ranking, not an arbitrary new
+  palette. Horizontal rules (`---`, native Markdown syntax) separate
+  every major section (treaty / combined summary / each task / the
+  final Findings Summary) — chosen over an HTML bordered-container
+  `<div>` since the task's own Acceptance explicitly offered either,
+  and `---` is simpler, more portable, and native to Markdown itself.
+  `render_report_pdf()` gets three targeted additions: (1) size fonts
+  by counted leading `#`s (`#`→16pt, `##`→14pt, `###`→12pt, body→11pt)
+  instead of one flat heading size; (2) render a literal `---` line as
+  an actual `pdf.line()` rule instead of dashes-as-text; (3) track an
+  "inside a colored Findings block" flag toggled by the `<div
+  style="background-color:#RRGGBB...">`/`</div>` markers, filling each
+  line's cell background with that color via `pdf.set_fill_color()` +
+  `fill=True` while active. A final `format_findings_summary()`
+  function repeats every *ran* task's findings (or "No anomalies
+  found.") under its own `##` heading — skipped/not-run tasks are
+  already covered by the combined summary's "Skipped" list, so
+  repeating them again in the Findings Summary would be redundant.
+- **Action**: Implementing `format_treaty_terms_markdown()`,
+  `_burn_cost_check_body_markdown()`, `_findings_bullets_markdown()`,
+  `_findings_background_color()` (via `highest_severity_label`),
+  `_wrap_findings_block()`, and `format_findings_summary()` in
+  `src/app.py`; restructuring `format_results_document()` to the new
+  section order with `---` separators; updating `render_report_pdf()`
+  for heading-size differentiation, real horizontal rules, and
+  Findings-block background fills. Updating tests next, including the
+  now-intentionally-changed `format_task_section_markdown` burn_cost_
+  check exact-equality test (treaty is no longer included, so it can
+  no longer equal `format_report_markdown()`'s full output).
+- **Discovered mid-implementation, fixed in scope**: hoisting treaty
+  terms out of `format_task_section_markdown()`'s `burn_cost_check`
+  branch broke more than the saved file — `main()`'s on-screen
+  "Analysis Results" view had never independently rendered treaty
+  terms; it only ever showed them as a side effect of reusing `format_
+  report_markdown()` inside that one task's expander. With treaty
+  terms removed from there, the live UI would have silently stopped
+  showing the treaty name/terms anywhere. Caught immediately by
+  running the full suite (`test_app_upload_and_render_success` and
+  others failing on a missing "Acme Insurance Co." assertion), not
+  anticipated in the initial plan. Fixed by adding a `st.markdown(
+  format_treaty_terms_markdown(report))` call in `main()`, right above
+  the combined summary — mirroring the saved file's own hoisted
+  section, so the live app and the saved file now agree on where
+  treaty terms live.
+- **Outcome**: Implemented all planned functions; fixed the on-screen
+  regression above. Updated 3 tests for the intentional structural
+  changes (`test_format_task_section_markdown_burn_cost_check_
+  reuses_report_rendering` renamed to `..._excludes_treaty_terms` and
+  rewritten as structural assertions rather than exact equality with
+  `format_report_markdown()`; two saved-file tests' `### <title>`
+  assertions updated to `## <title>` for the new heading level). Added
+  9 new tests: heading-level/`#`-vs-`##` structure, horizontal-rule
+  count, `_wrap_findings_block()`'s severity→color mapping (high/
+  medium/clean), `format_treaty_terms_markdown()`'s standalone output,
+  `format_findings_summary()` (repeats every *ran* task's findings
+  grouped by heading; omits skipped/not-run tasks), a PDF-level test
+  confirming `---`/`<div>`/`</div>` markers are consumed as styling
+  directives and never leak into the extracted PDF text, and an
+  on-screen test confirming treaty terms render in their own section
+  and are absent from `burn_cost_check`'s own expander content.
+  `python -m pytest tests/test_app.py -q` — 84 passed. Full suite
+  `python -m pytest -q` — 167 passed, no other regressions. `python -m
+  tests.eval.run_eval` — all 5 golden cases still 100% (unaffected —
+  no extraction logic touched). Manually generated a real multi-task
+  PDF (`render_report_pdf()` with two tasks, one HIGH and one MEDIUM
+  finding) and read it back: confirmed "Analysis Results" renders
+  visibly larger than each task's `##` heading, real horizontal rules
+  separate every section, each Findings block has a distinct colored
+  background matching its highest severity (red for HIGH, amber for
+  MEDIUM), and a "Findings Summary" section at the end repeats both
+  tasks' findings grouped by task heading. Awaiting human review/
+  approval before this task is marked done and removed from
+  `TASKS.md`.

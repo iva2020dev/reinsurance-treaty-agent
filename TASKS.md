@@ -143,6 +143,30 @@
     asserts both tasks' content appears in the saved file's text;
     existing single-task save/download tests continue to pass
     unchanged; `python -m pytest -q` passes.
+    **Further refinement (same pass, still requested directly)**: full
+    "final report" restyling of the saved/downloaded file: "Analysis
+    Results" as the single biggest heading (`#`), each task's own name
+    one level down (`##`); tasks visually separated by horizontal
+    rules; each task's Findings block wrapped in a severity-colored
+    background (red/amber/blue/green for high/medium/low/clean, via
+    `highest_severity_label()`); a final "Findings Summary" section
+    listing every ran task's findings again, grouped by task. Treaty
+    name/terms are hoisted into their own shared section (since every
+    selected task analyzes the same treaty) rather than living inside
+    the first task's own section.
+  - **Files (updated)**: `src/app.py`, `tests/test_app.py`
+  - **Acceptance (updated)**: The saved document reads as: title →
+    treaty terms (shared, once) → combined summary → one `##`-level
+    section per selected task (no treaty duplication) with its
+    Findings in a severity-colored block → a final "Findings Summary"
+    section repeating every ran task's findings grouped by task
+    heading; `render_report_pdf()` renders heading levels at
+    genuinely different font sizes (not all headings the same size),
+    draws real horizontal rules for `---` markers, and fills each
+    Findings block's background with its severity color; existing
+    tests are updated to match the new structure (exact-equality
+    assertions become structural/substring assertions where the
+    content legitimately changed); `python -m pytest -q` passes.
 
 - [ ] Regenerate workflow diagram for a multi-task selection example
   - **ID**: multi-task-graph-diagram-example
