@@ -374,13 +374,17 @@ def format_combined_results_summary(
             skipped_lines.append(f"- **{_task_title(task_id)}**: did not run (extraction incomplete)")
 
     total_cost = tasks_cost + extraction_cost
+    # "\$" (not a bare "$") -- Streamlit's st.markdown() renders $...$ as
+    # inline LaTeX math, and this line can have multiple "$" signs (three
+    # in the breakdown case), which would otherwise pair up and switch part
+    # of the line to a math-mode font instead of rendering as plain text.
     if extraction_cost:
         # Named breakdown, not just the final number -- the total otherwise
         # looks inconsistent with the per-task Cost lines shown below it,
         # since none of them include this shared, not-any-one-task's-own cost.
-        cost_text = f"${tasks_cost:,.4f} (tasks) + ${extraction_cost:,.4f} (extraction) = ${total_cost:,.4f}"
+        cost_text = f"\\${tasks_cost:,.4f} (tasks) + \\${extraction_cost:,.4f} (extraction) = \\${total_cost:,.4f}"
     else:
-        cost_text = f"${total_cost:,.4f}"
+        cost_text = f"\\${total_cost:,.4f}"
     lines = [f"**{total_findings} finding(s) across selected task(s) · {cost_text} total actual cost**"]
     if skipped_lines:
         lines.append("")

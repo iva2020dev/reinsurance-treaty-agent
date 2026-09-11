@@ -245,6 +245,13 @@
     selected task(s) · " plain, "**breakdown**" bold, " total actual
     cost" plain) — human asked for one consistent style throughout.
     Made the entire line one continuous bold span.
+    **Further refinement (same pass)**: the breakdown's three `$`
+    signs on one line triggered Streamlit's built-in LaTeX inline-math
+    rendering (`$...$` is treated as a math span, switching part of
+    the line to a math-mode font) — human reported seeing a stray
+    `math-inline`-classed span. Fixed by escaping every `$` as `\$` in
+    the cost breakdown text, so they render as plain literal dollar
+    signs, not math delimiters.
   - **Files (further updated)**: `src/app.py`, `tests/test_app.py`
 
 - [ ] Regenerate workflow diagram for a multi-task selection example

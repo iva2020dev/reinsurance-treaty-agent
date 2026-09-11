@@ -1063,7 +1063,9 @@ def test_format_combined_results_summary_shows_a_named_breakdown_when_extraction
         {"burn_cost_check", "exclusion_completeness_checklist"}, task_results, extraction_cost=0.0028
     )
 
-    assert "$0.0000 (tasks) + $0.0028 (extraction) = $0.0028" in summary
+    # "\$" (escaped), not a bare "$" -- avoids Streamlit's st.markdown()
+    # treating $...$ pairs on this line as inline LaTeX math.
+    assert "\\$0.0000 (tasks) + \\$0.0028 (extraction) = \\$0.0028" in summary
 
 
 def test_format_combined_results_summary_stays_plain_when_extraction_cost_is_zero():
@@ -1136,9 +1138,9 @@ def test_app_shows_llm_extraction_fallback_note_and_state_on_success(monkeypatch
     # cost here is $0.0000, since burn_cost_check never calls an LLM
     # itself) -- the whole line is one consistent bold span.
     assert (
-        f"**1 finding(s) across selected task(s) · $0.0000 (tasks) + "
-        f"${expected_extraction_cost:,.4f} (extraction) = "
-        f"${expected_extraction_cost:,.4f} total actual cost**" in rendered_text
+        f"**1 finding(s) across selected task(s) · \\$0.0000 (tasks) + "
+        f"\\${expected_extraction_cost:,.4f} (extraction) = "
+        f"\\${expected_extraction_cost:,.4f} total actual cost**" in rendered_text
     )
 
 

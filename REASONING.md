@@ -5232,3 +5232,30 @@ This file contains the reasoning transcript of the AI agent for the current sess
   cases still 100%. Manually confirmed the line now reads as one
   consistent bold span end to end. Awaiting human review/approval
   before this task is marked done and removed from `TASKS.md`.
+
+- **2026-09-11 (sync — Streamlit math-mode rendering bug)**: Human
+  reported a stray `math-inline`-classed span on the breakdown line.
+  Diagnosed: Streamlit's `st.markdown()` renders `$...$` as inline
+  LaTeX (a built-in feature, not something this repo opted into) — the
+  breakdown text has three literal `$` signs on one line
+  (`"$0.0000 (tasks) + $0.0028 (extraction) = $0.0028"`), so the first
+  pair (`$0.0000 (tasks) + $`) gets parsed as a math expression
+  instead of plain text, switching that stretch to a math-mode font.
+  Every other `$`-containing line in the app has exactly one `$` (no
+  pairing possible), so this is the only place affected. Synced
+  `TASKS.md`'s Details.
+- **Action**: Escaping every `$` in the breakdown/plain cost text as
+  `\$` (Markdown's literal-dollar-sign escape) instead of a bare `$`,
+  so Streamlit renders them as plain text characters, never math
+  delimiters.
+- **Outcome**: Updated the 2 tests asserting the old bare-`$` text
+  (`test_format_combined_results_summary_shows_a_named_breakdown_
+  when_extraction_cost_is_nonzero`,
+  `test_app_shows_llm_extraction_fallback_note_and_state_on_success`)
+  to expect `\$`; every other test asserting a bare `"$0.00XX"`
+  substring still passes unchanged, since `"$0.0010"` remains a
+  substring of `"\$0.0010"`. `python -m pytest tests/test_app.py -q`
+  — 94 passed. Full suite `python -m pytest -q` — 176 passed, no other
+  regressions. `python -m tests.eval.run_eval` — all 5 golden cases
+  still 100%. Awaiting human review/approval before this task is
+  marked done and removed from `TASKS.md`.
