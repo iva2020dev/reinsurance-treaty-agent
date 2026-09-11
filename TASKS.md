@@ -47,6 +47,7 @@
      ✅ 2026-09-10 17:04:17 Multi-task messaging & logging (multi-task-messaging-logging)
      ✅ 2026-09-10 21:58:20 Dynamic graph fan-out for multi-task selection (multi-task-graph-fanout)
      ✅ 2026-09-10 19:25:28 Document close/ and add-task/ branch-naming conventions in AGENTS.md (document-branch-naming-conventions)
+     ✅ 2026-09-11 10:58:38 Multi-task results UI (per-task sections + combined summary) (multi-task-results-ui)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -95,31 +96,10 @@
     live graph, the same way the existing single-task one does;
     `python -m pytest -q` passes.
 
-- [ ] Multi-task results UI (per-task sections + combined summary) (@claude)
-  - **ID**: multi-task-results-ui
-  - **Tags**: ui, streamlit, multi-domain-task-selection
-  - **Candidate ID**: S7 (`CANDIDATE_TASKS.md`)
-  - **Details**: Graduated from `CANDIDATE_TASKS.md` (`S7`, Priority 7
-    of 8). One expandable section per selected+implemented task inside
-    the existing "Analysis Results" bordered container — each with its
-    own findings/log/actual cost (from `per-task-cost-estimation`) —
-    plus a combined header (total findings across tasks, total actual
-    cost, which tasks were skipped and why), replacing today's single
-    `format_report_markdown()` call in `src/app.py`.
-  - **Files**: `src/app.py`, `tests/test_app.py`
-  - **Acceptance**: Selecting only `B0` renders identically to today's
-    single-report view (regression safety net); selecting a mix of
-    implemented + not-implemented tasks renders one expandable section
-    per selected task (implemented tasks show real findings, skipped
-    ones show a clear "not implemented" message) plus a combined
-    header with aggregate findings/cost; `AppTest`-based tests cover
-    both the single-task and mixed-selection cases.
-
 - [ ] End-to-end test coverage for multi-task selection
   - **ID**: multi-task-e2e-test-coverage
   - **Tags**: testing, multi-domain-task-selection
   - **Candidate ID**: S8 (`CANDIDATE_TASKS.md`)
-  - **Blocked by**: workflow-refactor-multi-task-pipeline, multi-task-result-aggregation-schema, per-task-cost-estimation, multi-task-messaging-logging, multi-task-selection-ui, multi-task-results-ui
   - **Details**: Graduated from `CANDIDATE_TASKS.md` (`S8`, Priority 8
     of 8, the last item in the Multi Domain-Task Selection chain).
     Dedicated end-to-end coverage across the whole `S2`-`S7` chain,

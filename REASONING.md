@@ -4220,3 +4220,17 @@ This file contains the reasoning transcript of the AI agent for the current sess
   all 5 golden cases still 100%, confirming no extraction-accuracy
   regression. Awaiting human review/approval before this task is
   marked done and removed from `TASKS.md`.
+
+## 2026-09-11 10:58:38 — Closing task: Multi-task results UI (multi-task-results-ui)
+
+- PR #87 merged into `main` at 2026-09-11T10:58:38Z. Human explicitly
+  approved marking `multi-task-results-ui` done. Removing it from
+  `TASKS.md`'s P1 section (and adding it to the "Recently completed"
+  list) on this `close/multi-task-results-ui` branch/PR, titled
+  `Closing task as "Done": Multi-task results UI (per-task sections +
+  combined summary)`, per the mandatory task-closing workflow. Also
+  dropped it from `multi-task-e2e-test-coverage`'s (`S8`) `Blocked by`
+  field — it was the last remaining blocker, so `S8` is now fully
+  unblocked. Updated `CANDIDATE_TASKS.md`'s `S7` row and detailed entry
+  to `` ✅ Done (shipped as `multi-task-results-ui`) ``, per "Keeping
+  CANDIDATE_TASKS.md in Sync."
