@@ -544,7 +544,7 @@ def main() -> None:
         checkbox_col, status_col = st.columns([3, 2], vertical_alignment="center")
         with checkbox_col:
             checked = st.checkbox(
-                task.title,
+                f"{task.title} ({task.shape})",
                 value=is_implemented,
                 disabled=not is_implemented,
                 key=f"task_checkbox_{task.id}",

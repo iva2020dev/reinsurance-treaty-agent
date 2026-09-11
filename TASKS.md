@@ -135,15 +135,22 @@
     title, and status/cost caption should read as one line instead of
     two, so a longer task list (as more `B1`-`B9`/`C1`-`C5`/`F1`-`F4`
     tasks become implemented) doesn't take up excessive vertical space.
+    **Scope addition (same UI-polish pass, still requested directly)**:
+    also show each task's `shape` (`deterministic`/`hybrid`/`llm`, from
+    `src/domain_tasks.py`'s `DomainTask.shape`) right after its title,
+    so it's visible which tasks call an LLM (and therefore have a
+    nonzero cost estimate) at a glance, without expanding anything.
   - **Files**: `src/app.py`, `tests/test_app.py`
   - **Acceptance**: Each domain task renders its checkbox + title and
     its status/cost text on the same visual row (e.g. via
-    `st.columns`), not two stacked lines; existing behavior is
-    unchanged (implemented tasks still checkable with a live cost
-    estimate, not-implemented tasks still disabled with a "Not
-    implemented" message, running total still shown); existing
-    `AppTest`-based checklist tests continue to pass with only
-    superficial widget-location updates, not behavior changes;
+    `st.columns`), not two stacked lines; each task's title is
+    immediately followed by its shape (e.g. "Burn-Cost Check
+    (hybrid)"); existing behavior is unchanged (implemented tasks
+    still checkable with a live cost estimate, not-implemented tasks
+    still disabled with a "Not implemented" message, running total
+    still shown); existing `AppTest`-based checklist tests continue to
+    pass with only superficial widget-location updates, not behavior
+    changes;
     `python -m pytest -q` passes.
 
 - [ ] Fix Claude Code Review CI Check (missing API key secret)

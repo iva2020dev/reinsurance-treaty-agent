@@ -155,9 +155,11 @@ def test_app_shows_one_checkbox_per_domain_task_only_implemented_enabled():
     at.run()
 
     assert len(at.checkbox) == len(DOMAIN_TASKS)
-    implemented_titles = {t.title for t in DOMAIN_TASKS if t.implementation_status == "implemented"}
+    implemented_labels = {
+        f"{t.title} ({t.shape})" for t in DOMAIN_TASKS if t.implementation_status == "implemented"
+    }
     for checkbox in at.checkbox:
-        if checkbox.label in implemented_titles:
+        if checkbox.label in implemented_labels:
             assert not checkbox.disabled
         else:
             assert checkbox.disabled
@@ -168,7 +170,7 @@ def test_app_burn_cost_check_defaults_checked_and_shows_cost_estimate():
     at = AppTest.from_file("../src/app.py")
     at.run()
 
-    burn_cost_checkbox = next(c for c in at.checkbox if c.label == "Burn-Cost Check")
+    burn_cost_checkbox = next(c for c in at.checkbox if c.label == "Burn-Cost Check (hybrid)")
     assert burn_cost_checkbox.value is True
     # B0 is hybrid-shaped, so estimate_task_cost() includes the fixed
     # output-token estimate even with no document selected (page_count=0).
@@ -188,7 +190,7 @@ def test_app_analyze_disabled_when_no_task_is_selected():
     analyze_button = next(b for b in at.button if b.label == "Analyze")
     assert not analyze_button.disabled
 
-    burn_cost_checkbox = next(c for c in at.checkbox if c.label == "Burn-Cost Check")
+    burn_cost_checkbox = next(c for c in at.checkbox if c.label == "Burn-Cost Check (hybrid)")
     at = burn_cost_checkbox.uncheck().run()
 
     analyze_button = next(b for b in at.button if b.label == "Analyze")

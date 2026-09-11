@@ -4390,3 +4390,29 @@ This file contains the reasoning transcript of the AI agent for the current sess
   `AppTest` run that each task now renders as one checkbox+caption row.
   Awaiting human review/approval before this task is marked done and
   removed from `TASKS.md`.
+
+- **2026-09-11 (sync — scope addition)**: Human asked, still within
+  this same UI-polish pass, to also show each task's `shape`
+  (`deterministic`/`hybrid`/`llm`) right after its title. Synced
+  `TASKS.md`'s Details/Acceptance to describe this. Decision: append
+  `f" ({task.shape})"` to the checkbox label itself (e.g. "Burn-Cost
+  Check (hybrid)") rather than a separate caption/badge — Streamlit's
+  `st.checkbox` label is a single string, and a second widget just for
+  a 1-2 word tag would undercut the very compaction this task's first
+  half just achieved. Editing `src/app.py`'s checklist loop next.
+- **Outcome**: Changed the checkbox label to
+  `f"{task.title} ({task.shape})"` (e.g. "Burn-Cost Check (hybrid)").
+  Fixed 2 pre-existing tests that hard-coded checkbox labels as bare
+  `task.title` (`test_app_shows_one_checkbox_per_domain_task_only_
+  implemented_enabled`'s `implemented_titles` set, and 2 occurrences of
+  `c.label == "Burn-Cost Check"` in
+  `test_app_burn_cost_check_defaults_checked_and_shows_cost_estimate`/
+  `test_app_analyze_disabled_when_no_task_is_selected`) — updated to
+  match the new `"{title} ({shape})"` format. `python -m pytest
+  tests/test_app.py -q` — 69 passed. Full suite `python -m pytest -q`
+  — 147 passed, no other regressions. `python -m tests.eval.run_eval`
+  — all 5 golden cases still 100%. Manually verified via a standalone
+  `AppTest` run that checkbox labels now read e.g. "Burn-Cost Check
+  (hybrid)" and "Mandatory-clause / exclusion completeness checklist
+  (deterministic)". Awaiting human review/approval before this task is
+  marked done and removed from `TASKS.md`.
