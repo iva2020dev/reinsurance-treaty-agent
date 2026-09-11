@@ -13,12 +13,14 @@ from streamlit.testing.v1 import AppTest
 from src.app import (
     analyze_uploaded_pdf,
     extract_llm_usage_summary,
+    format_combined_results_summary,
     format_extraction_status,
     format_log_header,
     format_multi_task_status,
     format_report_markdown,
     format_results_document,
     format_results_filename,
+    format_task_section_markdown,
     highest_severity_label,
     render_report_bytes,
     render_report_pdf,
@@ -226,6 +228,113 @@ def test_app_upload_and_render_success():
     assert "Acme Insurance Co." in markdown_text
 
 
+def test_app_results_ui_shows_one_section_per_task_and_combined_header_for_two_implemented_tasks(monkeypatch):
+    """Selecting two genuinely distinct implemented tasks together renders one
+    expandable section per task, plus a combined header aggregating both.
+
+    Uses the same monkeypatch technique as
+    test_build_workflow_graph_fans_out_to_multiple_implemented_tasks
+    (tests/test_workflow.py) to make a second task real-implemented for this
+    test, since src.domain_tasks.DOMAIN_TASKS has only one implemented entry
+    today. Patches two separate bindings: src.workflow's own (already-cached,
+    used at call time by build_workflow_graph regardless of how app.py's
+    script is re-run) and src.domain_tasks' own module attribute (since
+    AppTest re-executes src/app.py fresh on every .run(), its
+    `from src.domain_tasks import DOMAIN_TASKS` re-resolves against
+    sys.modules['src.domain_tasks'] each time, not against any binding
+    a test file's own `import src.app` would see).
+    """
+    import src.workflow as workflow_module
+    from src.domain_tasks import DomainTask
+    from src.models import AnomalyFinding, Severity, TaskResult
+
+    def _second_task_node(state):
+        return {
+            "task_results": {
+                "second_task": TaskResult(
+                    status="ran",
+                    findings=[AnomalyFinding(field="x", description="second task finding", severity=Severity.LOW)],
+                    cost=0.005,
+                    latency=0.3,
+                )
+            }
+        }
+
+    monkeypatch.setattr(workflow_module, "_second_task_node", _second_task_node, raising=False)
+    two_implemented = [
+        DomainTask(
+            id="burn_cost_check",
+            title="Burn-Cost Check",
+            candidate_id="B0",
+            implementation_status="implemented",
+            shape="hybrid",
+            workflow_node="burn_cost_check_node",
+        ),
+        DomainTask(
+            id="second_task",
+            title="Second Task",
+            candidate_id="B1",
+            implementation_status="implemented",
+            shape="deterministic",
+            workflow_node="_second_task_node",
+        ),
+    ]
+    monkeypatch.setattr(workflow_module, "DOMAIN_TASKS", two_implemented)
+    monkeypatch.setattr("src.domain_tasks.DOMAIN_TASKS", two_implemented)
+
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    with open(MINIMAL_TREATY_PATH, "rb") as f:
+        at = _upload_and_click_analyze(at, "sample_treaty.pdf", f.read())
+
+    assert not at.exception
+    labels = [e.label for e in at.expander]
+    assert "Burn-Cost Check" in labels
+    assert "Second Task" in labels
+
+    markdown_text = "\n".join(m.value for m in at.markdown)
+    assert "second task finding" in markdown_text
+    # Combined header: 0 burn_cost_check findings + 1 second_task finding.
+    assert "1 finding(s)" in markdown_text
+    assert "$0.0050" in markdown_text
+    assert "Skipped" not in markdown_text
+
+
+def test_app_results_ui_shows_not_implemented_message_for_a_selected_but_unimplemented_task():
+    """A task selected alongside an implemented one, but never populated in
+    task_results because it isn't implemented, gets its own section with a
+    clear "not implemented" message rather than being silently dropped.
+
+    Today's checkbox UI disables any not-implemented task's checkbox
+    outright, so this selection can't happen by clicking through the real
+    UI -- injected directly into session_state instead, the same situation
+    format_multi_task_status's own "not implemented" branch already covers
+    generically for the debug panel.
+    """
+    not_implemented_id = next(t.id for t in DOMAIN_TASKS if t.implementation_status == "not_implemented")
+    not_implemented_title = next(t.title for t in DOMAIN_TASKS if t.id == not_implemented_id)
+
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    with open(MINIMAL_TREATY_PATH, "rb") as f:
+        at = _upload_and_click_analyze(at, "sample_treaty.pdf", f.read())
+
+    assert not at.exception
+    at.session_state["workflow_run"]["selected_task_ids"] = {"burn_cost_check", not_implemented_id}
+    at.run()
+
+    assert not at.exception
+    labels = [e.label for e in at.expander]
+    assert "Burn-Cost Check" in labels
+    assert not_implemented_title in labels
+
+    markdown_text = "\n".join(m.value for m in at.markdown)
+    assert "Not implemented yet." in markdown_text
+    assert f"- **{not_implemented_title}**: not implemented yet" in markdown_text
+
+
 def test_app_close_button_clears_results():
     at = AppTest.from_file("../src/app.py")
     at.run()
@@ -395,7 +504,10 @@ def test_app_debug_panel_shows_log_lines_and_state_on_success():
         at = _upload_and_click_analyze(at, "sample_treaty.pdf", f.read())
 
     assert not at.exception
-    assert len(at.expander) == 1
+    # 2 expanders: one per-task results section ("Burn-Cost Check", from
+    # multi-task-results-ui) plus the debug panel itself.
+    assert len(at.expander) == 2
+    assert [e.label for e in at.expander] == ["Burn-Cost Check", "Analysis Workflow execution"]
     log_text = "\n".join(c.value for c in at.code)
     assert "src.workflow" in log_text
     assert "Extractor" in log_text
@@ -475,6 +587,126 @@ def test_format_multi_task_status_failed_task_shows_failed_status():
     status = format_multi_task_status({"burn_cost_check"}, task_results)
 
     assert "- **burn_cost_check**: failed" in status
+
+
+def test_format_task_section_markdown_burn_cost_check_reuses_report_rendering():
+    report = AnomalyReport(
+        treaty=TreatyTerms(
+            cedent_name="Acme Insurance Co.",
+            attachment_point=1_000_000,
+            limit=5_000_000,
+            reinsurance_premium=200_000,
+        ),
+        claims=[],
+        loss_ratio=0.3,
+        findings=[],
+    )
+
+    section = format_task_section_markdown("burn_cost_check", None, report)
+
+    assert section == format_report_markdown(report)
+
+
+def test_format_task_section_markdown_ran_task_shows_its_own_findings_cost_latency():
+    task_result = TaskResult(
+        status="ran",
+        findings=[AnomalyFinding(field="x", description="something odd", severity=Severity.MEDIUM)],
+        cost=0.0025,
+        latency=1.5,
+    )
+
+    section = format_task_section_markdown("second_task", task_result, None)
+
+    assert "$0.0025" in section
+    assert "1.50s" in section
+    assert "Findings (1)" in section
+    assert "something odd" in section
+
+
+def test_format_task_section_markdown_ran_task_with_no_findings():
+    task_result = TaskResult(status="ran", findings=[], cost=0.0, latency=0.1)
+
+    section = format_task_section_markdown("second_task", task_result, None)
+
+    assert "No anomalies found." in section
+
+
+def test_format_task_section_markdown_failed_task_shows_status():
+    section = format_task_section_markdown("second_task", TaskResult(status="failed"), None)
+
+    assert section == "_failed._"
+
+
+def test_format_task_section_markdown_not_implemented_task_shows_clear_message():
+    not_implemented_id = next(t.id for t in DOMAIN_TASKS if t.implementation_status == "not_implemented")
+
+    section = format_task_section_markdown(not_implemented_id, None, None)
+
+    assert section == "_Not implemented yet._"
+
+
+def test_format_task_section_markdown_implemented_task_missing_result_shows_incomplete():
+    # "burn_cost_check" is a real implemented registry id, but with no
+    # task_result and no report -- this is the "extraction never reached
+    # it" case (distinct from a genuinely not-implemented task).
+    section = format_task_section_markdown("burn_cost_check", None, None)
+
+    assert section == "_Did not run (extraction incomplete)._"
+
+
+def test_format_combined_results_summary_aggregates_findings_and_cost_across_ran_tasks():
+    task_results = {
+        "burn_cost_check": TaskResult(
+            status="ran",
+            findings=[AnomalyFinding(field="x", description="a", severity=Severity.HIGH)],
+            cost=0.001,
+            latency=0.1,
+        ),
+        "second_task": TaskResult(
+            status="ran",
+            findings=[
+                AnomalyFinding(field="y", description="b", severity=Severity.LOW),
+                AnomalyFinding(field="z", description="c", severity=Severity.LOW),
+            ],
+            cost=0.002,
+            latency=0.2,
+        ),
+    }
+
+    summary = format_combined_results_summary({"burn_cost_check", "second_task"}, task_results)
+
+    assert "3 finding(s)" in summary
+    assert "$0.0030" in summary
+    assert "Skipped" not in summary
+
+
+def test_format_combined_results_summary_lists_skipped_tasks_with_reasons(monkeypatch):
+    not_implemented_id = next(t.id for t in DOMAIN_TASKS if t.implementation_status == "not_implemented")
+    not_implemented_title = next(t.title for t in DOMAIN_TASKS if t.id == not_implemented_id)
+    # "second_task" is a real *implemented* id per this patched registry, but
+    # has no entry in task_results -- exercises the "did not run (extraction
+    # incomplete)" branch specifically, distinct from "not implemented yet".
+    from src.domain_tasks import DomainTask
+
+    patched_tasks = list(DOMAIN_TASKS) + [
+        DomainTask(
+            id="second_task",
+            title="Second Task",
+            candidate_id="B1",
+            implementation_status="implemented",
+            shape="deterministic",
+            workflow_node="_second_task_node",
+        )
+    ]
+    monkeypatch.setattr("src.app.DOMAIN_TASKS", patched_tasks)
+    task_results = {
+        "burn_cost_check": TaskResult(status="ran", findings=[], cost=0.0, latency=0.1),
+    }
+
+    summary = format_combined_results_summary({"burn_cost_check", not_implemented_id, "second_task"}, task_results)
+
+    assert f"- **{not_implemented_title}**: not implemented yet" in summary
+    assert "- **Second Task**: did not run (extraction incomplete)" in summary
 
 
 def test_app_shows_llm_extraction_fallback_note_and_state_on_success(monkeypatch):

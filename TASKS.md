@@ -95,11 +95,10 @@
     live graph, the same way the existing single-task one does;
     `python -m pytest -q` passes.
 
-- [ ] Multi-task results UI (per-task sections + combined summary)
+- [ ] Multi-task results UI (per-task sections + combined summary) (@claude)
   - **ID**: multi-task-results-ui
   - **Tags**: ui, streamlit, multi-domain-task-selection
   - **Candidate ID**: S7 (`CANDIDATE_TASKS.md`)
-  - **Blocked by**: multi-task-result-aggregation-schema, multi-task-messaging-logging
   - **Details**: Graduated from `CANDIDATE_TASKS.md` (`S7`, Priority 7
     of 8). One expandable section per selected+implemented task inside
     the existing "Analysis Results" bordered container — each with its

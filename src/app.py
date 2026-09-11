@@ -194,6 +194,77 @@ def save_logs_to_file(log_lines: list[str], mode: str, path: Path = DEFAULT_LOG_
             f.write(line + "\n")
 
 
+def _task_title(task_id: str) -> str:
+    """The human-readable title for a domain task id, or the id itself
+    if it's not (or no longer) in the DOMAIN_TASKS registry.
+    """
+    for task in DOMAIN_TASKS:
+        if task.id == task_id:
+            return task.title
+    return task_id
+
+
+def format_task_section_markdown(
+    task_id: str, task_result: TaskResult | None, report: AnomalyReport | None
+) -> str:
+    """Markdown body for one selected task's own expandable results section.
+
+    `burn_cost_check` is special-cased to reuse format_report_markdown()'s
+    exact output (treaty terms, loss ratio, findings) since it's the only
+    task that populates `report` today (see S3's decision in REASONING.md).
+    Every other task renders generically from its own TaskResult, since
+    that's all a future domain task will ever populate.
+    """
+    if task_id == "burn_cost_check" and report is not None:
+        return format_report_markdown(report)
+
+    if task_result is None:
+        implemented_ids = {t.id for t in DOMAIN_TASKS if t.implementation_status == "implemented"}
+        if task_id not in implemented_ids:
+            return "_Not implemented yet._"
+        return "_Did not run (extraction incomplete)._"
+
+    if task_result.status != "ran":
+        return f"_{task_result.status}._"
+
+    lines = [f"**Cost:** ${task_result.cost:,.4f}  ·  **Latency:** {task_result.latency:.2f}s"]
+    lines.append(f"\n### Findings ({len(task_result.findings)})")
+    if not task_result.findings:
+        lines.append("No anomalies found.")
+    else:
+        for finding in task_result.findings:
+            icon = SEVERITY_ICONS.get(finding.severity, "")
+            lines.append(f"- {icon} **[{finding.severity.upper()}]** {finding.description}")
+    return "\n".join(lines)
+
+
+def format_combined_results_summary(selected_task_ids: set[str], task_results: dict[str, TaskResult]) -> str:
+    """Combined header shown above the per-task results sections: aggregate
+    findings/cost across every task that ran, plus which selected tasks were
+    skipped and why (not implemented, or extraction never reached them).
+    """
+    implemented_ids = {t.id for t in DOMAIN_TASKS if t.implementation_status == "implemented"}
+    total_findings = 0
+    total_cost = 0.0
+    skipped_lines = []
+    for task_id in sorted(selected_task_ids):
+        result = task_results.get(task_id)
+        if result is not None and result.status == "ran":
+            total_findings += len(result.findings)
+            total_cost += result.cost
+        elif task_id not in implemented_ids:
+            skipped_lines.append(f"- **{_task_title(task_id)}**: not implemented yet")
+        else:
+            skipped_lines.append(f"- **{_task_title(task_id)}**: did not run (extraction incomplete)")
+
+    lines = [f"**{total_findings} finding(s)** across selected task(s) · **${total_cost:,.4f}** total actual cost"]
+    if skipped_lines:
+        lines.append("")
+        lines.append("**Skipped:**")
+        lines.extend(skipped_lines)
+    return "\n".join(lines)
+
+
 def format_report_markdown(report: AnomalyReport) -> str:
     """Render an AnomalyReport as a Markdown string, with page citations."""
     treaty = report.treaty
@@ -549,7 +620,11 @@ def main() -> None:
                         f"{', '.join(ungrounded_fields)}. Double-check these "
                         f"values before relying on this report."
                     )
-                st.markdown(format_report_markdown(report))
+                task_results: dict[str, TaskResult] = state.get("task_results", {})
+                st.markdown(format_combined_results_summary(result_selected_task_ids, task_results))
+                for task_id in sorted(result_selected_task_ids):
+                    with st.expander(_task_title(task_id), expanded=True):
+                        st.markdown(format_task_section_markdown(task_id, task_results.get(task_id), report))
 
                 format_choice = st.radio(
                     "Result file format",

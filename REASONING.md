@@ -4124,3 +4124,99 @@ This file contains the reasoning transcript of the AI agent for the current sess
   task-closing workflow. No `CANDIDATE_TASKS.md` update needed — this
   task was never graduated from there (`Candidate ID: N/A`, added
   directly to `TASKS.md`).
+
+## 2026-09-11 — Task: Multi-task results UI (multi-task-results-ui)
+
+- **Goal**: Implement `multi-task-results-ui` (S7): replace `src/app.py`'s
+  single `format_report_markdown(report)` call in the "Analysis Results"
+  container with one expandable section per selected task plus a
+  combined header (aggregate findings/cost, skipped-task reasons).
+- **Analysis**: Today's on-screen report renders `AnomalyReport`
+  (treaty terms, loss ratio, findings) — populated only by
+  `burn_cost_check_node` (per `S3`'s decision, `report` stays
+  deliberately specific to that one task). `task_results: dict[str,
+  TaskResult]` (from `multi-task-result-aggregation-schema`/
+  `multi-task-graph-fanout`) holds `status`/`findings`/`cost`/`latency`
+  per task that actually ran. The domain-task checkbox UI
+  (`multi-task-selection-ui`) disables any not-implemented task's
+  checkbox outright (`disabled=not is_implemented`), so
+  `selected_task_ids` can only ever contain implemented ids through
+  the real UI today — the "mix of implemented + not-implemented"
+  acceptance case is only reachable by calling the new rendering
+  helpers directly (as a unit test would), the same situation
+  `format_multi_task_status()` (from `multi-task-messaging-logging`)
+  already handles generically for the debug panel. Found this task's
+  own `Blocked by` (`multi-task-result-aggregation-schema,
+  multi-task-messaging-logging`) stale — both blockers are already
+  done and removed from `TASKS.md` — removed it while claiming the
+  task (a small drift-fix, not a scope change).
+- **Decision**: Render every selected task's own `st.expander` (not
+  just implemented ones), `expanded=True` by default so content stays
+  visible without an extra click — preserving the *effective* same
+  visible behavior as today's un-expandered single report for the
+  `B0`-only case, even though it's now structurally inside an
+  expander (the acceptance's "renders identically" is read as
+  identical *content*, since the task explicitly asks for "one
+  expandable section per selected task" universally, which a literal
+  DOM-identical reading would contradict for the single-task case).
+  Since `burn_cost_check` is the only task that populates `report`,
+  special-case its section to reuse the exact existing
+  `format_report_markdown(report)` output (byte-identical content to
+  today) rather than re-deriving treaty/loss-ratio text generically;
+  every other task's section renders generically from its own
+  `TaskResult` (status/cost/latency/findings) since that's all a
+  future task will ever populate. A task absent from `task_results`
+  gets a clear one-line message distinguishing "not implemented" vs.
+  "did not run (extraction incomplete)", mirroring
+  `format_multi_task_status()`'s existing distinction. Left
+  `save_analysis_result_to_file`/`render_report_bytes` (the save/
+  download buttons) untouched — they're scoped to `report` alone and
+  no acceptance criterion here asks for multi-task export content;
+  that's implicitly future work once a second real task exists.
+- **Action**: Adding `_task_title(task_id)`,
+  `format_task_section_markdown(task_id, task_result, report)`, and
+  `format_combined_results_summary(selected_task_ids, task_results)`
+  to `src/app.py`; replacing the single `format_report_markdown(report)`
+  call in `main()`'s results container with the combined summary
+  followed by a per-task `st.expander` loop. Adding
+  `AppTest`-based tests for both the `B0`-only and a monkeypatched
+  mixed-selection case next.
+- **Verification**: Added 10 new tests to `tests/test_app.py`: 6 plain
+  pytest unit tests for `format_task_section_markdown()` (burn_cost_check
+  reuses `format_report_markdown()`'s exact output; a ran task with/
+  without findings; a `failed` task; a not-implemented task; an
+  implemented-but-missing-result task) and 2 for
+  `format_combined_results_summary()` (aggregates findings/cost across
+  ran tasks; lists skipped tasks with the right per-task reason,
+  monkeypatching a second real-implemented registry entry to exercise
+  the "did not run" branch distinctly from "not implemented"). Also
+  added 2 `AppTest`-driven integration tests: one monkeypatching a
+  genuinely distinct second implemented task (same technique as
+  `multi-task-graph-fanout`'s `test_build_workflow_graph_fans_out_...`
+  in `tests/test_workflow.py`, but needing *two* patch targets since
+  `AppTest` re-executes `src/app.py` fresh on every `.run()` — its own
+  `from src.domain_tasks import DOMAIN_TASKS` re-resolves against
+  `sys.modules['src.domain_tasks']` each time, so both
+  `src.workflow.DOMAIN_TASKS` and `src.domain_tasks.DOMAIN_TASKS`
+  itself needed patching, not just the former as in the original
+  fan-out test) — confirms both tasks get their own expander with real
+  content and the combined header sums both; and one injecting an
+  extra not-implemented real registry id directly into a completed
+  run's `session_state["workflow_run"]["selected_task_ids"]` (since
+  today's checkbox UI disables any not-implemented task's checkbox
+  outright, so this selection can't be reached by clicking through the
+  real UI) — confirms its section shows "Not implemented yet." Fixed
+  one pre-existing test
+  (`test_app_debug_panel_shows_log_lines_and_state_on_success`) that
+  asserted exactly one `st.expander` — now correctly expects two
+  (the new per-task section plus the pre-existing debug panel).
+  `python -m pytest tests/test_app.py -q` — 66 passed. Full suite
+  `python -m pytest -q` — 141 passed, no other regressions. Manually
+  drove the real app via a standalone `AppTest` run on
+  `data/sample_treaty.pdf`: confirmed the combined header
+  (`**0 finding(s)**... $0.0000 total actual cost`) renders above a
+  single `"Burn-Cost Check"` expander whose content is byte-identical
+  to the old un-expandered report. `python -m tests.eval.run_eval` —
+  all 5 golden cases still 100%, confirming no extraction-accuracy
+  regression. Awaiting human review/approval before this task is
+  marked done and removed from `TASKS.md`.
