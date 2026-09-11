@@ -4345,3 +4345,286 @@ This file contains the reasoning transcript of the AI agent for the current sess
   diagram-example` (added directly to `TASKS.md`, never a
   `CANDIDATE_TASKS.md` candidate), still open pending a second real
   domain task.
+
+## 2026-09-11 — Task: Compact the "Domain tasks to run" checklist rows onto one line each (compact-domain-task-checklist-rows)
+
+- **Goal**: Human is starting a pass of UI polish on the "Domain tasks
+  to run" checklist and asked first for a compaction: each task's
+  checkbox/title and its status/cost caption should render on one
+  line, not two stacked lines as today.
+- **Analysis**: `main()`'s checklist loop (`src/app.py`) calls
+  `st.checkbox(task.title, ...)` then, on the line below, either
+  `st.caption("Not implemented")` or
+  `st.caption(f"Estimated cost: ${estimated_cost:,.4f}")` — two
+  separate Streamlit elements stacked vertically per task, which is
+  where the extra vertical space comes from. Streamlit has no built-in
+  "checkbox with an inline trailing caption" widget, but `st.columns`
+  lets two elements render side-by-side in the same visual row.
+- **Decision**: Wrap each task's checkbox and caption in
+  `st.columns([3, 2])` (checkbox column wider, since task titles are
+  longer than the short cost/status text) instead of two sequential
+  top-level calls. Kept every behavioral rule unchanged (disabled
+  checkbox for not-implemented tasks, live per-task and running-total
+  cost estimates) — this task is presentation-only, not a scope change
+  to what's shown, so no acceptance criterion here should require
+  touching `estimate_task_cost()`/`DOMAIN_TASKS` at all.
+- **Action**: Editing `src/app.py`'s checklist loop to use
+  `st.columns` per task row. Existing checklist tests
+  (`test_app_shows_one_checkbox_per_domain_task_only_implemented_
+  enabled`, `test_app_burn_cost_check_defaults_checked_and_shows_
+  cost_estimate`, `test_app_cost_estimate_increases_with_a_larger_
+  selected_document`) query `at.checkbox`/`at.caption` directly, not
+  their DOM position, so they should keep passing unchanged — running
+  them to confirm, not just assuming.
+- **Outcome**: Wrapped each task's checkbox and status/cost caption in
+  `st.columns([3, 2], vertical_alignment="center")` — checkbox in the
+  wider left column, caption in the right column, same row. No
+  behavior change: disabled/enabled state, default-checked state, live
+  per-task cost estimate, and the running total are all unchanged.
+  `python -m pytest tests/test_app.py -q -k "checkbox or cost_estimate"`
+  — 4 passed unchanged, confirming the existing tests query widgets by
+  label/value rather than DOM position. Full suite `python -m pytest
+  -q` — 147 passed, no regressions. `python -m tests.eval.run_eval` —
+  all 5 golden cases still 100% (unaffected, since this change touches
+  no extraction/workflow logic). Manually verified via a standalone
+  `AppTest` run that each task now renders as one checkbox+caption row.
+  Awaiting human review/approval before this task is marked done and
+  removed from `TASKS.md`.
+
+- **2026-09-11 (sync — scope addition)**: Human asked, still within
+  this same UI-polish pass, to also show each task's `shape`
+  (`deterministic`/`hybrid`/`llm`) right after its title. Synced
+  `TASKS.md`'s Details/Acceptance to describe this. Decision: append
+  `f" ({task.shape})"` to the checkbox label itself (e.g. "Burn-Cost
+  Check (hybrid)") rather than a separate caption/badge — Streamlit's
+  `st.checkbox` label is a single string, and a second widget just for
+  a 1-2 word tag would undercut the very compaction this task's first
+  half just achieved. Editing `src/app.py`'s checklist loop next.
+- **Outcome**: Changed the checkbox label to
+  `f"{task.title} ({task.shape})"` (e.g. "Burn-Cost Check (hybrid)").
+  Fixed 2 pre-existing tests that hard-coded checkbox labels as bare
+  `task.title` (`test_app_shows_one_checkbox_per_domain_task_only_
+  implemented_enabled`'s `implemented_titles` set, and 2 occurrences of
+  `c.label == "Burn-Cost Check"` in
+  `test_app_burn_cost_check_defaults_checked_and_shows_cost_estimate`/
+  `test_app_analyze_disabled_when_no_task_is_selected`) — updated to
+  match the new `"{title} ({shape})"` format. `python -m pytest
+  tests/test_app.py -q` — 69 passed. Full suite `python -m pytest -q`
+  — 147 passed, no other regressions. `python -m tests.eval.run_eval`
+  — all 5 golden cases still 100%. Manually verified via a standalone
+  `AppTest` run that checkbox labels now read e.g. "Burn-Cost Check
+  (hybrid)" and "Mandatory-clause / exclusion completeness checklist
+  (deterministic)". Awaiting human review/approval before this task is
+  marked done and removed from `TASKS.md`.
+
+- **2026-09-11 (sync — refinement)**: Human asked to move `shape` out
+  of the checkbox label and into its own separate column instead.
+  Synced `TASKS.md`'s Details/Acceptance. Decision: three columns per
+  row now (`st.columns([3, 1, 2])`) — checkbox+title, shape (as a
+  plain `st.caption`), status/cost — rather than two; reverting the
+  checkbox label back to bare `task.title`. Since the two checklist
+  tests fixed in the previous update (`implemented_titles`/
+  `"Burn-Cost Check (hybrid)"`) were specifically compensating for the
+  now-reverted label change, reverting them back to matching bare
+  `task.title` too, rather than leaving them coincidentally still
+  passing against stale expectations.
+- **Outcome**: Checklist row is now `st.columns([3, 1, 2],
+  vertical_alignment="center")`: checkbox (bare `task.title`), a
+  `shape_col` rendering `st.caption(task.shape)`, then the existing
+  status/cost `status_col`. Reverted the checkbox label and both
+  affected tests back to bare `"Burn-Cost Check"`/`implemented_titles`.
+  Added `test_app_shows_each_domain_task_shape_in_its_own_column`
+  confirming every `DOMAIN_TASKS` entry's shape string appears among
+  the rendered captions. `python -m pytest tests/test_app.py -q -k
+  "shape or checkbox or cost_estimate"` — 5 passed. Full suite `python
+  -m pytest -q` — 148 passed, no other regressions. `python -m
+  tests.eval.run_eval` — all 5 golden cases still 100%. Manually
+  verified via a standalone `AppTest` run: checkbox labels are back to
+  bare titles ("Burn-Cost Check"), with "hybrid"/"deterministic" now
+  appearing as their own separate captions. Awaiting human review/
+  approval before this task is marked done and removed from
+  `TASKS.md`.
+
+- **2026-09-11 (sync — refinement)**: Human asked for the "Total
+  estimated cost" line to always be visible, only its value changing
+  as tasks are (un)checked — today's `if selected_task_ids:` guard
+  hides it entirely when nothing is selected. Synced `TASKS.md`'s
+  Details/Acceptance. Decision: drop the guard, always render the
+  caption; `total_estimated_cost` already defaults to `0.0` before the
+  loop, so no other logic changes — this renders `$0.0000` when
+  nothing's selected instead of nothing at all.
+- **Outcome**: Removed the `if selected_task_ids:` guard around the
+  total-cost caption. Added
+  `test_app_total_estimated_cost_always_visible_even_with_nothing_
+  selected`: confirms the line is present at page load (Burn-Cost
+  Check defaults checked, so it starts at `$0.0010`, not absent), then
+  confirms it's still present — now at `$0.0000` — after unchecking
+  it. `python -m pytest tests/test_app.py -q` — 70 passed.
+
+- **2026-09-11 (sync — refinement)**: Human asked to move the "Review
+  treaty" button above "Domain tasks to run" (currently paired with
+  "Analyze" below the checklist), keeping its existing functionality
+  unchanged. Synced `TASKS.md`'s Details/Acceptance. Decision:
+  reviewing a treaty's raw parsed text doesn't depend on which domain
+  tasks are selected, so it belongs right after treaty source
+  selection, before the task checklist even renders — "Analyze" stays
+  where it is (its disabled state genuinely depends on
+  `selected_task_ids`, computed inside the checklist loop). Moving
+  "Review treaty" out of its shared `st.columns(2)` with "Analyze"
+  into its own standalone `st.button` call at the new location; kept
+  its `disabled=not has_selection` condition and the
+  `_show_review_dialog(...)` call on click completely unchanged — only
+  position moves, not behavior.
+- **Outcome**: Moved the `review_clicked = st.button("Review treaty",
+  disabled=not has_selection)` call (and its
+  `if review_clicked and ...: _show_review_dialog(...)` trigger) to
+  right after the `has_selection`/`selected_fingerprint` computation,
+  before `st.subheader("Domain tasks to run")`. "Analyze" now renders
+  alone (no longer split across `st.columns(2)` with "Review treaty")
+  after the checklist and total-cost caption. Added
+  `test_app_review_treaty_button_renders_before_domain_tasks_checklist`,
+  walking `at.main.children` to confirm "Review treaty"'s index is
+  before the "Domain tasks to run" subheader's, which is before
+  "Analyze"'s. Existing `test_app_analyze_button_disabled_until_
+  treaty_selected` (label-based, not position-based) and
+  `test_app_review_treaty_shows_selected_document_text_in_modal`/
+  `test_app_review_treaty_shows_error_for_malformed_pdf` (functional
+  behavior) all pass unchanged, confirming the move didn't alter
+  either button's actual behavior.
+
+- **2026-09-11 (sync — refinement)**: Human asked to right-align the
+  "Total estimated cost" caption so its value lines up under the
+  per-task "Estimated cost" column (the `status_col`, the third of the
+  three `st.columns([3, 1, 2])`). Synced `TASKS.md`'s Details/
+  Acceptance. Decision: render the total inside its own
+  `st.columns([3, 1, 2])` row, placing the caption in the third column
+  only (leaving the first two empty) — this reuses the exact same
+  column-width ratios as each task row, so the total's text starts at
+  the same horizontal position as "Estimated cost: $X" above it,
+  without hardcoding pixel offsets.
+- **Outcome**: Replaced the bare `st.caption(f"**Total estimated
+  cost...")` call with `_, _, total_cost_col = st.columns([3, 1, 2],
+  vertical_alignment="center")` and rendering the caption inside
+  `total_cost_col`. Added
+  `test_app_total_estimated_cost_aligns_under_the_per_task_cost_column`:
+  locates the total-cost row's `flex_container` block, confirms it has
+  3 columns, the first two empty, the third holding exactly the total
+  caption, with the same `2/6` weight as each task row's third column.
+  `python -m pytest -q` — 151 passed (4 net new tests across this
+  entire UI-polish session: row ordering, alignment, and the
+  always-visible total). `python -m tests.eval.run_eval` — all 5
+  golden cases still 100% (unaffected — no extraction/workflow logic
+  touched throughout this whole pass). Awaiting human review/approval
+  before this task is marked done and removed from `TASKS.md`.
+
+- **2026-09-11 (sync — refinement, iteration 2 on alignment)**: Human
+  clarified twice more: the *value* specifically (not the whole
+  caption string) should align with the per-task value column, and the
+  "Total estimated cost:" label should shift left to make room for
+  that, since it's longer text than "Estimated cost:". The single
+  combined-string approach from the previous entry can't satisfy this
+  — a shared column start point doesn't make two differently-long
+  label prefixes end at the same x position. Synced `TASKS.md`'s
+  Details/Acceptance to describe the real fix.
+- **Decision**: Split each task row into four columns instead of
+  three: `checkbox_col, shape_col, label_col, value_col =
+  st.columns(_TASK_ROW_COLUMN_WEIGHTS)` where
+  `_TASK_ROW_COLUMN_WEIGHTS = [3, 1, 2, 1]` (module-level constant, so
+  the total row can reuse it exactly). `label_col` renders "Not
+  implemented" or "Estimated cost:" (no `$` figure); `value_col`
+  renders only `f"${estimated_cost:,.4f}"` when applicable. The total
+  row merges the first three weights into one wide label column
+  (`sum(_leading_weights)`) and keeps the last weight
+  (`_value_weight`) for its own value — so the value columns of every
+  row share the exact same width and rightmost position, while the
+  total's label gets 6/7 of the row's width to comfortably fit its
+  longer text, visually "shifted left" relative to where a
+  same-width-as-task-rows label would have started.
+- **Outcome**: Implemented as described. Fixed 4 tests that broke from
+  splitting one caption into two: `test_app_burn_cost_check_defaults_
+  checked_and_shows_cost_estimate` and
+  `test_app_total_estimated_cost_always_visible_even_with_nothing_
+  selected` now check for the label and value as two separate caption
+  values rather than one combined substring;
+  `test_app_cost_estimate_increases_with_a_larger_selected_document`'s
+  `_total_cost()` helper now finds the value caption immediately after
+  the `"**Total estimated cost:**"` label caption in the captions list,
+  rather than parsing a combined string; renamed and rewrote
+  `test_app_total_estimated_cost_aligns_under_the_per_task_cost_column`
+  to `..._value_aligns_under_the_per_task_value_column`, which now
+  locates both the total row and a real task row (Burn-Cost Check) and
+  asserts their value columns' weights match exactly. `python -m
+  pytest tests/test_app.py -q` — 73 passed. Full suite `python -m
+  pytest -q` — 151 passed, no other regressions. `python -m
+  tests.eval.run_eval` — all 5 golden cases still 100%. Manually
+  verified via a standalone `AppTest` run: task rows show
+  "Estimated cost:" and "$0.0010" (or "$0.0042") as separate captions
+  in adjacent columns of matching width to the total row's; the total
+  row shows "**Total estimated cost:**" in a wide left column and
+  "**$0.0010**" in the same-width value column as every task's own
+  value. Awaiting human review/approval before this task is marked
+  done and removed from `TASKS.md`.
+
+- **2026-09-11 (sync — scope addition)**: Human asked to add a header
+  row above the checklist labeling "name, type, cost
+  (estimated/real)". Synced `TASKS.md`'s Details/Acceptance. Decision:
+  header labels are "Task" / "Type" / "Cost (estimated)" — not
+  "estimated/real" verbatim, since this checklist only ever shows the
+  pre-run estimate (`estimate_task_cost()`); the real/actual cost
+  (`TaskResult.cost`) only exists after a run and is shown in the
+  Analysis Results section (`multi-task-results-ui`)/debug panel, not
+  here, so labeling this column "(estimated/real)" would misdescribe
+  what's actually displayed. Render the header using
+  `st.columns([_TASK_ROW_COLUMN_WEIGHTS[0], _TASK_ROW_COLUMN_WEIGHTS[1],
+  label_weight + value_weight])` — three header columns, the last
+  merging label+value's combined width, matching how the total row
+  already merges weights for its own wide label.
+- **Action**: Adding the header row right after `st.subheader("Domain
+  tasks to run")`, before the task loop.
+- **Outcome**: Added the header row using
+  `st.columns([_TASK_ROW_COLUMN_WEIGHTS[0], _TASK_ROW_COLUMN_WEIGHTS[1],
+  sum(_TASK_ROW_COLUMN_WEIGHTS[2:])])` — "Task"/"Type" each get their
+  own column matching the checkbox/shape columns below; "Cost
+  (estimated)" spans the merged label+value width, sitting above both
+  "Estimated cost:" and its `$X` value. Added
+  `test_app_domain_tasks_checklist_has_a_labeled_header_row`: confirms
+  all three header captions render, and that the header appears before
+  any task's own shape caption (i.e. it's a header, not interleaved
+  into the checklist). `python -m pytest tests/test_app.py -q -k
+  header` — 3 passed (this new test plus the 2 pre-existing header/
+  subheader tests it happened to share the `-k` filter with). Full
+  suite `python -m pytest -q` — 152 passed, no other regressions.
+  `python -m tests.eval.run_eval` — all 5 golden cases still 100%.
+  Manually verified via a standalone `AppTest` run: captions begin
+  `["**Task**", "**Type**", "**Cost (estimated)**", "hybrid",
+  "Estimated cost:", "$0.0010", ...]`. Awaiting human review/approval
+  before this task is marked done and removed from `TASKS.md`.
+
+- **2026-09-11 (sync — refinement)**: Human asked (pointing at a
+  browser-rendered element's auto-generated Streamlit
+  `st-emotion-cache-*` class, which is an unstable hash that can
+  change between reruns/Streamlit versions — clarified via
+  `AskUserQuestion` which logical element it corresponded to) to make
+  the cost label+value columns narrower. Synced `TASKS.md`'s Details.
+  Decision: since `_TASK_ROW_COLUMN_WEIGHTS` is the single source of
+  truth the total row and header row both already derive from
+  (`sum(_leading_weights)`/`sum(_TASK_ROW_COLUMN_WEIGHTS[2:])`),
+  changing just this one constant propagates the narrower cost columns
+  everywhere automatically, with no other code changes needed. Chose
+  `[3, 1, 1, 0.5]` (down from `[3, 1, 2, 1]`) — same 2:1 label:value
+  ratio, but a smaller share of the row's total width, giving the
+  checkbox+title column relatively more room (task titles are often
+  much longer than "Estimated cost:"/a dollar figure).
+- **Outcome**: Changed `_TASK_ROW_COLUMN_WEIGHTS` to `[3, 1, 1, 0.5]`
+  — the only line touched; the total row and header row both derive
+  their column splits from this constant already, so no other code
+  changed. `python -m pytest tests/test_app.py -q` — 74 passed
+  (existing tests assert weight *ratios* between rows, e.g. total's
+  value column matching a task row's value column, not absolute
+  numbers, so none needed updating). Full suite `python -m pytest -q`
+  — 152 passed, no other regressions. `python -m tests.eval.run_eval`
+  — all 5 golden cases still 100%. Human confirmed via the running app
+  that the narrower cost columns look right. This closes out the
+  entire UI-polish iteration for `compact-domain-task-checklist-rows`
+  — awaiting human review/approval to mark the task done and remove it
+  from `TASKS.md`.
