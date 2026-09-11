@@ -212,6 +212,23 @@
     Check's on-screen/file section shows Cost/Latency like every other
     task; the PDF renders `ℹ`/`⚠`/`‼` severity symbols instead of
     dropping them silently; `python -m pytest -q` passes.
+    **Further refinement (same pass)**: the LLM Extraction Fallback's
+    real cost (previously shown only as raw token counts, never
+    converted to a dollar figure, and never included in "Total actual
+    cost") is now surfaced as its own line ("Extraction: LLM Fallback
+    used ($X)") near the shared treaty section, using the
+    already-defined but previously-unused `actual_task_cost()`
+    (`src/cost_estimation.py`), and folded into "Total actual cost" so
+    that figure is honest about the real spend for a run that needed
+    the LLM fallback.
+  - **Files (further updated)**: `src/app.py`, `tests/test_app.py`
+  - **Acceptance (further updated)**: When a run used the LLM
+    Extraction Fallback, both the saved file and the on-screen view
+    show an "Extraction: LLM Fallback used ($X)" line with a real
+    dollar figure (not just token counts), and "Total actual cost"
+    includes that amount; when the LLM wasn't invoked (regex found
+    everything), no such line appears and the total is unaffected;
+    `python -m pytest -q` passes.
 
 - [ ] Regenerate workflow diagram for a multi-task selection example
   - **ID**: multi-task-graph-diagram-example

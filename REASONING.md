@@ -5095,3 +5095,63 @@ This file contains the reasoning transcript of the AI agent for the current sess
   renders inside a colored `st.success`/`st.warning`/etc. box. Awaiting
   human review/approval before this task is marked done and removed
   from `TASKS.md`.
+
+- **2026-09-11 (sync — scope addition)**: Human asked why Burn-Cost
+  Check shows "Cost: $0.0000 · Latency: 0.00s" even when a run needed
+  the LLM Extraction Fallback. Explained: that line reflects only
+  `burn_cost_check_node`'s own work (pure arithmetic, genuinely free/
+  instant) — the LLM fallback is a separate, shared pipeline step
+  benefiting every selected task, not attributable to any one task's
+  own `TaskResult`. But this surfaced a real gap: the fallback's actual
+  cost was never converted to a dollar figure anywhere — only raw
+  token counts (`extract_llm_usage_summary()`), and `src/cost_
+  estimation.py`'s `actual_task_cost()` (built in `per-task-cost-
+  estimation`, S4) was never actually called by anything. Confirmed
+  with the human: surface it as its own line item and fold it into
+  "Total actual cost" (previewed and approved via `AskUserQuestion`).
+  Synced `TASKS.md`'s Details/Files/Acceptance.
+- **Decision**: Add `extract_llm_actual_cost(log_lines) -> float |
+  None` (parses the same log line `extract_llm_usage_summary()` does,
+  converts via `actual_task_cost()`) and `format_extraction_cost_note(
+  log_lines) -> str | None` ("Extraction: LLM Fallback used ($X)", or
+  `None` if the LLM wasn't invoked). Render the note right after the
+  shared treaty section (both in `format_results_document()` and
+  `main()`'s on-screen view) — it's a property of the *extraction*,
+  not of the treaty or any one task, but placing it right after treaty
+  terms keeps it near the other "about this run's data" context.
+  `format_combined_results_summary()` gains an additive `extraction_
+  cost: float = 0.0` parameter, added into `total_cost` before
+  building the "Total actual cost" line — default `0.0` preserves
+  every existing caller/test that doesn't pass it.
+- **Action**: Implementing `extract_llm_actual_cost()`/`format_
+  extraction_cost_note()` in `src/app.py`; importing `actual_task_cost`
+  from `src.cost_estimation`; updating `format_combined_results_
+  summary()`'s signature and both its call sites (`format_results_
+  document()`, `main()`) to pass the real extraction cost through.
+- **Outcome**: Implemented as described. Both the saved file and
+  `main()`'s on-screen view now show "Extraction: LLM Fallback used
+  ($X)" right after the shared treaty section whenever the fallback
+  ran, and "Total actual cost" includes that figure. Added 6 tests:
+  `test_extract_llm_actual_cost_converts_real_token_usage_to_dollars`,
+  `..._is_none_when_llm_never_ran`, `test_format_extraction_cost_
+  note_reports_dollar_figure_or_none`, `test_format_combined_results_
+  summary_includes_extraction_cost_in_total`; extended the existing
+  real (mocked-LLM-client, not monkeypatched-node) end-to-end test
+  `test_app_shows_llm_extraction_fallback_note_and_state_on_success`
+  to assert the caption shows the correct dollar figure (computed from
+  the mock's real 500/60 token counts via `actual_task_cost()`) and
+  that "Total actual cost" includes it. While inserting these, caught
+  and fixed a self-introduced copy-paste slip before running anything
+  broken further: an assertion belonging to the adjacent pre-existing
+  test (`test_format_combined_results_summary_lists_skipped_tasks_
+  with_reasons`) had landed in the wrong test during editing — moved
+  it back to where it belonged. `python -m pytest tests/test_app.py -q
+  -k "extraction_cost or format_extraction_cost_note or format_
+  combined_results_summary"` — 4 passed;
+  `test_app_shows_llm_extraction_fallback_note_and_state_on_success`
+  — 1 passed. Full suite `python -m pytest -q` — 174 passed, no other
+  regressions. `python -m tests.eval.run_eval` — all 5 golden cases
+  still 100% (unaffected — no extraction logic touched, only how its
+  already-logged token usage is reported). Awaiting human review/
+  approval before this task is marked done and removed from
+  `TASKS.md`.

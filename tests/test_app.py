@@ -14,8 +14,10 @@ from src.app import (
     _task_title,
     _wrap_findings_block,
     analyze_uploaded_pdf,
+    extract_llm_actual_cost,
     extract_llm_usage_summary,
     format_combined_results_summary,
+    format_extraction_cost_note,
     format_extraction_status,
     format_findings_summary,
     format_log_header,
@@ -34,6 +36,7 @@ from src.app import (
     serialize_state_for_debug,
     slugify_treaty_name,
 )
+from src.cost_estimation import actual_task_cost
 from src.domain_tasks import DOMAIN_TASKS
 from src.models import AnomalyFinding, AnomalyReport, ClaimsData, Severity, TaskResult, TreatyTerms
 from src.parser import ParserError
@@ -1033,6 +1036,43 @@ def test_format_combined_results_summary_lists_skipped_tasks_with_reasons(monkey
     assert "- **Second Task**: did not run (extraction incomplete)" in summary
 
 
+def test_format_combined_results_summary_includes_extraction_cost_in_total():
+    """extraction_cost (the LLM Extraction Fallback's real cost, when it
+    ran) is folded into "Total actual cost" -- it's a real part of what
+    this run cost, even though it isn't any one task's own TaskResult.cost.
+    """
+    task_results = {"burn_cost_check": TaskResult(status="ran", findings=[], cost=0.001, latency=0.1)}
+
+    summary = format_combined_results_summary({"burn_cost_check"}, task_results, extraction_cost=0.0008)
+
+    assert "$0.0018" in summary  # 0.001 (task) + 0.0008 (extraction)
+
+
+def test_extract_llm_actual_cost_converts_real_token_usage_to_dollars():
+    log_lines = [
+        "2026-09-11 10:00:00,000 INFO src.workflow: LLM Extraction Fallback: "
+        "extracted treaty terms for cedent X in 0.50s "
+        "(model=claude-haiku-4-5-20251001, input_tokens=500, output_tokens=60)"
+    ]
+
+    cost = extract_llm_actual_cost(log_lines)
+
+    assert cost == pytest.approx(actual_task_cost(500, 60))
+
+
+def test_extract_llm_actual_cost_is_none_when_llm_never_ran():
+    assert extract_llm_actual_cost([]) is None
+    assert extract_llm_actual_cost(["INFO src.workflow: Extractor (Regex): extracted treaty terms"]) is None
+
+
+def test_format_extraction_cost_note_reports_dollar_figure_or_none():
+    log_lines = ["... input_tokens=500, output_tokens=60 ..."]
+
+    assert format_extraction_cost_note([]) is None
+    note = format_extraction_cost_note(log_lines)
+    assert note == f"Extraction: LLM Fallback used (${actual_task_cost(500, 60):,.4f})"
+
+
 def test_app_shows_llm_extraction_fallback_note_and_state_on_success(monkeypatch):
     mock_client = _mock_llm_client(input_data=FUZZY_TREATY_LLM_RESPONSE)
     monkeypatch.setattr("src.llm_client.anthropic.Anthropic", lambda **kwargs: mock_client)
@@ -1056,6 +1096,13 @@ def test_app_shows_llm_extraction_fallback_note_and_state_on_success(monkeypatch
     assert debug_state["ungrounded_fields"] == []
     assert not any("could not be verified" in w.value for w in at.warning)
     assert any("LLM Extraction Fallback" in c.value for c in at.caption)
+    # The mocked LLM call's real token usage (500 input, 60 output) is
+    # converted to a dollar figure and shown near the treaty section, and
+    # folded into "Total actual cost" -- not just raw token counts.
+    expected_extraction_cost = actual_task_cost(500, 60)
+    assert any(f"Extraction: LLM Fallback used (${expected_extraction_cost:,.4f})" in c.value for c in at.caption)
+    # And folded into "Total actual cost" (rendered via plain st.markdown).
+    assert f"**${expected_extraction_cost:,.4f}** total actual cost" in rendered_text
 
 
 def test_app_shows_ungrounded_field_warning_when_grounding_check_fails(monkeypatch):

@@ -20,7 +20,7 @@ if str(_REPO_ROOT) not in sys.path:
 import streamlit as st
 from fpdf import FPDF
 
-from src.cost_estimation import estimate_task_cost
+from src.cost_estimation import actual_task_cost, estimate_task_cost
 from src.domain_tasks import DOMAIN_TASKS
 from src.models import AnomalyFinding, AnomalyReport, TaskResult
 from src.parser import ParserError, extract_treaty_sections
@@ -347,14 +347,21 @@ _SEVERITY_STREAMLIT_CONTAINERS = {
 }
 
 
-def format_combined_results_summary(selected_task_ids: set[str], task_results: dict[str, TaskResult]) -> str:
+def format_combined_results_summary(
+    selected_task_ids: set[str], task_results: dict[str, TaskResult], extraction_cost: float = 0.0
+) -> str:
     """Combined header shown above the per-task results sections: aggregate
     findings/cost across every task that ran, plus which selected tasks were
     skipped and why (not implemented, or extraction never reached them).
+
+    extraction_cost (default 0.0, additive) folds in the LLM Extraction
+    Fallback's real cost when it ran (see extract_llm_actual_cost()) -- a
+    shared pipeline cost, not any one task's own, but still part of what
+    this run actually cost.
     """
     implemented_ids = {t.id for t in DOMAIN_TASKS if t.implementation_status == "implemented"}
     total_findings = 0
-    total_cost = 0.0
+    total_cost = extraction_cost
     skipped_lines = []
     for task_id in sorted(selected_task_ids):
         result = task_results.get(task_id)
@@ -456,6 +463,33 @@ def extract_llm_usage_summary(log_lines: list[str] | None) -> str | None:
     return None
 
 
+def extract_llm_actual_cost(log_lines: list[str] | None) -> float | None:
+    """The LLM Extraction Fallback's real dollar cost for this run (via
+    actual_task_cost()), or None if the LLM wasn't invoked -- this is a
+    shared pipeline cost, not attributable to any one selected domain
+    task's own TaskResult (every selected task benefits from the same
+    one-time extraction), so it's surfaced separately rather than folded
+    into any task's own Cost figure.
+    """
+    for line in log_lines or []:
+        match = _LLM_USAGE_RE.search(line)
+        if match:
+            input_tokens, output_tokens = (int(group) for group in match.groups())
+            return actual_task_cost(input_tokens, output_tokens)
+    return None
+
+
+def format_extraction_cost_note(log_lines: list[str] | None) -> str | None:
+    """A one-line note reporting the LLM Extraction Fallback's real dollar
+    cost, or None if the LLM wasn't invoked for this run (regex found
+    everything, so there's no extraction cost to report).
+    """
+    cost = extract_llm_actual_cost(log_lines)
+    if cost is None:
+        return None
+    return f"Extraction: LLM Fallback used (${cost:,.4f})"
+
+
 def results_subdirectory(report: AnomalyReport, base: Path = DEFAULT_RESULTS_DIR) -> Path:
     """The per-treaty subdirectory saved results for this cedent are organized under."""
     return base / slugify_treaty_name(report.treaty.cedent_name)
@@ -506,13 +540,20 @@ def format_results_document(
         lines.append(format_report_markdown(report))
     else:
         task_results = task_results or {}
+        extraction_cost = extract_llm_actual_cost(log_lines)
         lines.append("---")
         lines.append("")
         lines.append(format_treaty_terms_markdown(report))
+        extraction_note = format_extraction_cost_note(log_lines)
+        if extraction_note:
+            lines.append("")
+            lines.append(extraction_note)
         lines.append("")
         lines.append("---")
         lines.append("")
-        lines.append(format_combined_results_summary(selected_task_ids, task_results))
+        lines.append(
+            format_combined_results_summary(selected_task_ids, task_results, extraction_cost=extraction_cost or 0.0)
+        )
         for task_id in sorted(selected_task_ids):
             lines.append("")
             lines.append("---")
@@ -900,7 +941,15 @@ def main() -> None:
                     )
                 task_results: dict[str, TaskResult] = state.get("task_results", {})
                 st.markdown(format_treaty_terms_markdown(report))
-                st.markdown(format_combined_results_summary(result_selected_task_ids, task_results))
+                extraction_cost = extract_llm_actual_cost(log_lines)
+                extraction_note = format_extraction_cost_note(log_lines)
+                if extraction_note:
+                    st.caption(extraction_note)
+                st.markdown(
+                    format_combined_results_summary(
+                        result_selected_task_ids, task_results, extraction_cost=extraction_cost or 0.0
+                    )
+                )
                 for task_id in sorted(result_selected_task_ids):
                     with st.expander(_task_title(task_id), expanded=True):
                         task_result = task_results.get(task_id)
