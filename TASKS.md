@@ -50,6 +50,7 @@
      ✅ 2026-09-11 10:58:38 Multi-task results UI (per-task sections + combined summary) (multi-task-results-ui)
      ✅ 2026-09-11 12:19:38 End-to-end test coverage for multi-task selection (multi-task-e2e-test-coverage)
      ✅ 2026-09-11 13:06:31 Compact the "Domain tasks to run" checklist rows onto one line each (compact-domain-task-checklist-rows)
+     ✅ 2026-09-11 19:41:05 Widen the main page container by 15% (widen-main-container)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -59,33 +60,6 @@
 ## P1
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
-
-- [ ] Widen the main page container by 15% (@claude)
-  - **ID**: widen-main-container
-  - **Tags**: ui, streamlit
-  - **Candidate ID**: N/A (ad-hoc UI polish requested directly by the
-    human, not staged in `CANDIDATE_TASKS.md`)
-  - **Details**: The human asked to make the main page container 15%
-    wider, referencing a browser-inspected class
-    (`stMainBlockContainer block-container st-emotion-cache-1w723zb
-    e15ve43o4`). The `st-emotion-cache-*`/`e15ve43o4` parts are
-    Streamlit-internal, auto-generated hashes that can change on any
-    Streamlit upgrade or even between reruns — not safe to target
-    directly. `stMainBlockContainer`/`block-container` are Streamlit's
-    own stable, semantically-named hooks for this exact container
-    (also exposed as `[data-testid="stMainBlockContainer"]`), which is
-    Streamlit's documented/supported way to customize it via injected
-    CSS. The app currently uses the default "centered" layout (no
-    `layout=` argument to `st.set_page_config()`), whose block-container
-    has historically defaulted to `736px` max-width across many
-    Streamlit versions — widen that by 15% (≈846px).
-  - **Files**: `src/app.py`, `tests/test_app.py`
-  - **Acceptance**: The main container's `max-width` is set to
-    approximately 846px (736px × 1.15) via injected CSS targeting the
-    stable `data-testid="stMainBlockContainer"` selector, not any
-    hash-suffixed class name; a test confirms the injected style block
-    is present with the expected max-width value; `python -m pytest
-    -q` passes.
 
 - [ ] Mandatory-clause / exclusion completeness checklist (@claude)
   - **ID**: exclusion-completeness-checklist
