@@ -5390,3 +5390,19 @@ This file contains the reasoning transcript of the AI agent for the current sess
   into the same task/branch/PR per the "sync" step, since each was a
   direct follow-up discovered while reviewing the immediately
   preceding change, not an unrelated new request.
+
+## 2026-09-11 15:22:12 — Closing task: Mandatory-clause / exclusion completeness checklist (exclusion-completeness-checklist)
+
+- PR #93 merged into `main` at 2026-09-11T15:22:12Z. Human explicitly
+  approved marking `exclusion-completeness-checklist` done. Removing
+  it from `TASKS.md`'s P1 section (and adding it to the "Recently
+  completed" list) on this `close/exclusion-completeness-checklist`
+  branch/PR, titled `Closing task as "Done": Mandatory-clause /
+  exclusion completeness checklist`, per the mandatory task-closing
+  workflow. Updated `CANDIDATE_TASKS.md`'s `B1` row and detailed entry
+  to `` ✅ Done (shipped as `exclusion-completeness-checklist`) ``,
+  per "Keeping CANDIDATE_TASKS.md in Sync" — this closing was delayed
+  several turns behind several other, unrelated ad-hoc UI tasks that
+  were picked up and closed out first while this one sat merged but
+  still open in `TASKS.md`; no drift resulted since nothing else
+  depended on its specific closure timing.

@@ -53,6 +53,7 @@
      ✅ 2026-09-11 19:41:05 Widen the main page container by 15% (widen-main-container)
      ✅ 2026-09-11 19:59:18 Adjust main container width to a fixed 800px (adjust-main-container-width)
      ✅ 2026-09-11 20:14:07 Include every selected task's results in the saved/downloaded results file, styled as a final report (multi-task-results-in-saved-file)
+     ✅ 2026-09-11 15:22:12 Mandatory-clause / exclusion completeness checklist (exclusion-completeness-checklist)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -62,52 +63,6 @@
 ## P1
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
-
-- [ ] Mandatory-clause / exclusion completeness checklist (@claude)
-  - **ID**: exclusion-completeness-checklist
-  - **Tags**: domain-task, treaty, deterministic
-  - **Candidate ID**: B1 (`CANDIDATE_TASKS.md`)
-  - **Details**: Graduated from `CANDIDATE_TASKS.md` (`B1`, Priority 1
-    of 9 in the Treaty section). Compare an extracted treaty's
-    `TreatyTerms.exclusions` against a configurable list of expected
-    mandatory clauses (war, nuclear, cyber, pandemic, sanctions, TRIA);
-    flag any missing clause as a new `AnomalyFinding`. This is the
-    second real domain task (after `burn_cost_check`/B0) to become
-    `implementation_status="implemented"` in `src/domain_tasks.py`'s
-    registry, wired into `build_workflow_graph()`'s existing fan-out
-    machinery (`multi-task-graph-fanout`) — selecting it alongside
-    `burn_cost_check` should genuinely run both in parallel, not via a
-    monkeypatched stand-in like every fan-out test so far has used.
-  - **Files**: `src/workflow.py`, `src/domain_tasks.py`,
-    `tests/test_workflow.py`, `tests/test_domain_tasks.py`. Also
-    `src/app.py` and `tests/test_app.py` (added: the checklist's
-    checkbox default-checked state was keyed off `is_implemented`
-    generically, which only happened to be correct with exactly one
-    implemented task — with a second implemented task, this would
-    auto-check both by default, changing the app's baseline behavior.
-    Fixed by keying it off `workflow.py`'s actual default-selection
-    set instead — a real bug, not just a testing gap.)
-  - **Acceptance**: A new `exclusion_completeness_checklist_node` in
-    `src/workflow.py` compares `state["treaty"].exclusions` against a
-    module-level mandatory-clause keyword list (case-insensitive
-    substring match, no LLM call) and returns a `TaskResult` with one
-    `AnomalyFinding` per missing clause (empty findings if all present)
-    under `task_results["exclusion_completeness_checklist"]`;
-    `src/domain_tasks.py`'s matching `DomainTask` entry is updated to
-    `implementation_status="implemented"`,
-    `workflow_node="exclusion_completeness_checklist_node"`;
-    `tests/test_domain_tasks.py::test_only_b0_is_implemented` is
-    updated to reflect two implemented tasks; new tests cover: an
-    exclusions list missing every mandatory clause, one missing only a
-    single clause, and one with every mandatory clause present (no
-    findings); selecting `burn_cost_check` alone continues to produce
-    byte-identical behavior (regression safety net, verified via
-    `python -m tests.eval.run_eval` staying at 100%, and a fresh page
-    load still defaults to only `burn_cost_check` checked); selecting
-    both `burn_cost_check` and `exclusion_completeness_checklist`
-    together through the real (non-monkeypatched) UI/`run_workflow`
-    produces both tasks' entries in `task_results`; `python -m pytest
-    -q` passes.
 
 - [ ] Regenerate workflow diagram for a multi-task selection example
   - **ID**: multi-task-graph-diagram-example
