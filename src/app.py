@@ -5,6 +5,7 @@ import logging
 import re
 import sys
 import tempfile
+from collections.abc import Callable
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
@@ -19,9 +20,9 @@ if str(_REPO_ROOT) not in sys.path:
 import streamlit as st
 from fpdf import FPDF
 
-from src.cost_estimation import estimate_task_cost
+from src.cost_estimation import actual_task_cost, estimate_task_cost
 from src.domain_tasks import DOMAIN_TASKS
-from src.models import AnomalyReport, TaskResult
+from src.models import AnomalyFinding, AnomalyReport, TaskResult
 from src.parser import ParserError, extract_treaty_sections
 from src.sample_treaties import SAMPLE_TREATIES, get_sample_bytes
 from src.workflow import DEFAULT_SELECTED_TASK_IDS, WorkflowState, run_workflow_from_pdf
@@ -215,19 +216,80 @@ def _task_title(task_id: str) -> str:
     return task_id
 
 
-def format_task_section_markdown(
-    task_id: str, task_result: TaskResult | None, report: AnomalyReport | None
-) -> str:
-    """Markdown body for one selected task's own expandable results section.
+_FINDINGS_BACKGROUND_COLORS = {
+    "high": "#f8d7da",
+    "medium": "#fff3cd",
+    "low": "#d1ecf1",
+    "clean": "#d4edda",
+}
 
-    `burn_cost_check` is special-cased to reuse format_report_markdown()'s
-    exact output (treaty terms, loss ratio, findings) since it's the only
-    task that populates `report` today (see S3's decision in REASONING.md).
-    Every other task renders generically from its own TaskResult, since
-    that's all a future domain task will ever populate.
+
+def _findings_bullets_markdown(findings: list[AnomalyFinding]) -> str:
+    """Bulleted findings list (icon + severity + description), or a
+    "no anomalies" line when empty -- shared by every place findings are
+    listed (a task's own section, the final Findings Summary).
+    """
+    if not findings:
+        return "No anomalies found."
+    lines = []
+    for finding in findings:
+        icon = SEVERITY_ICONS.get(finding.severity, "")
+        lines.append(f"- {icon} **[{finding.severity.upper()}]** {finding.description}")
+    return "\n".join(lines)
+
+
+def _findings_heading_and_bullets_markdown(findings: list[AnomalyFinding]) -> str:
+    """Plain "### Findings (N)" heading + bullets, no coloring/HTML -- used
+    on screen (colored natively via Streamlit containers instead, see
+    _SEVERITY_STREAMLIT_CONTAINERS) and as the base for the saved file's
+    colored version (_wrap_findings_block()).
+    """
+    return f"### Findings ({len(findings)})\n{_findings_bullets_markdown(findings)}"
+
+
+def _wrap_findings_block(findings: list[AnomalyFinding]) -> str:
+    """The Findings block wrapped in an HTML div with a severity-colored
+    background (via highest_severity_label()), for the saved file ONLY.
+    Never render this through st.markdown() on screen -- Streamlit doesn't
+    render raw HTML by default (correctly: treaty-derived text elsewhere
+    on the page comes from an uploaded PDF the extractor doesn't sanitize,
+    so enabling unsafe_allow_html would be a stored-HTML-injection risk).
+    A saved/downloaded file has no such risk (fpdf2 treats these markers as
+    plain text cues, never executes them; a Markdown viewer either renders
+    the div or safely ignores it).
+    """
+    color = _FINDINGS_BACKGROUND_COLORS[highest_severity_label(findings)]
+    body = _findings_heading_and_bullets_markdown(findings)
+    return f'<div style="background-color:{color}; border-radius:6px; padding:10px 16px; margin:8px 0;">\n\n{body}\n\n</div>'
+
+
+def _task_section_content(
+    task_id: str,
+    task_result: TaskResult | None,
+    report: AnomalyReport | None,
+    findings_markdown: Callable[[list[AnomalyFinding]], str],
+) -> str:
+    """Shared body for one task's results section (results only -- no
+    treaty terms, which are shared across every task): Cost/Latency (when
+    available) + Loss ratio (burn_cost_check only) + findings, with the
+    findings portion rendered by `findings_markdown` -- plain for on-screen
+    use (format_task_section_markdown()), HTML-colored for the saved file
+    (_format_task_section_markdown_for_file()).
+
+    `burn_cost_check` is special-cased since it's the only task that
+    populates `report` today (see S3's decision in REASONING.md); it still
+    shows its own Cost/Latency line from `task_result`, exactly like every
+    other task, since burn_cost_check_node always returns one when it runs.
     """
     if task_id == "burn_cost_check" and report is not None:
-        return format_report_markdown(report)
+        lines = []
+        if task_result is not None:
+            lines.append(f"**Cost:** ${task_result.cost:,.4f}  ·  **Latency:** {task_result.latency:.2f}s")
+            lines.append("")
+        lines.append(f"### Loss ratio: {report.loss_ratio:.2f}")
+        lines.append("")
+        lines.append(findings_markdown(report.findings))
+        return "\n".join(lines)
 
     if task_result is None:
         implemented_ids = {t.id for t in DOMAIN_TASKS if t.implementation_status == "implemented"}
@@ -238,37 +300,92 @@ def format_task_section_markdown(
     if task_result.status != "ran":
         return f"_{task_result.status}._"
 
-    lines = [f"**Cost:** ${task_result.cost:,.4f}  ·  **Latency:** {task_result.latency:.2f}s"]
-    lines.append(f"\n### Findings ({len(task_result.findings)})")
-    if not task_result.findings:
-        lines.append("No anomalies found.")
-    else:
-        for finding in task_result.findings:
-            icon = SEVERITY_ICONS.get(finding.severity, "")
-            lines.append(f"- {icon} **[{finding.severity.upper()}]** {finding.description}")
+    lines = [f"**Cost:** ${task_result.cost:,.4f}  ·  **Latency:** {task_result.latency:.2f}s", ""]
+    lines.append(findings_markdown(task_result.findings))
     return "\n".join(lines)
 
 
-def format_combined_results_summary(selected_task_ids: set[str], task_results: dict[str, TaskResult]) -> str:
+def format_task_section_markdown(
+    task_id: str, task_result: TaskResult | None, report: AnomalyReport | None
+) -> str:
+    """Plain Markdown body for one selected task's own expandable results
+    section -- no HTML/coloring (see _task_findings_for_severity() for how
+    the on-screen view applies color natively instead).
+    """
+    return _task_section_content(task_id, task_result, report, _findings_heading_and_bullets_markdown)
+
+
+def _format_task_section_markdown_for_file(
+    task_id: str, task_result: TaskResult | None, report: AnomalyReport | None
+) -> str:
+    """Same content as format_task_section_markdown(), but with the
+    Findings block wrapped in a severity-colored HTML div -- for the saved
+    file only (format_results_document()).
+    """
+    return _task_section_content(task_id, task_result, report, _wrap_findings_block)
+
+
+def _task_findings_for_severity(
+    task_id: str, task_result: TaskResult | None, report: AnomalyReport | None
+) -> list[AnomalyFinding] | None:
+    """The findings to color a task's on-screen section by, or None if the
+    task didn't actually run (skipped/failed/not-implemented sections are
+    shown plain, with no severity to color by).
+    """
+    if task_id == "burn_cost_check" and report is not None:
+        return report.findings
+    if task_result is not None and task_result.status == "ran":
+        return task_result.findings
+    return None
+
+
+_SEVERITY_STREAMLIT_CONTAINERS = {
+    "high": st.error,
+    "medium": st.warning,
+    "low": st.info,
+    "clean": st.success,
+}
+
+
+def format_combined_results_summary(
+    selected_task_ids: set[str], task_results: dict[str, TaskResult], extraction_cost: float = 0.0
+) -> str:
     """Combined header shown above the per-task results sections: aggregate
     findings/cost across every task that ran, plus which selected tasks were
     skipped and why (not implemented, or extraction never reached them).
+
+    extraction_cost (default 0.0, additive) folds in the LLM Extraction
+    Fallback's real cost when it ran (see extract_llm_actual_cost()) -- a
+    shared pipeline cost, not any one task's own, but still part of what
+    this run actually cost.
     """
     implemented_ids = {t.id for t in DOMAIN_TASKS if t.implementation_status == "implemented"}
     total_findings = 0
-    total_cost = 0.0
+    tasks_cost = 0.0
     skipped_lines = []
     for task_id in sorted(selected_task_ids):
         result = task_results.get(task_id)
         if result is not None and result.status == "ran":
             total_findings += len(result.findings)
-            total_cost += result.cost
+            tasks_cost += result.cost
         elif task_id not in implemented_ids:
             skipped_lines.append(f"- **{_task_title(task_id)}**: not implemented yet")
         else:
             skipped_lines.append(f"- **{_task_title(task_id)}**: did not run (extraction incomplete)")
 
-    lines = [f"**{total_findings} finding(s)** across selected task(s) · **${total_cost:,.4f}** total actual cost"]
+    total_cost = tasks_cost + extraction_cost
+    # "\$" (not a bare "$") -- Streamlit's st.markdown() renders $...$ as
+    # inline LaTeX math, and this line can have multiple "$" signs (three
+    # in the breakdown case), which would otherwise pair up and switch part
+    # of the line to a math-mode font instead of rendering as plain text.
+    if extraction_cost:
+        # Named breakdown, not just the final number -- the total otherwise
+        # looks inconsistent with the per-task Cost lines shown below it,
+        # since none of them include this shared, not-any-one-task's-own cost.
+        cost_text = f"\\${tasks_cost:,.4f} (tasks) + \\${extraction_cost:,.4f} (extraction) = \\${total_cost:,.4f}"
+    else:
+        cost_text = f"\\${total_cost:,.4f}"
+    lines = [f"**{total_findings} finding(s) across selected task(s) · {cost_text} total actual cost**"]
     if skipped_lines:
         lines.append("")
         lines.append("**Skipped:**")
@@ -276,8 +393,31 @@ def format_combined_results_summary(selected_task_ids: set[str], task_results: d
     return "\n".join(lines)
 
 
-def format_report_markdown(report: AnomalyReport) -> str:
-    """Render an AnomalyReport as a Markdown string, with page citations."""
+def format_findings_summary(selected_task_ids: set[str], task_results: dict[str, TaskResult], report: AnomalyReport) -> str:
+    """Final "Findings Summary" section for the saved report: every task
+    that actually ran, listed again under its own heading with its findings
+    repeated -- a scannable recap after reading each task's own section.
+    Skipped/not-run tasks aren't repeated here; format_combined_results_
+    summary()'s "Skipped" list already covers those.
+    """
+    lines = ["# Findings Summary"]
+    for task_id in sorted(selected_task_ids):
+        if task_id == "burn_cost_check":
+            findings = report.findings
+        else:
+            result = task_results.get(task_id)
+            if result is None or result.status != "ran":
+                continue
+            findings = result.findings
+        lines.append(f"\n## {_task_title(task_id)}")
+        lines.append(_findings_bullets_markdown(findings))
+    return "\n".join(lines)
+
+
+def format_treaty_terms_markdown(report: AnomalyReport) -> str:
+    """Shared treaty terms block, rendered once regardless of how many
+    tasks ran on it -- every selected task analyzes this same treaty.
+    """
     treaty = report.treaty
     citations = treaty.page_citations
 
@@ -286,24 +426,24 @@ def format_report_markdown(report: AnomalyReport) -> str:
         return f" _(p. {page})_" if page is not None else ""
 
     lines = [
-        f"### Treaty: {treaty.cedent_name}{cite('cedent_name')}",
+        f"## Treaty: {treaty.cedent_name}{cite('cedent_name')}",
         f"- **Attachment point:** {treaty.attachment_point:,.2f}{cite('attachment_point')}",
         f"- **Limit:** {treaty.limit:,.2f}{cite('limit')}",
         f"- **Reinsurance premium:** {treaty.reinsurance_premium:,.2f}{cite('reinsurance_premium')}",
     ]
     if treaty.exclusions:
         lines.append(f"- **Exclusions**{cite('exclusions')}: {', '.join(treaty.exclusions)}")
-
-    lines.append(f"\n### Loss ratio: {report.loss_ratio:.2f}")
-    lines.append(f"\n### Findings ({len(report.findings)})")
-    if not report.findings:
-        lines.append("No anomalies found.")
-    else:
-        for finding in report.findings:
-            icon = SEVERITY_ICONS.get(finding.severity, "")
-            lines.append(f"- {icon} **[{finding.severity.upper()}]** {finding.description}")
-
     return "\n".join(lines)
+
+
+def format_report_markdown(report: AnomalyReport) -> str:
+    """Render an AnomalyReport as a Markdown string: treaty terms, loss
+    ratio, and findings. Kept as a single-report convenience combining
+    format_treaty_terms_markdown() with burn_cost_check's own results --
+    the multi-task saved-file path (format_results_document) renders the
+    treaty separately instead, since every selected task shares it.
+    """
+    return f"{format_treaty_terms_markdown(report)}\n\n{format_task_section_markdown('burn_cost_check', None, report)}"
 
 
 def slugify_treaty_name(name: str, max_length: int = 40) -> str:
@@ -335,6 +475,33 @@ def extract_llm_usage_summary(log_lines: list[str] | None) -> str | None:
     return None
 
 
+def extract_llm_actual_cost(log_lines: list[str] | None) -> float | None:
+    """The LLM Extraction Fallback's real dollar cost for this run (via
+    actual_task_cost()), or None if the LLM wasn't invoked -- this is a
+    shared pipeline cost, not attributable to any one selected domain
+    task's own TaskResult (every selected task benefits from the same
+    one-time extraction), so it's surfaced separately rather than folded
+    into any task's own Cost figure.
+    """
+    for line in log_lines or []:
+        match = _LLM_USAGE_RE.search(line)
+        if match:
+            input_tokens, output_tokens = (int(group) for group in match.groups())
+            return actual_task_cost(input_tokens, output_tokens)
+    return None
+
+
+def format_extraction_cost_note(log_lines: list[str] | None) -> str | None:
+    """A one-line note reporting the LLM Extraction Fallback's real dollar
+    cost, or None if the LLM wasn't invoked for this run (regex found
+    everything, so there's no extraction cost to report).
+    """
+    cost = extract_llm_actual_cost(log_lines)
+    if cost is None:
+        return None
+    return f"Extraction: LLM Fallback used (${cost:,.4f})"
+
+
 def results_subdirectory(report: AnomalyReport, base: Path = DEFAULT_RESULTS_DIR) -> Path:
     """The per-treaty subdirectory saved results for this cedent are organized under."""
     return base / slugify_treaty_name(report.treaty.cedent_name)
@@ -352,66 +519,181 @@ def format_results_filename(report: AnomalyReport, extension: str, when: datetim
 
 
 def format_results_document(
-    report: AnomalyReport, log_lines: list[str] | None = None, when: datetime | None = None
+    report: AnomalyReport,
+    log_lines: list[str] | None = None,
+    when: datetime | None = None,
+    selected_task_ids: set[str] | None = None,
+    task_results: dict[str, TaskResult] | None = None,
 ) -> str:
-    """format_report_markdown's content, for a saved/downloaded file: prefixed
-    with an "Analysis Results" header (matching the on-screen container's own
-    title), the run's generation timestamp, and (only if the LLM Extraction
-    Fallback actually ran) its token usage -- none of these three are part of
-    the on-screen report itself, which describes the treaty, not this run.
+    """A saved/downloaded "final report" for this run: title, generation
+    timestamp, (only if the LLM Extraction Fallback actually ran) its token
+    usage, treaty terms, results, and -- when multiple tasks were run -- a
+    closing Findings Summary. None of the run metadata is part of the
+    on-screen report itself, which describes the treaty, not this run.
+
+    selected_task_ids/task_results are optional and additive: when omitted
+    (the default), renders exactly today's single format_report_markdown()
+    output (treaty + burn_cost_check's results combined, no section rules
+    or Findings Summary). When provided, renders "Analysis Results" as the
+    top-level heading, treaty terms in their own shared section (every
+    selected task analyzes the same treaty, not just one), the combined
+    summary, one `##`-level section per selected task (severity-colored
+    Findings), and a final Findings Summary recapping every ran task's
+    findings -- sections separated by horizontal rules, styled like a
+    finished report rather than a flat dump.
     """
     timestamp = (when or datetime.now()).strftime("%Y-%m-%d %H:%M:%S")
-    lines = ["## Analysis Results", f"Generated: {timestamp}"]
+    lines = ["# Analysis Results" if selected_task_ids is not None else "## Analysis Results", f"Generated: {timestamp}"]
     llm_usage = extract_llm_usage_summary(log_lines)
     if llm_usage:
         lines.append(f"LLM usage: {llm_usage}")
     lines.append("")
-    lines.append(format_report_markdown(report))
+    if selected_task_ids is None:
+        lines.append(format_report_markdown(report))
+    else:
+        task_results = task_results or {}
+        extraction_cost = extract_llm_actual_cost(log_lines)
+        lines.append("---")
+        lines.append("")
+        lines.append(format_treaty_terms_markdown(report))
+        extraction_note = format_extraction_cost_note(log_lines)
+        if extraction_note:
+            lines.append("")
+            lines.append(extraction_note)
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+        lines.append(
+            format_combined_results_summary(selected_task_ids, task_results, extraction_cost=extraction_cost or 0.0)
+        )
+        for task_id in sorted(selected_task_ids):
+            lines.append("")
+            lines.append("---")
+            lines.append("")
+            lines.append(f"## {_task_title(task_id)}")
+            lines.append("")
+            lines.append(_format_task_section_markdown_for_file(task_id, task_results.get(task_id), report))
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+        lines.append(format_findings_summary(selected_task_ids, task_results, report))
     return "\n".join(lines)
 
 
-def render_report_pdf(report: AnomalyReport, log_lines: list[str] | None = None, when: datetime | None = None) -> bytes:
+_PDF_HEADING_FONT_SIZES = {1: 16, 2: 14, 3: 12}
+_DIV_BACKGROUND_COLOR_RE = re.compile(r'<div style="background-color:(#[0-9a-fA-F]{6})[^"]*">')
+
+# fpdf2's core fonts (Helvetica etc.) are base-14 Latin-1-only, so the color
+# severity emoji (SEVERITY_ICONS) never survived PDF rendering. DejaVu Sans
+# (bundled under assets/fonts/, Bitstream Vera license -- redistributable)
+# is a real Unicode TTF, but even it has no glyph for the astral/color
+# emoji SEVERITY_ICONS uses (🚨 etc. are outside what any general-purpose
+# non-color-emoji font includes) -- substitute plain Unicode symbols DejaVu
+# does contain (verified via fontTools before choosing these) instead.
+_FONTS_DIR = Path(__file__).resolve().parent.parent / "assets" / "fonts"
+_DEJAVU_REGULAR_PATH = _FONTS_DIR / "DejaVuSans.ttf"
+_DEJAVU_BOLD_PATH = _FONTS_DIR / "DejaVuSans-Bold.ttf"
+_PDF_SEVERITY_SYMBOLS = {"low": "ℹ", "medium": "⚠", "high": "‼"}
+_EMOJI_TO_PDF_SYMBOL = {SEVERITY_ICONS[severity]: symbol for severity, symbol in _PDF_SEVERITY_SYMBOLS.items()}
+
+
+def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
+    hex_color = hex_color.lstrip("#")
+    return (int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16))
+
+
+def render_report_pdf(
+    report: AnomalyReport,
+    log_lines: list[str] | None = None,
+    when: datetime | None = None,
+    selected_task_ids: set[str] | None = None,
+    task_results: dict[str, TaskResult] | None = None,
+) -> bytes:
     """Render an AnomalyReport as PDF bytes, mirroring format_results_document's content.
 
-    Uses fpdf2's core (Latin-1-only) fonts, so this strips Markdown syntax
-    and drops any character that can't be encoded (e.g. the severity emoji)
-    rather than crashing -- the `[HIGH]`/`[MEDIUM]`/`[LOW]` label already
-    carries that information in plain text.
+    Uses the bundled DejaVu Sans (a real Unicode TTF, not fpdf2's Latin-1-only
+    core fonts) so severity symbols survive -- SEVERITY_ICONS' color emoji are
+    substituted for plain Unicode equivalents DejaVu actually contains
+    (_EMOJI_TO_PDF_SYMBOL), since no general-purpose font includes true
+    color/astral emoji glyphs. Heading levels (#/##/###) get genuinely
+    different font sizes (not one flat "heading" size), a literal `---` line
+    is drawn as a real horizontal rule, and the HTML
+    `<div style="background-color:...">`/`</div>` markers around a Findings
+    block toggle a filled cell background matching format_results_document's
+    Markdown styling.
     """
     pdf = FPDF()
+    pdf.add_font("DejaVu", "", str(_DEJAVU_REGULAR_PATH))
+    pdf.add_font("DejaVu", "B", str(_DEJAVU_BOLD_PATH))
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
 
-    for raw_line in format_results_document(report, log_lines=log_lines, when=when).split("\n"):
+    document = format_results_document(
+        report,
+        log_lines=log_lines,
+        when=when,
+        selected_task_ids=selected_task_ids,
+        task_results=task_results,
+    )
+    fill_color: tuple[int, int, int] | None = None
+    for raw_line in document.split("\n"):
         line = raw_line.strip()
         if not line:
             pdf.ln(4)
             continue
-        is_heading = line.startswith("#")
+        if line == "---":
+            pdf.ln(2)
+            pdf.set_draw_color(180, 180, 180)
+            pdf.line(pdf.l_margin, pdf.get_y(), pdf.w - pdf.r_margin, pdf.get_y())
+            pdf.ln(4)
+            continue
+        div_match = _DIV_BACKGROUND_COLOR_RE.match(line)
+        if div_match:
+            fill_color = _hex_to_rgb(div_match.group(1))
+            continue
+        if line == "</div>":
+            fill_color = None
+            continue
+
+        heading_match = re.match(r"^(#+)\s*", line)
+        heading_level = len(heading_match.group(1)) if heading_match else 0
         line = re.sub(r"^#+\s*", "", line)
         line = line.replace("**", "")
         line = line.replace("_(", "(").replace(")_", ")")
-        line = line.encode("latin-1", "ignore").decode("latin-1")
+        for emoji, symbol in _EMOJI_TO_PDF_SYMBOL.items():
+            line = line.replace(emoji, symbol)
         line = re.sub(r"\s+", " ", line).strip()
         if not line:
             continue
-        pdf.set_font("Helvetica", style="B" if is_heading else "", size=13 if is_heading else 11)
+        size = _PDF_HEADING_FONT_SIZES.get(heading_level, 11)
+        pdf.set_font("DejaVu", style="B" if heading_level else "", size=size)
+        if fill_color is not None:
+            pdf.set_fill_color(*fill_color)
         # multi_cell defaults to leaving the cursor at the right edge of the
         # last rendered line (new_x="RIGHT") rather than the next line's left
         # margin -- without resetting it, the next call gets ~0 width and
         # raises "Not enough horizontal space to render a single character".
-        pdf.multi_cell(0, 7, line, new_x="LMARGIN", new_y="NEXT")
+        pdf.multi_cell(0, 7, line, new_x="LMARGIN", new_y="NEXT", fill=fill_color is not None)
 
     return bytes(pdf.output())
 
 
 def render_report_bytes(
-    report: AnomalyReport, extension: str, log_lines: list[str] | None = None, when: datetime | None = None
+    report: AnomalyReport,
+    extension: str,
+    log_lines: list[str] | None = None,
+    when: datetime | None = None,
+    selected_task_ids: set[str] | None = None,
+    task_results: dict[str, TaskResult] | None = None,
 ) -> bytes:
     """Render report as bytes in the given format ("md" or "pdf")."""
     if extension == "pdf":
-        return render_report_pdf(report, log_lines=log_lines, when=when)
-    return format_results_document(report, log_lines=log_lines, when=when).encode("utf-8")
+        return render_report_pdf(
+            report, log_lines=log_lines, when=when, selected_task_ids=selected_task_ids, task_results=task_results
+        )
+    return format_results_document(
+        report, log_lines=log_lines, when=when, selected_task_ids=selected_task_ids, task_results=task_results
+    ).encode("utf-8")
 
 
 def save_analysis_result_to_file(
@@ -420,6 +702,8 @@ def save_analysis_result_to_file(
     log_lines: list[str] | None = None,
     directory: Path = DEFAULT_RESULTS_DIR,
     when: datetime | None = None,
+    selected_task_ids: set[str] | None = None,
+    task_results: dict[str, TaskResult] | None = None,
 ) -> Path:
     """Write report to a new timestamped file (under a per-treaty subdirectory
     of directory) in the given format, returning its path.
@@ -428,7 +712,16 @@ def save_analysis_result_to_file(
     target_dir = results_subdirectory(report, directory)
     target_dir.mkdir(parents=True, exist_ok=True)
     path = target_dir / format_results_filename(report, extension, when=when)
-    path.write_bytes(render_report_bytes(report, extension, log_lines=log_lines, when=when))
+    path.write_bytes(
+        render_report_bytes(
+            report,
+            extension,
+            log_lines=log_lines,
+            when=when,
+            selected_task_ids=selected_task_ids,
+            task_results=task_results,
+        )
+    )
     return path
 
 
@@ -686,10 +979,25 @@ def main() -> None:
                         f"values before relying on this report."
                     )
                 task_results: dict[str, TaskResult] = state.get("task_results", {})
-                st.markdown(format_combined_results_summary(result_selected_task_ids, task_results))
+                st.markdown(format_treaty_terms_markdown(report))
+                extraction_cost = extract_llm_actual_cost(log_lines)
+                extraction_note = format_extraction_cost_note(log_lines)
+                if extraction_note:
+                    st.caption(extraction_note)
+                st.markdown(
+                    format_combined_results_summary(
+                        result_selected_task_ids, task_results, extraction_cost=extraction_cost or 0.0
+                    )
+                )
                 for task_id in sorted(result_selected_task_ids):
                     with st.expander(_task_title(task_id), expanded=True):
-                        st.markdown(format_task_section_markdown(task_id, task_results.get(task_id), report))
+                        task_result = task_results.get(task_id)
+                        section_markdown = format_task_section_markdown(task_id, task_result, report)
+                        findings = _task_findings_for_severity(task_id, task_result, report)
+                        if findings is None:
+                            st.markdown(section_markdown)
+                        else:
+                            _SEVERITY_STREAMLIT_CONTAINERS[highest_severity_label(findings)](section_markdown)
 
                 format_choice = st.radio(
                     "Result file format",
@@ -702,7 +1010,13 @@ def main() -> None:
                 save_col, download_col = st.columns(2)
                 with save_col:
                     if st.button("Save analysis results", icon=":material/save:"):
-                        saved_path = save_analysis_result_to_file(report, extension, log_lines=log_lines)
+                        saved_path = save_analysis_result_to_file(
+                            report,
+                            extension,
+                            log_lines=log_lines,
+                            selected_task_ids=result_selected_task_ids,
+                            task_results=task_results,
+                        )
                         st.success(f"Saved analysis results to {saved_path}.")
                 with download_col:
                     # Streamlit Community Cloud's filesystem is ephemeral and
@@ -715,7 +1029,14 @@ def main() -> None:
                     download_when = datetime.now()
                     st.download_button(
                         "Download analysis results",
-                        data=render_report_bytes(report, extension, log_lines=log_lines, when=download_when),
+                        data=render_report_bytes(
+                            report,
+                            extension,
+                            log_lines=log_lines,
+                            when=download_when,
+                            selected_task_ids=result_selected_task_ids,
+                            task_results=task_results,
+                        ),
                         file_name=format_results_filename(report, extension, when=download_when),
                         mime="application/pdf" if extension == "pdf" else "text/markdown",
                         icon=":material/download:",

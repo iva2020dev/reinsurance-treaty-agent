@@ -36,7 +36,13 @@ DOMAIN_TASKS: list[DomainTask] = [
         title="Burn-Cost Check",
         candidate_id="B0",
         implementation_status="implemented",
-        shape="hybrid",
+        # Deterministic: burn_cost_check_node itself only does arithmetic
+        # (calculate_loss_ratio + threshold checks) on already-extracted
+        # data -- it never calls an LLM. The shared upstream extraction
+        # pipeline can fall back to an LLM, but that's not this task's own
+        # behavior; estimate_task_cost() must match what this node actually
+        # does, not the pipeline it happens to run after.
+        shape="deterministic",
         workflow_node="burn_cost_check_node",
     ),
     DomainTask(

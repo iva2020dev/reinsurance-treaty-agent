@@ -11,16 +11,22 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 from src.app import (
+    _task_title,
+    _wrap_findings_block,
     analyze_uploaded_pdf,
+    extract_llm_actual_cost,
     extract_llm_usage_summary,
     format_combined_results_summary,
+    format_extraction_cost_note,
     format_extraction_status,
+    format_findings_summary,
     format_log_header,
     format_multi_task_status,
     format_report_markdown,
     format_results_document,
     format_results_filename,
     format_task_section_markdown,
+    format_treaty_terms_markdown,
     highest_severity_label,
     render_report_bytes,
     render_report_pdf,
@@ -30,6 +36,7 @@ from src.app import (
     serialize_state_for_debug,
     slugify_treaty_name,
 )
+from src.cost_estimation import actual_task_cost
 from src.domain_tasks import DOMAIN_TASKS
 from src.models import AnomalyFinding, AnomalyReport, ClaimsData, Severity, TaskResult, TreatyTerms
 from src.parser import ParserError
@@ -43,6 +50,20 @@ def _click_button(at: AppTest, label: str) -> AppTest:
     """Click the first button with the given label and rerun."""
     button = next(b for b in at.button if b.label == label)
     return button.click().run()
+
+
+def _all_rendered_text(at: AppTest) -> str:
+    """Every bit of rendered text that could plausibly contain results
+    content: plain markdown plus the four severity-colored native
+    containers (_SEVERITY_STREAMLIT_CONTAINERS) a task's own section might
+    be wrapped in instead of plain st.markdown.
+    """
+    parts = [m.value for m in at.markdown]
+    parts += [e.value for e in at.error]
+    parts += [w.value for w in at.warning]
+    parts += [i.value for i in at.info]
+    parts += [s.value for s in at.success]
+    return "\n".join(parts)
 
 
 def _upload_and_click_analyze(at: AppTest, filename: str, file_bytes: bytes) -> AppTest:
@@ -218,7 +239,7 @@ def test_app_total_estimated_cost_value_aligns_under_the_per_task_value_column()
     total_columns = list(total_cost_row.children.values())
     assert len(total_columns) == 2
     assert list(total_columns[0].children.values())[0].value == "**Total estimated cost:**"
-    assert list(total_columns[1].children.values())[0].value == "**$0.0010**"
+    assert list(total_columns[1].children.values())[0].value == "**$0.0000**"
 
     task_row = next(
         block
@@ -240,17 +261,18 @@ def test_app_total_estimated_cost_always_visible_even_with_nothing_selected():
     at = AppTest.from_file("../src/app.py")
     at.run()
 
-    # Burn-Cost Check defaults to checked, so the total starts nonzero --
-    # confirms the caption is present even before any user interaction.
+    # Confirms the caption is present even before any user interaction
+    # (Burn-Cost Check defaults to checked, but is deterministic -- no LLM
+    # call -- so its estimate is $0.0000 both before and after unchecking).
     captions = [c.value for c in at.caption]
     assert "**Total estimated cost:**" in captions
-    assert "**$0.0010**" in captions
+    assert "**$0.0000**" in captions
 
     burn_cost_checkbox = next(c for c in at.checkbox if c.label == "Burn-Cost Check")
     at = burn_cost_checkbox.uncheck().run()
 
     # With nothing selected, the line stays visible rather than
-    # disappearing -- only its value drops to $0.0000.
+    # disappearing.
     captions = [c.value for c in at.caption]
     assert "**Total estimated cost:**" in captions
     assert "**$0.0000**" in captions
@@ -286,15 +308,15 @@ def test_app_burn_cost_check_defaults_checked_and_shows_cost_estimate():
 
     burn_cost_checkbox = next(c for c in at.checkbox if c.label == "Burn-Cost Check")
     assert burn_cost_checkbox.value is True
-    # B0 is hybrid-shaped, so estimate_task_cost() includes the fixed
-    # output-token estimate even with no document selected (page_count=0).
-    # Label and value are separate captions (own columns), so check both
-    # are present rather than one combined string.
+    # B0 is deterministic-shaped (pure arithmetic, no LLM call), so its
+    # estimate is always $0.0000, matching its real actual cost. Label and
+    # value are separate captions (own columns), so check both are present
+    # rather than one combined string.
     captions = [c.value for c in at.caption]
     assert "Estimated cost:" in captions
-    assert "$0.0010" in captions
+    assert "$0.0000" in captions
     assert "**Total estimated cost:**" in captions
-    assert "**$0.0010**" in captions
+    assert "**$0.0000**" in captions
 
 
 def test_app_analyze_disabled_when_no_task_is_selected():
@@ -315,9 +337,31 @@ def test_app_analyze_disabled_when_no_task_is_selected():
     assert analyze_button.disabled
 
 
-def test_app_cost_estimate_increases_with_a_larger_selected_document():
+def test_app_cost_estimate_increases_with_a_larger_selected_document(monkeypatch):
+    """Neither real implemented task today is llm/hybrid-shaped (both
+    Burn-Cost Check and the exclusion checklist are pure arithmetic/keyword
+    matching, $0.0000 regardless of document size) -- monkeypatch a
+    synthetic llm-shaped task, explicitly checked, to exercise
+    estimate_task_cost()'s real page-count scaling.
+    """
+    from src.domain_tasks import DomainTask
+
+    llm_shaped_tasks = list(DOMAIN_TASKS) + [
+        DomainTask(
+            id="synthetic_llm_task",
+            title="Synthetic LLM Task",
+            candidate_id="SYNTHETIC",
+            implementation_status="implemented",
+            shape="llm",
+            workflow_node="_synthetic_llm_task_node",
+        )
+    ]
+    monkeypatch.setattr("src.domain_tasks.DOMAIN_TASKS", llm_shaped_tasks)
+
     at = AppTest.from_file("../src/app.py")
     at.run()
+    synthetic_checkbox = next(c for c in at.checkbox if c.label == "Synthetic LLM Task")
+    at = synthetic_checkbox.check().run()
 
     with open(MINIMAL_TREATY_PATH, "rb") as f:
         at.file_uploader[0].set_value([("sample_treaty.pdf", f.read(), "application/pdf")])
@@ -348,6 +392,68 @@ def test_app_upload_and_render_success():
     assert not at.exception
     markdown_text = "\n".join(m.value for m in at.markdown)
     assert "Acme Insurance Co." in markdown_text
+
+
+def test_app_shows_treaty_terms_as_their_own_shared_section_on_screen():
+    """Treaty terms are rendered once, on their own, above the per-task
+    expanders -- not only inside burn_cost_check's section, since every
+    selected task analyzes the same treaty (format_task_section_markdown()
+    no longer includes treaty terms in any task's own section).
+    """
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    with open(MINIMAL_TREATY_PATH, "rb") as f:
+        at = _upload_and_click_analyze(at, "sample_treaty.pdf", f.read())
+
+    assert not at.exception
+    markdown_text = "\n".join(m.value for m in at.markdown)
+    assert "## Treaty: Acme Insurance Co." in markdown_text
+    burn_cost_section = next(e for e in at.expander if e.label == "Burn-Cost Check")
+    assert "Treaty:" not in burn_cost_section.success[0].value
+
+
+def test_app_burn_cost_check_section_shows_cost_and_latency_like_every_other_task():
+    """Burn-Cost Check's own section shows "Cost: $X * Latency: Ys" just
+    like every other task's section -- it has a real TaskResult with these
+    values, so it shouldn't be the one section that omits them.
+    """
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    with open(MINIMAL_TREATY_PATH, "rb") as f:
+        at = _upload_and_click_analyze(at, "sample_treaty.pdf", f.read())
+
+    assert not at.exception
+    burn_cost_section = next(e for e in at.expander if e.label == "Burn-Cost Check")
+    section_text = burn_cost_section.success[0].value
+    assert "Cost:" in section_text
+    assert "Latency:" in section_text
+
+
+def test_app_findings_section_never_shows_raw_html_on_screen():
+    """The Findings block's severity coloring is applied via a native
+    Streamlit container (st.success/info/warning/error), never a raw HTML
+    <div> -- st.markdown() doesn't render unsafe HTML by default, and this
+    content includes user-uploaded-PDF-derived text elsewhere on the page,
+    so raw HTML must never leak into any rendered text as literal markup.
+    """
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    with open(MINIMAL_TREATY_PATH, "rb") as f:
+        at = _upload_and_click_analyze(at, "sample_treaty.pdf", f.read())
+
+    assert not at.exception
+    rendered_text = _all_rendered_text(at)
+    assert "<div" not in rendered_text
+    assert "</div>" not in rendered_text
+    assert "style=" not in rendered_text
+    # Burn-Cost Check has 0 findings here -- a "clean" severity, rendered
+    # via st.success (a green box), not plain st.markdown.
+    burn_cost_section = next(e for e in at.expander if e.label == "Burn-Cost Check")
+    assert len(burn_cost_section.success) == 1
+    assert len(burn_cost_section.markdown) == 0
 
 
 def test_app_results_ui_shows_one_section_per_task_and_combined_header_for_two_implemented_tasks(monkeypatch):
@@ -421,12 +527,15 @@ def test_app_results_ui_shows_one_section_per_task_and_combined_header_for_two_i
     assert "Burn-Cost Check" in labels
     assert "Second Task" in labels
 
-    markdown_text = "\n".join(m.value for m in at.markdown)
-    assert "second task finding" in markdown_text
+    # "second task finding" is a LOW-severity finding, rendered via
+    # st.info() instead of plain st.markdown() (severity-colored on-screen
+    # containers, not raw HTML) -- check across all of them.
+    rendered_text = _all_rendered_text(at)
+    assert "second task finding" in rendered_text
     # Combined header: 0 burn_cost_check findings + 1 second_task finding.
-    assert "1 finding(s)" in markdown_text
-    assert "$0.0050" in markdown_text
-    assert "Skipped" not in markdown_text
+    assert "1 finding(s)" in rendered_text
+    assert "$0.0050" in rendered_text
+    assert "Skipped" not in rendered_text
 
 
 def test_app_cost_estimate_shown_pre_run_and_actual_cost_round_trips_to_debug_json(monkeypatch):
@@ -815,7 +924,11 @@ def test_format_multi_task_status_failed_task_shows_failed_status():
     assert "- **burn_cost_check**: failed" in status
 
 
-def test_format_task_section_markdown_burn_cost_check_reuses_report_rendering():
+def test_format_task_section_markdown_burn_cost_check_excludes_treaty_terms():
+    """Treaty terms are shared across every selected task (rendered once,
+    separately, by format_treaty_terms_markdown()) -- burn_cost_check's own
+    section shows only its results (loss ratio + findings), not the treaty.
+    """
     report = AnomalyReport(
         treaty=TreatyTerms(
             cedent_name="Acme Insurance Co.",
@@ -830,7 +943,10 @@ def test_format_task_section_markdown_burn_cost_check_reuses_report_rendering():
 
     section = format_task_section_markdown("burn_cost_check", None, report)
 
-    assert section == format_report_markdown(report)
+    assert "Treaty:" not in section
+    assert "Acme Insurance Co." not in section
+    assert "Loss ratio: 0.30" in section
+    assert "No anomalies found." in section
 
 
 def test_format_task_section_markdown_ran_task_shows_its_own_findings_cost_latency():
@@ -935,6 +1051,76 @@ def test_format_combined_results_summary_lists_skipped_tasks_with_reasons(monkey
     assert "- **Second Task**: did not run (extraction incomplete)" in summary
 
 
+def test_format_combined_results_summary_includes_extraction_cost_in_total():
+    """extraction_cost (the LLM Extraction Fallback's real cost, when it
+    ran) is folded into "Total actual cost" -- it's a real part of what
+    this run cost, even though it isn't any one task's own TaskResult.cost.
+    """
+    task_results = {"burn_cost_check": TaskResult(status="ran", findings=[], cost=0.001, latency=0.1)}
+
+    summary = format_combined_results_summary({"burn_cost_check"}, task_results, extraction_cost=0.0008)
+
+    assert "$0.0018" in summary  # 0.001 (task) + 0.0008 (extraction)
+
+
+def test_format_combined_results_summary_shows_a_named_breakdown_when_extraction_cost_is_nonzero():
+    """When extraction_cost > 0, the total isn't just a final number -- it
+    names every term ("$X (tasks) + $Y (extraction) = $Z"), so it's
+    self-evident why the total doesn't equal the sum of the visible
+    per-task Cost lines alone (none of which include this shared cost).
+    """
+    task_results = {
+        "burn_cost_check": TaskResult(status="ran", findings=[], cost=0.0, latency=0.01),
+        "exclusion_completeness_checklist": TaskResult(status="ran", findings=[], cost=0.0, latency=0.02),
+    }
+
+    summary = format_combined_results_summary(
+        {"burn_cost_check", "exclusion_completeness_checklist"}, task_results, extraction_cost=0.0028
+    )
+
+    # "\$" (escaped), not a bare "$" -- avoids Streamlit's st.markdown()
+    # treating $...$ pairs on this line as inline LaTeX math.
+    assert "\\$0.0000 (tasks) + \\$0.0028 (extraction) = \\$0.0028" in summary
+
+
+def test_format_combined_results_summary_stays_plain_when_extraction_cost_is_zero():
+    """The common case (no LLM fallback) keeps today's plain single-number
+    form -- no breakdown needed since there's nothing to explain.
+    """
+    task_results = {"burn_cost_check": TaskResult(status="ran", findings=[], cost=0.001, latency=0.1)}
+
+    summary = format_combined_results_summary({"burn_cost_check"}, task_results)
+
+    assert "$0.0010" in summary
+    assert "(tasks)" not in summary
+    assert "(extraction)" not in summary
+
+
+def test_extract_llm_actual_cost_converts_real_token_usage_to_dollars():
+    log_lines = [
+        "2026-09-11 10:00:00,000 INFO src.workflow: LLM Extraction Fallback: "
+        "extracted treaty terms for cedent X in 0.50s "
+        "(model=claude-haiku-4-5-20251001, input_tokens=500, output_tokens=60)"
+    ]
+
+    cost = extract_llm_actual_cost(log_lines)
+
+    assert cost == pytest.approx(actual_task_cost(500, 60))
+
+
+def test_extract_llm_actual_cost_is_none_when_llm_never_ran():
+    assert extract_llm_actual_cost([]) is None
+    assert extract_llm_actual_cost(["INFO src.workflow: Extractor (Regex): extracted treaty terms"]) is None
+
+
+def test_format_extraction_cost_note_reports_dollar_figure_or_none():
+    log_lines = ["... input_tokens=500, output_tokens=60 ..."]
+
+    assert format_extraction_cost_note([]) is None
+    note = format_extraction_cost_note(log_lines)
+    assert note == f"Extraction: LLM Fallback used (${actual_task_cost(500, 60):,.4f})"
+
+
 def test_app_shows_llm_extraction_fallback_note_and_state_on_success(monkeypatch):
     mock_client = _mock_llm_client(input_data=FUZZY_TREATY_LLM_RESPONSE)
     monkeypatch.setattr("src.llm_client.anthropic.Anthropic", lambda **kwargs: mock_client)
@@ -946,9 +1132,11 @@ def test_app_shows_llm_extraction_fallback_note_and_state_on_success(monkeypatch
 
     assert not at.exception
     assert any("LLM Extraction Fallback" in w.value for w in at.warning)
-    markdown_text = "\n".join(m.value for m in at.markdown)
-    assert "Sentinel Mutual Assurance" in markdown_text
-    assert "0.70" in markdown_text
+    # Loss ratio 0.70 with 1 finding renders inside a severity-colored
+    # container (st.warning, for a MEDIUM finding), not plain st.markdown.
+    rendered_text = _all_rendered_text(at)
+    assert "Sentinel Mutual Assurance" in rendered_text
+    assert "0.70" in rendered_text
 
     debug_state = json.loads(at.json[0].value)
     assert debug_state["extraction_method"] == "llm"
@@ -956,6 +1144,19 @@ def test_app_shows_llm_extraction_fallback_note_and_state_on_success(monkeypatch
     assert debug_state["ungrounded_fields"] == []
     assert not any("could not be verified" in w.value for w in at.warning)
     assert any("LLM Extraction Fallback" in c.value for c in at.caption)
+    # The mocked LLM call's real token usage (500 input, 60 output) is
+    # converted to a dollar figure and shown near the treaty section, and
+    # folded into "Total actual cost" -- not just raw token counts.
+    expected_extraction_cost = actual_task_cost(500, 60)
+    assert any(f"Extraction: LLM Fallback used (${expected_extraction_cost:,.4f})" in c.value for c in at.caption)
+    # And folded into "Total actual cost" as an explicit breakdown (tasks
+    # cost here is $0.0000, since burn_cost_check never calls an LLM
+    # itself) -- the whole line is one consistent bold span.
+    assert (
+        f"**1 finding(s) across selected task(s) · \\$0.0000 (tasks) + "
+        f"\\${expected_extraction_cost:,.4f} (extraction) = "
+        f"\\${expected_extraction_cost:,.4f} total actual cost**" in rendered_text
+    )
 
 
 def test_app_shows_ungrounded_field_warning_when_grounding_check_fails(monkeypatch):
@@ -1075,6 +1276,161 @@ def test_format_results_document_includes_llm_usage_when_present():
     assert "LLM usage: input tokens: 500, output tokens: 60" in doc
 
 
+def test_format_results_document_with_no_selected_task_ids_matches_today_baseline():
+    """Omitting selected_task_ids (the default) renders exactly the same
+    single-report content as before multi-task-results-in-saved-file --
+    additive, not a breaking change to existing callers.
+    """
+    report = _sample_report()
+
+    doc = format_results_document(report, when=datetime(2026, 9, 9, 14, 5, 30))
+
+    assert doc == (
+        "## Analysis Results\nGenerated: 2026-09-09 14:05:30\n\n" + format_report_markdown(report)
+    )
+
+
+def test_format_results_document_includes_every_selected_tasks_results():
+    """Selecting two tasks (one real, one a monkeypatch-free synthetic
+    TaskResult, since format_results_document() doesn't need a real graph
+    run -- just the same selected_task_ids/task_results shape main()
+    passes) renders both tasks' content in the saved document, not just
+    burn_cost_check's report.
+    """
+    report = _sample_report()
+    task_results = {
+        "burn_cost_check": TaskResult(status="ran", findings=report.findings, cost=0.0, latency=0.01),
+        "exclusion_completeness_checklist": TaskResult(
+            status="ran",
+            findings=[
+                AnomalyFinding(
+                    field="exclusions", description="Mandatory exclusion clause not found: cyber.", severity=Severity.MEDIUM
+                )
+            ],
+            cost=0.0,
+            latency=0.02,
+        ),
+    }
+
+    doc = format_results_document(
+        report,
+        when=datetime(2026, 9, 9, 14, 5, 30),
+        selected_task_ids={"burn_cost_check", "exclusion_completeness_checklist"},
+        task_results=task_results,
+    )
+
+    assert "Acme Insurance Co." in doc  # burn_cost_check's report content
+    assert "Mandatory exclusion clause not found: cyber." in doc
+    assert "## Burn-Cost Check" in doc
+    assert "## Mandatory-clause / exclusion completeness checklist" in doc
+    # Treaty is hoisted into its own shared section, not duplicated per task.
+    assert doc.count("Acme Insurance Co.") == 1
+    # Findings Summary recaps both tasks' findings again at the end.
+    assert "# Findings Summary" in doc
+
+
+def test_format_results_document_titled_bigger_than_each_task_section_when_multi_task():
+    """"Analysis Results" is the single h1 (#); each task's own section is
+    one level down (##) -- so it reads as visibly bigger in any Markdown
+    renderer, not just conceptually "first" in the document.
+    """
+    report = _sample_report()
+
+    doc = format_results_document(
+        report,
+        when=datetime(2026, 9, 9, 14, 5, 30),
+        selected_task_ids={"burn_cost_check"},
+        task_results={"burn_cost_check": TaskResult(status="ran", findings=[], cost=0.0, latency=0.01)},
+    )
+
+    assert doc.startswith("# Analysis Results\n")
+    assert "\n## Burn-Cost Check\n" in doc
+    # Never a stray "## Analysis Results" left over from the old heading level.
+    assert "## Analysis Results" not in doc
+
+
+def test_format_results_document_separates_sections_with_horizontal_rules():
+    report = _sample_report()
+
+    doc = format_results_document(
+        report,
+        when=datetime(2026, 9, 9, 14, 5, 30),
+        selected_task_ids={"burn_cost_check"},
+        task_results={"burn_cost_check": TaskResult(status="ran", findings=[], cost=0.0, latency=0.01)},
+    )
+
+    # At least one rule after the header/treaty, one before each task
+    # section, and one before the closing Findings Summary.
+    assert doc.count("\n---\n") >= 3
+
+
+def test_wrap_findings_block_uses_severity_colored_background():
+    high_block = _wrap_findings_block(
+        [AnomalyFinding(field="x", description="bad", severity=Severity.HIGH)]
+    )
+    medium_block = _wrap_findings_block(
+        [AnomalyFinding(field="x", description="meh", severity=Severity.MEDIUM)]
+    )
+    clean_block = _wrap_findings_block([])
+
+    assert "#f8d7da" in high_block
+    assert "#fff3cd" in medium_block
+    assert "#d4edda" in clean_block
+    assert "<div style=" in clean_block and "</div>" in clean_block
+
+
+def test_format_treaty_terms_markdown_renders_terms_with_citations_but_no_findings():
+    report = _sample_report()
+
+    treaty_markdown = format_treaty_terms_markdown(report)
+
+    assert treaty_markdown.startswith("## Treaty: Acme Insurance Co.")
+    assert "(p. 1)" in treaty_markdown
+    assert "Findings" not in treaty_markdown
+    assert "Loss ratio" not in treaty_markdown
+
+
+def test_format_findings_summary_repeats_every_ran_tasks_findings_grouped_by_task():
+    report = _sample_report()
+    task_results = {
+        "burn_cost_check": TaskResult(status="ran", findings=report.findings, cost=0.0, latency=0.01),
+        "exclusion_completeness_checklist": TaskResult(
+            status="ran",
+            findings=[AnomalyFinding(field="exclusions", description="Missing cyber.", severity=Severity.MEDIUM)],
+            cost=0.0,
+            latency=0.02,
+        ),
+    }
+
+    summary = format_findings_summary(
+        {"burn_cost_check", "exclusion_completeness_checklist"}, task_results, report
+    )
+
+    assert summary.startswith("# Findings Summary")
+    assert "## Burn-Cost Check" in summary
+    assert "Losses exceeded the limit." in summary
+    assert "## Mandatory-clause / exclusion completeness checklist" in summary
+    assert "Missing cyber." in summary
+
+
+def test_format_findings_summary_omits_skipped_or_not_run_tasks():
+    """Skipped/not-run tasks are already covered by the combined summary's
+    "Skipped" list -- repeating them again here (with no real findings to
+    show) would just be noise.
+    """
+    report = _sample_report()
+    not_implemented_id = next(t.id for t in DOMAIN_TASKS if t.implementation_status == "not_implemented")
+
+    summary = format_findings_summary(
+        {"burn_cost_check", not_implemented_id},
+        {"burn_cost_check": TaskResult(status="ran", findings=[], cost=0.0, latency=0.01)},
+        report,
+    )
+
+    assert "## Burn-Cost Check" in summary
+    assert _task_title(not_implemented_id) not in summary
+
+
 def test_render_report_pdf_contains_the_reports_text():
     from pypdf import PdfReader
 
@@ -1088,6 +1444,72 @@ def test_render_report_pdf_contains_the_reports_text():
     assert "Acme Insurance Co." in text
     assert "HIGH" in text
     assert "Losses exceeded the limit." in text
+
+
+def test_render_report_pdf_multi_task_renders_findings_summary_and_hides_raw_markers():
+    """The `---` rule markers and `<div style="background-color:...">`/`</div>`
+    Findings-block markers are consumed as PDF styling directives (a real
+    horizontal line, a filled cell background) -- not leaked into the PDF's
+    extracted text as literal characters.
+    """
+    from pypdf import PdfReader
+
+    report = _sample_report()
+    task_results = {
+        "burn_cost_check": TaskResult(status="ran", findings=report.findings, cost=0.0, latency=0.01),
+        "exclusion_completeness_checklist": TaskResult(
+            status="ran",
+            findings=[AnomalyFinding(field="exclusions", description="Missing cyber.", severity=Severity.MEDIUM)],
+            cost=0.0,
+            latency=0.02,
+        ),
+    }
+
+    pdf_bytes = render_report_pdf(
+        report,
+        when=datetime(2026, 9, 9, 14, 5, 30),
+        selected_task_ids={"burn_cost_check", "exclusion_completeness_checklist"},
+        task_results=task_results,
+    )
+
+    text = PdfReader(io.BytesIO(pdf_bytes)).pages[0].extract_text()
+    assert "Findings Summary" in text
+    assert "Mandatory-clause" in text
+    assert "Missing cyber." in text
+    assert "---" not in text
+    assert "<div" not in text
+    assert "</div>" not in text
+
+
+def test_render_report_pdf_renders_unicode_severity_symbols_not_dropped():
+    """fpdf2's core fonts are Latin-1-only and would silently drop the
+    color severity emoji entirely; the bundled DejaVu Sans font plus
+    plain-Unicode substitutes (_EMOJI_TO_PDF_SYMBOL) keep a visible symbol
+    for every severity instead.
+    """
+    from pypdf import PdfReader
+
+    report = _sample_report()  # one HIGH finding
+    task_results = {
+        "burn_cost_check": TaskResult(status="ran", findings=report.findings, cost=0.0, latency=0.01),
+        "exclusion_completeness_checklist": TaskResult(
+            status="ran",
+            findings=[AnomalyFinding(field="exclusions", description="Missing cyber.", severity=Severity.MEDIUM)],
+            cost=0.0,
+            latency=0.02,
+        ),
+    }
+
+    pdf_bytes = render_report_pdf(
+        report,
+        when=datetime(2026, 9, 9, 14, 5, 30),
+        selected_task_ids={"burn_cost_check", "exclusion_completeness_checklist"},
+        task_results=task_results,
+    )
+
+    text = PdfReader(io.BytesIO(pdf_bytes)).pages[0].extract_text()
+    assert "‼" in text  # HIGH substitute (DejaVu lacks the astral 🚨 glyph)
+    assert "⚠" in text  # MEDIUM substitute
 
 
 def test_render_report_bytes_dispatches_by_extension():
@@ -1161,6 +1583,70 @@ def test_app_save_analysis_results_button_writes_pdf_when_selected(tmp_path, mon
     assert not at.exception
     saved_files = list((tmp_path / "results" / "acme_insurance_co").glob("*.pdf"))
     assert len(saved_files) == 1
+
+
+def test_app_saved_file_includes_every_selected_tasks_results(tmp_path, monkeypatch):
+    """End-to-end: selecting two genuinely distinct implemented tasks
+    (same monkeypatch technique as multi-task-results-ui's own test) and
+    clicking "Save analysis results" writes a file containing both tasks'
+    content, not just burn_cost_check's -- the real bug this task fixes.
+    """
+    import src.workflow as workflow_module
+    from src.domain_tasks import DomainTask
+
+    def _second_task_node(state):
+        return {
+            "task_results": {
+                "second_task": TaskResult(
+                    status="ran",
+                    findings=[AnomalyFinding(field="x", description="second task finding", severity=Severity.LOW)],
+                    cost=0.0,
+                    latency=0.1,
+                )
+            }
+        }
+
+    monkeypatch.setattr(workflow_module, "_second_task_node", _second_task_node, raising=False)
+    two_implemented = [
+        DomainTask(
+            id="burn_cost_check",
+            title="Burn-Cost Check",
+            candidate_id="B0",
+            implementation_status="implemented",
+            shape="hybrid",
+            workflow_node="burn_cost_check_node",
+        ),
+        DomainTask(
+            id="second_task",
+            title="Second Task",
+            candidate_id="SYNTHETIC",
+            implementation_status="implemented",
+            shape="deterministic",
+            workflow_node="_second_task_node",
+        ),
+    ]
+    monkeypatch.setattr(workflow_module, "DOMAIN_TASKS", two_implemented)
+    monkeypatch.setattr("src.domain_tasks.DOMAIN_TASKS", two_implemented)
+    pdf_bytes = Path(MINIMAL_TREATY_PATH).read_bytes()
+    monkeypatch.chdir(tmp_path)
+
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+    at.file_uploader[0].set_value([("sample_treaty.pdf", pdf_bytes, "application/pdf")])
+    at.run()
+    second_task_checkbox = next(c for c in at.checkbox if c.label == "Second Task")
+    at = second_task_checkbox.check().run()
+    at = _click_button(at, "Analyze")
+    at = _click_button(at, "Save analysis results")
+
+    assert not at.exception
+    saved_files = list((tmp_path / "results" / "acme_insurance_co").glob("*.md"))
+    assert len(saved_files) == 1
+    content = saved_files[0].read_text()
+    assert "Acme Insurance Co." in content  # burn_cost_check's report content
+    assert "second task finding" in content
+    assert "## Burn-Cost Check" in content
+    assert "## Second Task" in content
 
 
 def test_app_save_analysis_results_includes_llm_usage_when_fallback_ran(tmp_path, monkeypatch):

@@ -4772,6 +4772,494 @@ This file contains the reasoning transcript of the AI agent for the current sess
   expandable sections. Awaiting human review/approval before this task
   is marked done and removed from `TASKS.md`.
 
+## 2026-09-11 — Task: Include every selected task's results in the saved/downloaded results file (multi-task-results-in-saved-file)
+
+- **Goal**: Human reported the saved/downloaded results file doesn't
+  contain results from all selected tasks. Fix `format_results_
+  document()` and everything downstream to render every selected
+  task's results, matching the on-screen "Analysis Results" container.
+- **Analysis**: Confirmed by reading the code, not just trusting the
+  report: `format_results_document()` (`src/app.py`) still calls only
+  `format_report_markdown(report)` — unchanged since before `multi-
+  task-results-ui` added the on-screen per-task sections + combined
+  summary. `report` is deliberately `burn_cost_check`-specific (`S3`'s
+  decision), so any other task's `TaskResult` findings never reach the
+  saved file. This exact gap was already flagged as known future work
+  in `multi-task-results-ui`'s own `REASONING.md` entry ("Left
+  `save_analysis_result_to_file`/`render_report_bytes` ... untouched
+  ... that's implicitly future work once a second real task exists")
+  — that "second real task" now exists (`B1`, on its own still-open
+  PR), which is presumably what made this gap visible enough to report.
+  `format_combined_results_summary()`/`format_task_section_markdown()`
+  (added by `multi-task-results-ui`) already do exactly the rendering
+  needed — reusable as-is, no new formatting logic required.
+- **Decision**: Add `selected_task_ids: set[str] | None = None` and
+  `task_results: dict[str, TaskResult] | None = None` as new *optional*
+  parameters to `format_results_document()` (and thread them through
+  `render_report_bytes()`/`render_report_pdf()`/`save_analysis_result_
+  to_file()`), defaulting to `None` — additive, not a breaking
+  signature change, so every existing single-report call/test (which
+  passes only `report` plus `log_lines`/`when`) keeps working
+  unchanged. When `selected_task_ids` is `None` (omitted), fall back to
+  today's `format_report_markdown(report)`-only behavior exactly; when
+  provided, render the combined summary followed by one section per
+  task, reusing the exact on-screen helpers. `main()`'s actual Save/
+  Download call sites always pass the real `result_selected_task_ids`/
+  `task_results` for the current run, so the real app gets the fix;
+  every other existing caller (tests) is unaffected by not passing
+  them.
+- **Action**: Editing `format_results_document()`,
+  `render_report_bytes()`, `render_report_pdf()`, `save_analysis_
+  result_to_file()` in `src/app.py` to add and thread the two new
+  optional parameters; updating `main()`'s Save/Download button call
+  sites to pass them. Adding a new test selecting two tasks (reusing
+  the established monkeypatched-second-task pattern) and asserting the
+  saved file's text includes both tasks' content.
+- **Outcome**: Implemented as described. `main()`'s Save/Download
+  buttons now pass `result_selected_task_ids`/`task_results` (already
+  in scope there from `multi-task-results-ui`). Added 3 unit tests to
+  `tests/test_app.py`: `format_results_document()` with
+  `selected_task_ids` omitted matches today's exact baseline output
+  (regression safety net); with two tasks selected (one real report,
+  one synthetic `TaskResult`, no graph run needed since the function
+  only needs the same shape `main()` passes) renders both tasks'
+  content and their `### <title>` headings. Added 1 end-to-end
+  `AppTest` test (same two-real-implemented-task monkeypatch technique
+  as `multi-task-results-ui`'s own test) driving the actual "Save
+  analysis results" button and reading the written file back —
+  confirms both `burn_cost_check`'s report content and a second task's
+  finding both appear in the real saved file, the exact bug reported.
+  `python -m pytest tests/test_app.py -q -k "format_results_document
+  or saved_file_includes_every"` — 5 passed. Full suite `python -m
+  pytest -q` — 155 passed, no other regressions. `python -m
+  tests.eval.run_eval` — all 5 golden cases still 100% (unaffected —
+  no extraction logic touched). Awaiting human review/approval before
+  this task is marked done and removed from `TASKS.md`.
+
+- **2026-09-11 (sync — scope addition)**: Human asked, still on this
+  same still-open task, for a full "final report" restyling of the
+  saved/downloaded file: "Analysis Results" bigger than each task
+  name; tasks visually separated (rule or bordered container); a
+  colored background on Findings; a final "Findings Summary" listing
+  every task's findings again, grouped by task; overall styled like a
+  finished report, not a flat dump. Followed immediately by a second
+  clarification: treaty name/terms should be excluded from the first
+  task's own section, since every selected task analyzes the same
+  treaty (not just the first one) — it should be a shared section, not
+  something that reads as belonging to whichever task happens to be
+  listed first. Synced `TASKS.md`'s Details/Files/Acceptance.
+- **Analysis**: `format_report_markdown()` today bundles three
+  concerns into one function: treaty terms (shared across every task),
+  `burn_cost_check`'s own loss ratio, and `burn_cost_check`'s own
+  findings — and `format_task_section_markdown()`'s `burn_cost_check`
+  branch reuses the whole thing, which is exactly why treaty terms
+  currently appear to "belong" to that one task's section. `render_
+  report_pdf()`'s line-by-line parser treats every Markdown heading
+  (any number of `#`) identically (same 13pt bold), so today's heading
+  *levels* in the Markdown carry no visual weight in the PDF — fixing
+  the "Analysis Results bigger than task names" ask requires teaching
+  the PDF renderer to actually distinguish `#`/`##`/`###`, not just
+  bump heading counts in the Markdown text. `highest_severity_label()`
+  (already used for the saved filename) is the natural existing
+  function to pick a Findings block's color, since it already ranks
+  low/medium/high/no-findings into exactly the four states a color
+  scheme needs.
+- **Decision**: Split treaty rendering out of `format_report_markdown()`
+  into a new `format_treaty_terms_markdown(report)` (its own `##`
+  heading), rendered once at the top of the multi-task document,
+  before the per-task sections — not per-task. Keep
+  `format_report_markdown()` itself as a still-useful "treaty + this
+  task's own results" combination (treaty terms + loss ratio +
+  findings) for any caller that still wants the old combined shape,
+  but stop using it inside `format_task_section_markdown()`'s
+  `burn_cost_check` branch — that branch now renders only loss ratio +
+  findings (via a new small `_burn_cost_check_body_markdown()` helper),
+  matching every other task's section (results only, no treaty).
+  Findings blocks get wrapped in an HTML `<div style="background-
+  color:...">` — plain HTML embedded in Markdown, since GitHub-
+  flavored Markdown itself has no native "colored callout" syntax;
+  degrades gracefully to plain text in viewers that strip raw HTML,
+  which is an acceptable tradeoff for a locally-saved file (not a
+  security-sensitive context). Color keyed off
+  `highest_severity_label(findings)`: high→red, medium→amber,
+  low→blue, clean (no findings)→green — a semantic mapping already
+  implied by the existing severity ranking, not an arbitrary new
+  palette. Horizontal rules (`---`, native Markdown syntax) separate
+  every major section (treaty / combined summary / each task / the
+  final Findings Summary) — chosen over an HTML bordered-container
+  `<div>` since the task's own Acceptance explicitly offered either,
+  and `---` is simpler, more portable, and native to Markdown itself.
+  `render_report_pdf()` gets three targeted additions: (1) size fonts
+  by counted leading `#`s (`#`→16pt, `##`→14pt, `###`→12pt, body→11pt)
+  instead of one flat heading size; (2) render a literal `---` line as
+  an actual `pdf.line()` rule instead of dashes-as-text; (3) track an
+  "inside a colored Findings block" flag toggled by the `<div
+  style="background-color:#RRGGBB...">`/`</div>` markers, filling each
+  line's cell background with that color via `pdf.set_fill_color()` +
+  `fill=True` while active. A final `format_findings_summary()`
+  function repeats every *ran* task's findings (or "No anomalies
+  found.") under its own `##` heading — skipped/not-run tasks are
+  already covered by the combined summary's "Skipped" list, so
+  repeating them again in the Findings Summary would be redundant.
+- **Action**: Implementing `format_treaty_terms_markdown()`,
+  `_burn_cost_check_body_markdown()`, `_findings_bullets_markdown()`,
+  `_findings_background_color()` (via `highest_severity_label`),
+  `_wrap_findings_block()`, and `format_findings_summary()` in
+  `src/app.py`; restructuring `format_results_document()` to the new
+  section order with `---` separators; updating `render_report_pdf()`
+  for heading-size differentiation, real horizontal rules, and
+  Findings-block background fills. Updating tests next, including the
+  now-intentionally-changed `format_task_section_markdown` burn_cost_
+  check exact-equality test (treaty is no longer included, so it can
+  no longer equal `format_report_markdown()`'s full output).
+- **Discovered mid-implementation, fixed in scope**: hoisting treaty
+  terms out of `format_task_section_markdown()`'s `burn_cost_check`
+  branch broke more than the saved file — `main()`'s on-screen
+  "Analysis Results" view had never independently rendered treaty
+  terms; it only ever showed them as a side effect of reusing `format_
+  report_markdown()` inside that one task's expander. With treaty
+  terms removed from there, the live UI would have silently stopped
+  showing the treaty name/terms anywhere. Caught immediately by
+  running the full suite (`test_app_upload_and_render_success` and
+  others failing on a missing "Acme Insurance Co." assertion), not
+  anticipated in the initial plan. Fixed by adding a `st.markdown(
+  format_treaty_terms_markdown(report))` call in `main()`, right above
+  the combined summary — mirroring the saved file's own hoisted
+  section, so the live app and the saved file now agree on where
+  treaty terms live.
+- **Outcome**: Implemented all planned functions; fixed the on-screen
+  regression above. Updated 3 tests for the intentional structural
+  changes (`test_format_task_section_markdown_burn_cost_check_
+  reuses_report_rendering` renamed to `..._excludes_treaty_terms` and
+  rewritten as structural assertions rather than exact equality with
+  `format_report_markdown()`; two saved-file tests' `### <title>`
+  assertions updated to `## <title>` for the new heading level). Added
+  9 new tests: heading-level/`#`-vs-`##` structure, horizontal-rule
+  count, `_wrap_findings_block()`'s severity→color mapping (high/
+  medium/clean), `format_treaty_terms_markdown()`'s standalone output,
+  `format_findings_summary()` (repeats every *ran* task's findings
+  grouped by heading; omits skipped/not-run tasks), a PDF-level test
+  confirming `---`/`<div>`/`</div>` markers are consumed as styling
+  directives and never leak into the extracted PDF text, and an
+  on-screen test confirming treaty terms render in their own section
+  and are absent from `burn_cost_check`'s own expander content.
+  `python -m pytest tests/test_app.py -q` — 84 passed. Full suite
+  `python -m pytest -q` — 167 passed, no other regressions. `python -m
+  tests.eval.run_eval` — all 5 golden cases still 100% (unaffected —
+  no extraction logic touched). Manually generated a real multi-task
+  PDF (`render_report_pdf()` with two tasks, one HIGH and one MEDIUM
+  finding) and read it back: confirmed "Analysis Results" renders
+  visibly larger than each task's `##` heading, real horizontal rules
+  separate every section, each Findings block has a distinct colored
+  background matching its highest severity (red for HIGH, amber for
+  MEDIUM), and a "Findings Summary" section at the end repeats both
+  tasks' findings grouped by task heading. Awaiting human review/
+  approval before this task is marked done and removed from
+  `TASKS.md`.
+
+- **2026-09-11 (sync — four real bugs found using the app)**: Human
+  reported, from actually running the just-implemented styling: (1)
+  Burn-Cost Check's pre-run "Estimated cost" ($0.0030) didn't match
+  its post-run "Total actual cost" ($0.0000); (2) the colored Findings
+  `<div>` was visible as raw HTML text on screen, not rendered; (3)
+  Burn-Cost Check's section was missing the "Cost: $X · Latency: Ys"
+  line every other task's section shows; (4) asked to keep severity
+  emoji in the file for all findings. Synced `TASKS.md`'s Details/
+  Files/Acceptance.
+- **Analysis (1)**: `src/domain_tasks.py`'s `burn_cost_check` entry is
+  `shape="hybrid"`, but `burn_cost_check_node` (`src/workflow.py`)
+  never calls an LLM — it's pure `calculate_loss_ratio()` arithmetic
+  plus threshold checks on already-extracted data. `estimate_task_
+  cost()` (`src/cost_estimation.py`) only returns `0.0` for
+  `shape="deterministic"`; any other shape gets a nonzero page-count-
+  based estimate. The `"hybrid"` label was inherited from
+  `CANDIDATE_TASKS.md`'s B0 description ("Hybrid (regex-first, LLM
+  fallback)"), which describes the *shared extraction pipeline's*
+  behavior (regex, falling back to an LLM), not `burn_cost_check_
+  node`'s own behavior — a latent mislabeling from `domain-task-
+  registry` (S1) that stayed invisible until cost estimates were
+  actually compared against real actuals.
+- **Analysis (2)**: `st.markdown()` doesn't render raw HTML unless
+  `unsafe_allow_html=True` is passed — Streamlit's sane default. The
+  Findings `<div>` wrapper (`_wrap_findings_block()`) is reused by both
+  the on-screen expander (`st.markdown(format_task_section_
+  markdown(...))`, no `unsafe_allow_html`) and the saved-file path,
+  which is why it rendered as colored HTML in the PDF's own separate
+  parser but as literal visible text on screen. Enabling `unsafe_
+  allow_html=True` on that call would be a real stored-content risk:
+  `format_treaty_terms_markdown()` embeds `treaty.cedent_name`/
+  `exclusions` verbatim, and those strings originate from an uploaded
+  PDF the extractor doesn't sanitize — a crafted treaty could inject
+  arbitrary HTML/markup into the analyst's own browser session.
+- **Analysis (3)**: `format_task_section_markdown()`'s `burn_cost_
+  check` branch calls `_burn_cost_check_body_markdown(report)`, which
+  only ever reads `report` (no `cost`/`latency` fields) — it never
+  looks at the `task_result` parameter the function is actually given
+  (`task_results["burn_cost_check"]`, populated by `burn_cost_check_
+  node` with real `cost`/`latency` values), even though every other
+  task's branch reads exactly that.
+- **Analysis (4)**: Confirmed empirically the `.md` file already keeps
+  emoji (UTF-8 `encode("utf-8")`, no stripping) — only `render_report_
+  pdf()` drops them, via its `line.encode("latin-1", "ignore")` step
+  (fpdf2's core Helvetica is a base-14 Latin-1-only font). Checked
+  glyph coverage with `fontTools` before assuming a font choice would
+  work: DejaVu Sans (downloaded from the project's own GitHub release,
+  Bitstream Vera license — permissive, redistributable, no bundled
+  font shipped with the installed `fpdf2` package to reuse instead)
+  contains `ℹ` (U+2139) and `⚠` (U+26A0) but not the astral `🚨`
+  (U+1F6A8, a color/bitmap emoji glyph essentially no general-purpose
+  TTF includes) — confirmed human's preference (asked via
+  `AskUserQuestion`) to bundle the font and substitute `‼` (U+203C,
+  present in DejaVu) for high severity rather than leave the PDF
+  icon-less.
+- **Decision**: (1) Change `src/domain_tasks.py`'s `burn_cost_check`
+  entry to `shape="deterministic"` — a one-line fix; also updates its
+  "Type" column display from "hybrid" to "deterministic" (also
+  correct). (2) Split the "colored Findings" concern into two
+  independent renderings: keep `_wrap_findings_block()`'s HTML-div
+  version for the saved file only; add plain (unstyled) findings
+  rendering for on-screen use, then apply color on screen via
+  Streamlit's own native `st.error`/`st.warning`/`st.info`/`st.
+  success` (chosen by `highest_severity_label()`) around the plain
+  findings markdown in `main()` — safe (no raw HTML, no injection
+  surface) and idiomatic Streamlit. (3) Add the same "Cost: $X ·
+  Latency: Ys" line to `_burn_cost_check_body_markdown()`, threading
+  `task_result` into it. (4) Add `assets/fonts/DejaVuSans.ttf` +
+  `DejaVuSans-Bold.ttf` + `DEJAVU_LICENSE.txt`; `render_report_pdf()`
+  calls `pdf.add_font(...)` for both and uses "DejaVu" instead of
+  "Helvetica" throughout; introduce `_PDF_SEVERITY_SYMBOLS = {"low":
+  "ℹ", "medium": "⚠", "high": "‼"}` used only by the PDF path (the
+  Markdown/on-screen path keeps the original color emoji, since those
+  render fine everywhere except this one PDF generator).
+- **Action**: Implementing all four fixes in `src/domain_tasks.py` and
+  `src/app.py`; adding the bundled font files; updating/adding tests
+  in `tests/test_app.py` for each (shape assertion, no-raw-HTML-on-
+  screen, Cost/Latency line present for Burn-Cost Check, PDF text
+  extraction includes the Unicode symbols).
+- **Outcome**: (1) Changed `src/domain_tasks.py`'s `burn_cost_check`
+  entry to `shape="deterministic"` (with a comment explaining the
+  distinction between the node's own behavior and the shared pipeline's).
+  Fixed 4 tests whose hardcoded `$0.0010` estimate assumed the old
+  `"hybrid"` shape (now `$0.0000`, matching the real actual cost);
+  added a 5th test (`test_app_cost_estimate_increases_with_a_larger_
+  selected_document`) monkeypatching a synthetic `llm`-shaped task
+  (since neither real implemented task scales with page count anymore)
+  to keep exercising `estimate_task_cost()`'s real scaling behavior.
+  (2)+(3) Refactored `format_task_section_markdown()` into a shared
+  `_task_section_content()` parameterized by a `findings_markdown`
+  callback: `format_task_section_markdown()` (plain, on-screen/base
+  use) passes `_findings_heading_and_bullets_markdown` (no HTML);
+  `_format_task_section_markdown_for_file()` (saved-file use only)
+  passes `_wrap_findings_block` (HTML-colored). Both branches now
+  include Burn-Cost Check's Cost/Latency line from `task_result`,
+  fixing (3) as a side effect of the same refactor. Added
+  `_task_findings_for_severity()` (returns the findings to color by,
+  or `None` if the task didn't run) and `_SEVERITY_STREAMLIT_
+  CONTAINERS` (`st.error`/`warning`/`info`/`success` keyed by
+  `highest_severity_label()`); `main()`'s per-task expander loop now
+  renders each ran task's section inside the matching native container
+  instead of `st.markdown()`, fixing (2) — no raw HTML, no
+  `unsafe_allow_html`, and Streamlit's own escaping still protects
+  against the treaty-derived text rendered elsewhere on the page.
+  (4) Downloaded DejaVu Sans + DejaVu Sans Bold (Bitstream Vera
+  license) from the project's own GitHub release into `assets/fonts/`
+  (plus its license text); `render_report_pdf()` now calls `pdf.
+  add_font("DejaVu", ...)` for both and uses `"DejaVu"` instead of
+  `"Helvetica"`; replaced the `.encode("latin-1", "ignore")` stripping
+  step with a targeted `_EMOJI_TO_PDF_SYMBOL` substitution (color
+  emoji → DejaVu-supported plain symbols) applied before the general
+  whitespace cleanup.
+  Added/updated tests: `test_app_shows_treaty_terms_as_their_own_
+  shared_section_on_screen` (now checks `.success[0].value` instead of
+  `.markdown`, since content moved into a native container),
+  `test_app_burn_cost_check_section_shows_cost_and_latency_like_
+  every_other_task` (new), `test_app_findings_section_never_shows_
+  raw_html_on_screen` (new — asserts no `<div`/`</div`/`style=` in any
+  rendered text, and that Burn-Cost Check's 0-findings "clean" section
+  lands in `st.success`, not `st.markdown`), `test_render_report_pdf_
+  renders_unicode_severity_symbols_not_dropped` (new — asserts `‼`/`⚠`
+  appear in the PDF's extracted text). Fixed 2 more tests whose
+  assertions checked `at.markdown` for content that now lives in a
+  severity-colored container — added a shared `_all_rendered_text()`
+  test helper (markdown + error + warning + info + success) reused by
+  both. `python -m pytest -q` — 170 passed (net new: 5 tests; several
+  more updated in place for the intentional structural changes).
+  `python -m tests.eval.run_eval` — all 5 golden cases still 100%
+  (unaffected). Manually generated and read back a real two-task PDF:
+  confirmed Burn-Cost Check's section now shows "Cost: $0.0000 ·
+  Latency: 0.01s", the HIGH finding shows `‼` and the MEDIUM finding
+  shows `⚠` (both visible, not dropped), and colors/rules/headings are
+  otherwise unchanged from the prior visual check. Also manually
+  confirmed via a standalone `AppTest` run that the on-screen view no
+  longer shows raw `<div style="...">` text — each task's section now
+  renders inside a colored `st.success`/`st.warning`/etc. box. Awaiting
+  human review/approval before this task is marked done and removed
+  from `TASKS.md`.
+
+- **2026-09-11 (sync — scope addition)**: Human asked why Burn-Cost
+  Check shows "Cost: $0.0000 · Latency: 0.00s" even when a run needed
+  the LLM Extraction Fallback. Explained: that line reflects only
+  `burn_cost_check_node`'s own work (pure arithmetic, genuinely free/
+  instant) — the LLM fallback is a separate, shared pipeline step
+  benefiting every selected task, not attributable to any one task's
+  own `TaskResult`. But this surfaced a real gap: the fallback's actual
+  cost was never converted to a dollar figure anywhere — only raw
+  token counts (`extract_llm_usage_summary()`), and `src/cost_
+  estimation.py`'s `actual_task_cost()` (built in `per-task-cost-
+  estimation`, S4) was never actually called by anything. Confirmed
+  with the human: surface it as its own line item and fold it into
+  "Total actual cost" (previewed and approved via `AskUserQuestion`).
+  Synced `TASKS.md`'s Details/Files/Acceptance.
+- **Decision**: Add `extract_llm_actual_cost(log_lines) -> float |
+  None` (parses the same log line `extract_llm_usage_summary()` does,
+  converts via `actual_task_cost()`) and `format_extraction_cost_note(
+  log_lines) -> str | None` ("Extraction: LLM Fallback used ($X)", or
+  `None` if the LLM wasn't invoked). Render the note right after the
+  shared treaty section (both in `format_results_document()` and
+  `main()`'s on-screen view) — it's a property of the *extraction*,
+  not of the treaty or any one task, but placing it right after treaty
+  terms keeps it near the other "about this run's data" context.
+  `format_combined_results_summary()` gains an additive `extraction_
+  cost: float = 0.0` parameter, added into `total_cost` before
+  building the "Total actual cost" line — default `0.0` preserves
+  every existing caller/test that doesn't pass it.
+- **Action**: Implementing `extract_llm_actual_cost()`/`format_
+  extraction_cost_note()` in `src/app.py`; importing `actual_task_cost`
+  from `src.cost_estimation`; updating `format_combined_results_
+  summary()`'s signature and both its call sites (`format_results_
+  document()`, `main()`) to pass the real extraction cost through.
+- **Outcome**: Implemented as described. Both the saved file and
+  `main()`'s on-screen view now show "Extraction: LLM Fallback used
+  ($X)" right after the shared treaty section whenever the fallback
+  ran, and "Total actual cost" includes that figure. Added 6 tests:
+  `test_extract_llm_actual_cost_converts_real_token_usage_to_dollars`,
+  `..._is_none_when_llm_never_ran`, `test_format_extraction_cost_
+  note_reports_dollar_figure_or_none`, `test_format_combined_results_
+  summary_includes_extraction_cost_in_total`; extended the existing
+  real (mocked-LLM-client, not monkeypatched-node) end-to-end test
+  `test_app_shows_llm_extraction_fallback_note_and_state_on_success`
+  to assert the caption shows the correct dollar figure (computed from
+  the mock's real 500/60 token counts via `actual_task_cost()`) and
+  that "Total actual cost" includes it. While inserting these, caught
+  and fixed a self-introduced copy-paste slip before running anything
+  broken further: an assertion belonging to the adjacent pre-existing
+  test (`test_format_combined_results_summary_lists_skipped_tasks_
+  with_reasons`) had landed in the wrong test during editing — moved
+  it back to where it belonged. `python -m pytest tests/test_app.py -q
+  -k "extraction_cost or format_extraction_cost_note or format_
+  combined_results_summary"` — 4 passed;
+  `test_app_shows_llm_extraction_fallback_note_and_state_on_success`
+  — 1 passed. Full suite `python -m pytest -q` — 174 passed, no other
+  regressions. `python -m tests.eval.run_eval` — all 5 golden cases
+  still 100% (unaffected — no extraction logic touched, only how its
+  already-logged token usage is reported). Awaiting human review/
+  approval before this task is marked done and removed from
+  `TASKS.md`.
+
+- **2026-09-11 (sync — refinement, resolving the recurring cost
+  question)**: Human asked twice, in slightly different words, why
+  "$0.0028 total actual cost" appears when both visible per-task Cost
+  lines read "$0.0000" — reproduced locally to first confirm the
+  extraction-cost feature itself works (it does: an "Extraction: LLM
+  Fallback used ($0.0028)" caption is genuinely rendered), asked via
+  `AskUserQuestion` whether it was a stale-process false alarm (ruling
+  that out first, per this session's own recurring hot-reload
+  gotcha), then whether the design itself needed to change. Offered
+  two concrete alternatives (a breakdown, or reverting to task-only
+  totals); human's first answer ("something else") turned out to be
+  about wording only ("keep ... total actual cost" vs. shortening to
+  "total" — clarified via a second `AskUserQuestion` after two
+  slightly different phrasings, landing on "keep current wording,
+  no code change"). Human then re-asked the same root question with
+  the same example numbers, making clear the actual ask was always
+  the math-transparency fix, not the earlier wording tangent — so
+  implementing the breakdown option now, without asking a third time,
+  since it directly answers the literal question asked twice
+  ("why doesn't 0.0000 + 0.0000 = 0.0028").
+- **Decision**: When `extraction_cost > 0`, expand the combined
+  summary's total into an explicit breakdown: `"${tasks_total:,.4f}
+  (tasks) + ${extraction_cost:,.4f} (extraction) = ${grand_total:,.4f}
+  total actual cost"` — every term in the final number is named in the
+  same line, so the arithmetic is self-evident without needing to
+  notice the separate caption above it. When `extraction_cost == 0`
+  (the common case — most runs never invoke the LLM fallback), keep
+  today's plain single-number form unchanged, since there's nothing to
+  explain. Keeps the exact "total actual cost" wording the human
+  explicitly asked to preserve.
+- **Action**: Editing `format_combined_results_summary()` to branch on
+  whether `extraction_cost` is nonzero, building the breakdown string
+  in that case; updating the test that asserted the old always-plain
+  wording for a nonzero-extraction-cost scenario.
+- **Outcome**: Renamed the running-total accumulator to `tasks_cost`
+  (was `total_cost`, now reused for the grand total) to keep the two
+  quantities distinct in the code, matching the two distinct numbers
+  now shown. Updated `test_app_shows_llm_extraction_fallback_note_
+  and_state_on_success` (the real, mocked-LLM-client end-to-end test)
+  for the new breakdown text. Added 2 new unit tests:
+  `test_format_combined_results_summary_shows_a_named_breakdown_
+  when_extraction_cost_is_nonzero` and `..._stays_plain_when_
+  extraction_cost_is_zero` (confirms the common no-fallback case is
+  completely unchanged). `python -m pytest tests/test_app.py -q -k
+  format_combined_results_summary` — 5 passed. Full suite `python -m
+  pytest -q` — 176 passed, no other regressions. `python -m
+  tests.eval.run_eval` — all 5 golden cases still 100%. Manually
+  reproduced the exact scenario the human described (two tasks
+  selected, real mocked LLM fallback): confirmed the line now reads
+  `"$0.0000 (tasks) + $0.0008 (extraction) = $0.0008 total actual
+  cost"`, directly answering the "why doesn't 0+0=0.0028" question in
+  the line itself. Awaiting human review/approval before this task is
+  marked done and removed from `TASKS.md`.
+
+- **2026-09-11 (sync — small styling consistency fix)**: Human asked
+  to style the combined summary line consistently — today's line mixes
+  bold and plain segments (`"**N finding(s)**"` bold, `" across
+  selected task(s) · "` plain, `"**{cost breakdown}**"` bold, `" total
+  actual cost"` plain), inherited from before the breakdown existed
+  and never revisited when the breakdown was added. Synced `TASKS.md`'s
+  Details.
+- **Action**: Changed the line to one continuous bold span (`f"**{...
+  entire line ...}**"`) instead of alternating bold/plain segments;
+  updated tests asserting the old partial-bold substrings.
+- **Outcome**: Updated `test_app_shows_llm_extraction_fallback_note_
+  and_state_on_success` (the real, mocked-LLM-client end-to-end test)
+  for the fully-bold line — also caught and fixed a wrong finding
+  count in my own updated assertion (guessed `7` from an earlier
+  manual two-task reproduction; this test only selects the default
+  `burn_cost_check`, so the real count is `1` — caught immediately by
+  running the test, not left in). `python -m pytest tests/test_app.py
+  -q` — 94 passed. Full suite `python -m pytest -q` — 176 passed, no
+  other regressions. `python -m tests.eval.run_eval` — all 5 golden
+  cases still 100%. Manually confirmed the line now reads as one
+  consistent bold span end to end. Awaiting human review/approval
+  before this task is marked done and removed from `TASKS.md`.
+
+- **2026-09-11 (sync — Streamlit math-mode rendering bug)**: Human
+  reported a stray `math-inline`-classed span on the breakdown line.
+  Diagnosed: Streamlit's `st.markdown()` renders `$...$` as inline
+  LaTeX (a built-in feature, not something this repo opted into) — the
+  breakdown text has three literal `$` signs on one line
+  (`"$0.0000 (tasks) + $0.0028 (extraction) = $0.0028"`), so the first
+  pair (`$0.0000 (tasks) + $`) gets parsed as a math expression
+  instead of plain text, switching that stretch to a math-mode font.
+  Every other `$`-containing line in the app has exactly one `$` (no
+  pairing possible), so this is the only place affected. Synced
+  `TASKS.md`'s Details.
+- **Action**: Escaping every `$` in the breakdown/plain cost text as
+  `\$` (Markdown's literal-dollar-sign escape) instead of a bare `$`,
+  so Streamlit renders them as plain text characters, never math
+  delimiters.
+- **Outcome**: Updated the 2 tests asserting the old bare-`$` text
+  (`test_format_combined_results_summary_shows_a_named_breakdown_
+  when_extraction_cost_is_nonzero`,
+  `test_app_shows_llm_extraction_fallback_note_and_state_on_success`)
+  to expect `\$`; every other test asserting a bare `"$0.00XX"`
+  substring still passes unchanged, since `"$0.0010"` remains a
+  substring of `"\$0.0010"`. `python -m pytest tests/test_app.py -q`
+  — 94 passed. Full suite `python -m pytest -q` — 176 passed, no other
+  regressions. `python -m tests.eval.run_eval` — all 5 golden cases
+  still 100%. Awaiting human review/approval before this task is
+  marked done and removed from `TASKS.md`.
+
 ## 2026-09-11 — Task: Widen the main page container by 15% (widen-main-container)
 
 - **Goal**: Human asked to make the main content container 15% wider,
