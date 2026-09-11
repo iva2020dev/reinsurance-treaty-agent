@@ -4628,3 +4628,20 @@ This file contains the reasoning transcript of the AI agent for the current sess
   entire UI-polish iteration for `compact-domain-task-checklist-rows`
   — awaiting human review/approval to mark the task done and remove it
   from `TASKS.md`.
+
+## 2026-09-11 13:06:31 — Closing task: Compact the "Domain tasks to run" checklist rows onto one line each (compact-domain-task-checklist-rows)
+
+- PR #91 merged into `main` at 2026-09-11T13:06:31Z. Human explicitly
+  approved marking `compact-domain-task-checklist-rows` done. Removing
+  it from `TASKS.md`'s P2 section (and adding it to the "Recently
+  completed" list) on this `close/compact-domain-task-checklist-rows`
+  branch/PR, titled `Closing task as "Done": Compact the "Domain tasks
+  to run" checklist rows onto one line each`, per the mandatory
+  task-closing workflow. No `CANDIDATE_TASKS.md` update needed — this
+  task was never graduated from there (`Candidate ID: N/A`, added
+  directly to `TASKS.md`). This was the most heavily-iterated ad-hoc
+  UI task of the session: one initial request plus seven follow-up
+  refinements/scope additions, all folded into the same task/branch/PR
+  per the "sync" step of the mandatory workflow rather than opening
+  separate tasks for each — appropriate since every iteration modified
+  the exact same checklist the previous one had just built.
