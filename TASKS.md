@@ -169,16 +169,22 @@
     cost:", its label needs more room, achieved by shifting it left
     into where shape/label would otherwise start) so its `$X` value
     still lands in the same horizontal position as every task's own
-    value.
+    value. **Further refinement (same pass)**: add a header row
+    ("Task" / "Type" / "Cost (estimated)") above the checklist, using
+    the same column weights as each task row (the last two — label and
+    value — merged under one "Cost" header, since they visually form
+    one grouping beneath it), so the list reads like a labeled table.
   - **Files**: `src/app.py`, `tests/test_app.py`
   - **Acceptance**: Each domain task renders its checkbox + title,
     its shape, and its status/cost text on the same visual row (via
     `st.columns`, four columns: checkbox+title, shape, label, value),
     not two stacked lines and not shape concatenated into the checkbox
-    label; the "Total estimated cost" value column has the same weight
-    as each task row's own value column, so dollar figures align
-    vertically; the "Total estimated cost" caption is always rendered,
-    showing `$0.0000` when no task is
+    label; a header row above the checklist labels the three visual
+    groupings ("Task", "Type", "Cost (estimated)"); the "Total
+    estimated cost" value column has the same weight as each task
+    row's own value column, so dollar figures align vertically; the
+    "Total estimated cost" caption is always rendered, showing
+    `$0.0000` when no task is
     selected and updating live as tasks are checked/unchecked, and is
     positioned in the same column as each task's "Estimated cost"
     text; "Review treaty" renders before the "Domain tasks to run"

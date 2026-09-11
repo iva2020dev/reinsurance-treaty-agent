@@ -250,6 +250,21 @@ def test_app_shows_each_domain_task_shape_in_its_own_column():
         assert task.shape in captions
 
 
+def test_app_domain_tasks_checklist_has_a_labeled_header_row():
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    captions = [c.value for c in at.caption]
+    assert "**Task**" in captions
+    assert "**Type**" in captions
+    assert "**Cost (estimated)**" in captions
+    # Header appears before any task's own captions (i.e. right under the
+    # "Domain tasks to run" subheader, not interleaved into the checklist).
+    header_index = captions.index("**Task**")
+    first_shape_index = captions.index(DOMAIN_TASKS[0].shape)
+    assert header_index < first_shape_index
+
+
 def test_app_burn_cost_check_defaults_checked_and_shows_cost_estimate():
     at = AppTest.from_file("../src/app.py")
     at.run()

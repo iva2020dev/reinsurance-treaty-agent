@@ -545,6 +545,16 @@ def main() -> None:
         _show_review_dialog(selected_bytes, selected_name)
 
     st.subheader("Domain tasks to run")
+    header_task_col, header_type_col, header_cost_col = st.columns(
+        [_TASK_ROW_COLUMN_WEIGHTS[0], _TASK_ROW_COLUMN_WEIGHTS[1], sum(_TASK_ROW_COLUMN_WEIGHTS[2:])]
+    )
+    with header_task_col:
+        st.caption("**Task**")
+    with header_type_col:
+        st.caption("**Type**")
+    with header_cost_col:
+        st.caption("**Cost (estimated)**")
+
     page_count = get_pdf_page_count(selected_bytes) if selected_bytes is not None else 0
     selected_task_ids: set[str] = set()
     total_estimated_cost = 0.0

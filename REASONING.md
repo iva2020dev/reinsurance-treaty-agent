@@ -4564,3 +4564,38 @@ This file contains the reasoning transcript of the AI agent for the current sess
   "**$0.0010**" in the same-width value column as every task's own
   value. Awaiting human review/approval before this task is marked
   done and removed from `TASKS.md`.
+
+- **2026-09-11 (sync — scope addition)**: Human asked to add a header
+  row above the checklist labeling "name, type, cost
+  (estimated/real)". Synced `TASKS.md`'s Details/Acceptance. Decision:
+  header labels are "Task" / "Type" / "Cost (estimated)" — not
+  "estimated/real" verbatim, since this checklist only ever shows the
+  pre-run estimate (`estimate_task_cost()`); the real/actual cost
+  (`TaskResult.cost`) only exists after a run and is shown in the
+  Analysis Results section (`multi-task-results-ui`)/debug panel, not
+  here, so labeling this column "(estimated/real)" would misdescribe
+  what's actually displayed. Render the header using
+  `st.columns([_TASK_ROW_COLUMN_WEIGHTS[0], _TASK_ROW_COLUMN_WEIGHTS[1],
+  label_weight + value_weight])` — three header columns, the last
+  merging label+value's combined width, matching how the total row
+  already merges weights for its own wide label.
+- **Action**: Adding the header row right after `st.subheader("Domain
+  tasks to run")`, before the task loop.
+- **Outcome**: Added the header row using
+  `st.columns([_TASK_ROW_COLUMN_WEIGHTS[0], _TASK_ROW_COLUMN_WEIGHTS[1],
+  sum(_TASK_ROW_COLUMN_WEIGHTS[2:])])` — "Task"/"Type" each get their
+  own column matching the checkbox/shape columns below; "Cost
+  (estimated)" spans the merged label+value width, sitting above both
+  "Estimated cost:" and its `$X` value. Added
+  `test_app_domain_tasks_checklist_has_a_labeled_header_row`: confirms
+  all three header captions render, and that the header appears before
+  any task's own shape caption (i.e. it's a header, not interleaved
+  into the checklist). `python -m pytest tests/test_app.py -q -k
+  header` — 3 passed (this new test plus the 2 pre-existing header/
+  subheader tests it happened to share the `-k` filter with). Full
+  suite `python -m pytest -q` — 152 passed, no other regressions.
+  `python -m tests.eval.run_eval` — all 5 golden cases still 100%.
+  Manually verified via a standalone `AppTest` run: captions begin
+  `["**Task**", "**Type**", "**Cost (estimated)**", "hybrid",
+  "Estimated cost:", "$0.0010", ...]`. Awaiting human review/approval
+  before this task is marked done and removed from `TASKS.md`.
