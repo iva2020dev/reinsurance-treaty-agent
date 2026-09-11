@@ -5209,3 +5209,26 @@ This file contains the reasoning transcript of the AI agent for the current sess
   cost"`, directly answering the "why doesn't 0+0=0.0028" question in
   the line itself. Awaiting human review/approval before this task is
   marked done and removed from `TASKS.md`.
+
+- **2026-09-11 (sync — small styling consistency fix)**: Human asked
+  to style the combined summary line consistently — today's line mixes
+  bold and plain segments (`"**N finding(s)**"` bold, `" across
+  selected task(s) · "` plain, `"**{cost breakdown}**"` bold, `" total
+  actual cost"` plain), inherited from before the breakdown existed
+  and never revisited when the breakdown was added. Synced `TASKS.md`'s
+  Details.
+- **Action**: Changed the line to one continuous bold span (`f"**{...
+  entire line ...}**"`) instead of alternating bold/plain segments;
+  updated tests asserting the old partial-bold substrings.
+- **Outcome**: Updated `test_app_shows_llm_extraction_fallback_note_
+  and_state_on_success` (the real, mocked-LLM-client end-to-end test)
+  for the fully-bold line — also caught and fixed a wrong finding
+  count in my own updated assertion (guessed `7` from an earlier
+  manual two-task reproduction; this test only selects the default
+  `burn_cost_check`, so the real count is `1` — caught immediately by
+  running the test, not left in). `python -m pytest tests/test_app.py
+  -q` — 94 passed. Full suite `python -m pytest -q` — 176 passed, no
+  other regressions. `python -m tests.eval.run_eval` — all 5 golden
+  cases still 100%. Manually confirmed the line now reads as one
+  consistent bold span end to end. Awaiting human review/approval
+  before this task is marked done and removed from `TASKS.md`.

@@ -381,7 +381,7 @@ def format_combined_results_summary(
         cost_text = f"${tasks_cost:,.4f} (tasks) + ${extraction_cost:,.4f} (extraction) = ${total_cost:,.4f}"
     else:
         cost_text = f"${total_cost:,.4f}"
-    lines = [f"**{total_findings} finding(s)** across selected task(s) · **{cost_text}** total actual cost"]
+    lines = [f"**{total_findings} finding(s) across selected task(s) · {cost_text} total actual cost**"]
     if skipped_lines:
         lines.append("")
         lines.append("**Skipped:**")

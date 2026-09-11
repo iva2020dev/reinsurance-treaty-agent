@@ -240,6 +240,11 @@
     `extraction_cost == 0` (the common case), unchanged single-number
     form. "total actual cost" wording explicitly kept per the human's
     stated preference.
+    **Further refinement (same pass)**: the combined summary line
+    mixed bold and plain segments ("**N finding(s)**" bold, " across
+    selected task(s) · " plain, "**breakdown**" bold, " total actual
+    cost" plain) — human asked for one consistent style throughout.
+    Made the entire line one continuous bold span.
   - **Files (further updated)**: `src/app.py`, `tests/test_app.py`
 
 - [ ] Regenerate workflow diagram for a multi-task selection example

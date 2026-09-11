@@ -1134,10 +1134,11 @@ def test_app_shows_llm_extraction_fallback_note_and_state_on_success(monkeypatch
     assert any(f"Extraction: LLM Fallback used (${expected_extraction_cost:,.4f})" in c.value for c in at.caption)
     # And folded into "Total actual cost" as an explicit breakdown (tasks
     # cost here is $0.0000, since burn_cost_check never calls an LLM
-    # itself) -- the math is named in the line, not just the final number.
+    # itself) -- the whole line is one consistent bold span.
     assert (
-        f"**$0.0000 (tasks) + ${expected_extraction_cost:,.4f} (extraction) = "
-        f"${expected_extraction_cost:,.4f}** total actual cost" in rendered_text
+        f"**1 finding(s) across selected task(s) · $0.0000 (tasks) + "
+        f"${expected_extraction_cost:,.4f} (extraction) = "
+        f"${expected_extraction_cost:,.4f} total actual cost**" in rendered_text
     )
 
 
