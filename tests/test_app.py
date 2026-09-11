@@ -142,7 +142,7 @@ def test_app_injects_wider_main_container_css_targeting_stable_selector():
     assert not at.exception
     style_blocks = [m.value for m in at.markdown if "stMainBlockContainer" in m.value]
     assert len(style_blocks) == 1
-    assert "846px" in style_blocks[0]
+    assert "800px" in style_blocks[0]
     assert "st-emotion-cache" not in style_blocks[0]
 
 

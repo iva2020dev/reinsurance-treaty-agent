@@ -502,7 +502,7 @@ def _show_review_dialog(pdf_bytes: bytes, display_name: str) -> None:
             st.text(section.text)
 
 
-_MAIN_CONTAINER_MAX_WIDTH_PX = 846  # 736 (Streamlit's centered-layout default) * 1.15
+_MAIN_CONTAINER_MAX_WIDTH_PX = 800
 
 
 def _inject_wide_main_container_css() -> None:
