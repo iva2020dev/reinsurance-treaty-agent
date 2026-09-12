@@ -87,6 +87,212 @@
     accuracy below the agreed threshold fails the build with a clear
     message; a PR that doesn't regress passes.
 
+- [ ] Key-date/renewal calendar extraction
+  - **ID**: key-date-renewal-calendar-extraction
+  - **Tags**: business-domain, treaty, extraction
+  - **Candidate ID**: B2 (`CANDIDATE_TASKS.md`, re-ranked Pri 2 of 8 on
+    2026-09-12 by business importance/frequency/urgency — see
+    `REASONING.md`'s 2026-09-12 entry)
+  - **Details**: Extract inception/expiry/notice-period dates from
+    treaty text and flag treaties whose renewal/notice deadline falls
+    within a configurable upcoming window. Deterministic (regex-first),
+    following the `B0`/`B1` extraction pattern — may need the same
+    regex-then-LLM-fallback shape as `B0` if real treaties skew toward
+    prose dates (see `CANDIDATE_TASKS.md`'s "Document-quality
+    sensitivity" section). **Highest business priority of the B-series**:
+    every treaty under review needs its renewal/notice dates tracked,
+    and a missed notice-period deadline has real financial/legal
+    consequences — checked more often, and with more time-pressure,
+    than any other candidate in this list.
+  - **Files**: `src/services/key_date_renewal_calendar_extraction.py`
+    (new node module, per the `isolate-domain-task-services`
+    convention), `src/domain_tasks.py` (flip `implementation_status` to
+    `implemented`, set `workflow_node`), `tests/services/
+    test_key_date_renewal_calendar_extraction.py` (new),
+    `CANDIDATE_TASKS.md` (status sync on completion)
+  - **Acceptance**: the node extracts inception/expiry/notice-period
+    dates from treaty sections and flags a finding when the
+    expiry/notice deadline falls within the configured window;
+    registered in `domain_tasks.py` as implemented and selectable from
+    the existing multi-task selection UI with no `src/workflow.py`
+    changes needed (the shared-pipeline/graph-wiring mechanism already
+    supports this); `python -m pytest -q` passes.
+
+- [ ] Plain-English treaty summary
+  - **ID**: plain-english-treaty-summary
+  - **Tags**: business-domain, treaty, llm
+  - **Candidate ID**: B7 (`CANDIDATE_TASKS.md`, re-ranked Pri 3 of 8 on
+    2026-09-12)
+  - **Details**: One LLM call producing a short executive summary
+    (parties, layer, key dates, notable clauses) from the extracted
+    treaty terms and source sections. Must be opt-in (an explicit
+    button/action), not automatic, to preserve the app's "LLM cost only
+    when needed" default — see `CANDIDATE_TASKS.md`'s note that
+    B6-B8/C4 would change the app's cost profile if made automatic.
+    High business priority: used on nearly every treaty reviewed in
+    real practice (new submissions and renewals alike), cheap and
+    immediately useful to non-technical stakeholders.
+  - **Files**: `src/services/plain_english_treaty_summary.py` (new),
+    `src/domain_tasks.py`, `src/app.py` (opt-in trigger UI, since this
+    should not run automatically with the other selected tasks),
+    `tests/services/test_plain_english_treaty_summary.py` (new),
+    `CANDIDATE_TASKS.md`
+  - **Acceptance**: a distinct opt-in action produces a short
+    plain-English summary from the current treaty's extracted terms and
+    sections; it never runs unless explicitly triggered, even when other
+    domain tasks are selected; registered in `domain_tasks.py` as
+    implemented (`shape="llm"`); `python -m pytest -q` passes.
+
+- [ ] Multi-layer program extraction & aggregation
+  - **ID**: multi-layer-program-extraction
+  - **Tags**: business-domain, treaty, extraction, schema-change
+  - **Candidate ID**: B4 (`CANDIDATE_TASKS.md`, re-ranked Pri 4 of 8 on
+    2026-09-12)
+  - **Details**: Today only Layer 1 of a multi-layer treaty is
+    extracted (`TreatyTerms` models a single layer). Lift that
+    simplification: extract every layer, compute burn cost per layer
+    and for the combined program. Real schema change (`TreatyTerms` →
+    a list of layers), touching the parser, extraction pipeline,
+    workflow state, and UI, plus every existing fixture — Effort: L per
+    `CANDIDATE_TASKS.md`, likely its own multi-task chain once actually
+    picked up (same pattern as the earlier hybrid-extraction work),
+    not necessarily a single PR. Segmenting which prose belongs to
+    which layer is itself a document-quality-sensitive sub-problem —
+    may need LLM-assisted layer-boundary detection even though
+    per-layer figures stay a regex/arithmetic problem. High business
+    priority despite the effort size: most real treaties *are*
+    multi-layer programs, so today's single-layer simplification is a
+    correctness gap affecting the majority of real-world documents, not
+    an edge case — and a task this large should start early even though
+    it delivers later. `B5` (Reinstatement cost modeling) depends on
+    this.
+  - **Files**: `src/models.py` (`TreatyTerms` schema change), `src/
+    parser.py`, `src/workflow.py` (extraction pipeline), `src/
+    services/` (per-layer + aggregate burn-cost logic), `src/app.py`,
+    every fixture under `data/`, corresponding tests across `tests/`
+  - **Acceptance**: a multi-layer treaty's every layer is extracted
+    (not just Layer 1); burn cost is computed per layer and for the
+    combined program; existing single-layer treaties/fixtures continue
+    to work unchanged; `python -m pytest -q` and `python -m
+    tests.eval.run_eval` both pass.
+
+- [ ] Renewal year-over-year diff
+  - **ID**: renewal-year-over-year-diff
+  - **Tags**: business-domain, treaty, extraction
+  - **Candidate ID**: B3 (`CANDIDATE_TASKS.md`, re-ranked Pri 5 of 8 on
+    2026-09-12)
+  - **Details**: Accept two treaty PDFs (this year vs. last), extract
+    both via the existing extraction pipeline, diff `TreatyTerms`
+    field-by-field, and report what changed (rate, attachment, limit,
+    new/removed exclusions). Unlike every other domain task so far,
+    this needs *two* input documents, not one — will likely need its
+    own second-document UI entry point rather than fitting into the
+    existing single-document task-selection flow; scope that UI
+    question during implementation, not assumed here. High business
+    value at every renewal (informs the actual renewal negotiation),
+    and renewals recur constantly across a portfolio even though any
+    single treaty only renews annually.
+  - **Files**: `src/services/renewal_year_over_year_diff.py` (new),
+    `src/app.py` (second-document input UI), `src/domain_tasks.py`,
+    `tests/services/test_renewal_year_over_year_diff.py` (new),
+    `CANDIDATE_TASKS.md`
+  - **Acceptance**: given two treaty PDFs, the diff reports every
+    changed field (rate/attachment/limit/premium, added/removed
+    exclusions) between them; registered in `domain_tasks.py` as
+    implemented; `python -m pytest -q` passes.
+
+- [ ] Semantic compliance/clause matching
+  - **ID**: semantic-clause-matching
+  - **Tags**: business-domain, treaty, llm
+  - **Candidate ID**: B6 (`CANDIDATE_TASKS.md`, re-ranked Pri 6 of 8 on
+    2026-09-12)
+  - **Details**: LLM version of `B1` (`exclusion_completeness_
+    checklist`), matching mandatory-clause *intent* rather than
+    keyword substrings, so it survives wording variation `B1`'s
+    keyword-matching approach would miss. Important for compliance/risk
+    sign-off on every treaty, but ranked after the cheaper deterministic
+    B-series wins above since it's LLM-shaped (real per-run cost if run
+    on every upload — see `CANDIDATE_TASKS.md`'s note on B6-B8/C4's cost
+    profile if made automatic rather than opt-in).
+  - **Files**: `src/services/semantic_clause_matching.py` (new),
+    `src/domain_tasks.py`, `tests/services/
+    test_semantic_clause_matching.py` (new), `CANDIDATE_TASKS.md`
+  - **Acceptance**: given a treaty's extracted exclusions text, the
+    node flags any of `B1`'s mandatory clause categories whose *intent*
+    isn't covered, even when the exact keyword isn't present (e.g.
+    "acts of aggression between sovereign states" for "war"); a golden/
+    example-based test set (not just exact-match) covers at least one
+    wording-variation case per mandatory clause category; registered in
+    `domain_tasks.py` as implemented (`shape="llm"`); `python -m pytest
+    -q` passes.
+
+- [ ] Reinstatement cost modeling
+  - **ID**: reinstatement-cost-modeling
+  - **Tags**: business-domain, treaty, extraction
+  - **Candidate ID**: B5 (`CANDIDATE_TASKS.md`, re-ranked Pri 7 of 8 on
+    2026-09-12)
+  - **Blocked by**: multi-layer-program-extraction
+  - **Details**: Extract reinstatement terms and compute the added
+    premium cost if a layer is fully exhausted. Depends on
+    `multi-layer-program-extraction` (`B4`) since reinstatement is a
+    per-layer concept. Real but specialized to layered programs already
+    exhausted/reinstated — narrower and lower-frequency than the other
+    B-series items, hence ranked near the end despite being
+    deterministic.
+  - **Files**: `src/services/reinstatement_cost_modeling.py` (new),
+    `src/domain_tasks.py`, `tests/services/
+    test_reinstatement_cost_modeling.py` (new), `CANDIDATE_TASKS.md`
+  - **Acceptance**: given a treaty's reinstatement terms and a layer
+    determined to be exhausted (per `multi-layer-program-extraction`'s
+    per-layer burn-cost output), the node computes the added
+    reinstatement premium cost; registered in `domain_tasks.py` as
+    implemented; `python -m pytest -q` passes.
+
+- [ ] Clause ambiguity/contradiction detection
+  - **ID**: clause-ambiguity-detection
+  - **Tags**: business-domain, treaty, llm
+  - **Candidate ID**: B8 (`CANDIDATE_TASKS.md`, re-ranked Pri 8 of 8 on
+    2026-09-12)
+  - **Details**: LLM reviews the whole document for internally
+    inconsistent terms (e.g. attachment point defined differently in
+    two places). Judgment-based output — harder to test than field
+    extraction; needs example-based/golden tests, not just exact-match.
+    Valuable QA, but an occasional deep-review activity rather than
+    daily underwriting work, hence ranked near the end of the B-series.
+  - **Files**: `src/services/clause_ambiguity_detection.py` (new),
+    `src/domain_tasks.py`, `tests/services/
+    test_clause_ambiguity_detection.py` (new), `CANDIDATE_TASKS.md`
+  - **Acceptance**: given a treaty document with a deliberately
+    inconsistent term planted across two sections, the node flags the
+    contradiction with both locations cited; a golden/example-based
+    test set covers at least one contradiction case and one
+    no-contradiction (true-negative) case; registered in
+    `domain_tasks.py` as implemented (`shape="llm"`); `python -m pytest
+    -q` passes.
+
+- [ ] Peer/portfolio benchmarking
+  - **ID**: peer-portfolio-benchmarking
+  - **Tags**: business-domain, treaty, extraction, data-model
+  - **Candidate ID**: B9 (`CANDIDATE_TASKS.md`, unchanged at Pri 9 —
+    already last in the original ranking, stays last here too)
+  - **Details**: Is this treaty's pricing an outlier vs. similar
+    treaties already on file? Needs a portfolio data model (multiple
+    treaties persisted, not just single-document analysis) — a bigger
+    data-model addition than any other B-series item, and Effort: L per
+    `CANDIDATE_TASKS.md` (likely its own task chain once picked up).
+    Strategic and periodic (quarterly/annual portfolio review) rather
+    than needed on every single-treaty review, so ranked last despite
+    being deterministic once the portfolio store exists.
+  - **Files**: a new portfolio persistence layer (module TBD at
+    implementation time), `src/services/peer_portfolio_benchmarking.py`
+    (new), `src/domain_tasks.py`, `tests/services/
+    test_peer_portfolio_benchmarking.py` (new), `CANDIDATE_TASKS.md`
+  - **Acceptance**: given a portfolio of previously-analyzed treaties
+    and a new treaty's extracted terms, the node flags the new treaty's
+    pricing as a statistical outlier (e.g. z-score threshold) against
+    the portfolio; registered in `domain_tasks.py` as implemented;
+    `python -m pytest -q` passes.
+
 
 ## P2
 

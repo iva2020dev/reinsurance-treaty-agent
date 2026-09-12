@@ -5663,3 +5663,86 @@ the "Recently completed" block, per the mandatory closing workflow. No
 `CANDIDATE_TASKS.md` sync needed — this task was never graduated from
 there (requested directly by the human as a refactor of
 `src/workflow.py`).
+
+## 2026-09-12 09:30:00 — Starting: Graduate B2-B9 from CANDIDATE_TASKS.md into TASKS.md, reprioritized by business importance/frequency/urgency
+
+**Goal**: Move every still-unimplemented Treaty candidate (`B2`-`B9` in
+`CANDIDATE_TASKS.md`; `B0`/`B1` are already shipped) into `TASKS.md` with
+real ID/Details/Files/Acceptance entries, per the human's explicit
+request. The human also asked these be re-prioritized by business
+importance, day-to-day frequency, and urgency -- not the original
+effort/value/dependency-based ordering `CANDIDATE_TASKS.md` was drafted
+with.
+
+**Analysis**: `CANDIDATE_TASKS.md`'s own text states candidate IDs
+(`B2`, `B3`, ...) are stable identifiers scoped per category, referenced
+by `src/domain_tasks.py`'s `candidate_id` field and by other candidates'
+`Depends on` column (e.g. `C2` depends on `B2`; `B5` depends on `B4`).
+Renumbering the IDs themselves to reflect a new priority order would
+require an unrelated, risky rename across `domain_tasks.py`, tests, and
+this file's own cross-references, for no real benefit -- the `Pri`
+column already exists separately from `ID` precisely to express current
+priority independent of the (stable) ID. So: keep every `B2`-`B9` ID as
+it is; only the `Pri` column changes.
+
+**Decision -- re-ranked priority order** (business
+importance/frequency/urgency, replacing the original
+effort/value/dependency ranking):
+
+1. **B2** (Key-date/renewal calendar extraction) -- every treaty needs
+   its renewal/notice dates tracked; a missed notice-period deadline has
+   real financial/legal consequences. Checked more often, and with more
+   time-pressure, than anything else in this list.
+2. **B7** (Plain-English treaty summary) -- used on nearly every treaty
+   reviewed in practice (new submissions and renewals alike); cheap,
+   fast, immediately useful to non-technical stakeholders.
+3. **B4** (Multi-layer program extraction & aggregation) -- most real
+   treaties *are* multi-layer programs; today's single-layer
+   simplification is a real correctness gap affecting the majority of
+   real-world documents, not an edge case. Effort: L, so it should start
+   early even though it delivers later.
+4. **B3** (Renewal year-over-year diff) -- high business value at every
+   renewal (informs the actual renewal negotiation), and renewals recur
+   constantly across a portfolio even though any single treaty only
+   renews annually.
+5. **B6** (Semantic compliance/clause matching) -- important for
+   compliance/risk sign-off on every treaty; ranked after cheaper
+   deterministic wins because it's LLM-shaped (real per-run cost, per
+   `CANDIDATE_TASKS.md`'s note that B6-B8/C4 change the cost profile if
+   made automatic rather than opt-in).
+6. **B5** (Reinstatement cost modeling) -- specialized to layered
+   programs already exhausted/reinstated; real but narrower and lower
+   frequency than B2-B4/B6-B7. Depends on B4 (unchanged), which still
+   ranks ahead of it (4 vs. 6).
+7. **B8** (Clause ambiguity/contradiction detection) -- valuable QA, but
+   an occasional deep-review activity, not daily underwriting work.
+8. **B9** (Peer/portfolio benchmarking) -- strategic and periodic
+   (quarterly/annual portfolio review), needs a new persistent
+   portfolio data model; least frequent/urgent for a per-treaty review
+   tool today.
+
+**Action**: Update `CANDIDATE_TASKS.md`'s Treaty summary table (`Pri`
+column reordered as above, `Status` set to `📋 In TASKS.md as
+\`<id>\`` for B2-B9) and each detailed `B2.`-`B9.` entry's header (new
+`Priority N`, status, and a one-line rationale note), per `AGENTS.md`'s
+"Keeping CANDIDATE_TASKS.md in Sync" rule -- same PR as the `TASKS.md`
+graduation. Add all eight to `TASKS.md`'s P1 section in the new
+priority order, each following the `src/services/<id>.py` +
+`src/domain_tasks.py` registry + `tests/services/test_<id>.py` pattern
+established by `isolate-domain-task-services`. None are claimed
+(`@claude`) -- they're staged for pickup, not started.
+
+## 2026-09-12 09:45:00 — Outcome: Graduate B2-B9 into TASKS.md, reprioritized
+
+Added all eight B2-B9 tasks to `TASKS.md`'s P1 section, in the new
+business-priority order (B2, B7, B4, B3, B6, B5, B8, B9), none claimed —
+staged for future pickup. `CANDIDATE_TASKS.md`'s Treaty summary table
+(`Pri` column reordered, `Status` set to `📋 In TASKS.md as \`<id>\`` for
+each) and each detailed `B2.`-`B9.` entry (new `Priority N`, status, and
+a one-line business-priority rationale) updated to match, per
+`AGENTS.md`'s "Keeping CANDIDATE_TASKS.md in Sync" rule, same PR.
+
+`python -m pytest -q` — 185 passed (docs-only change, no regression, as
+expected). Awaiting human review — no approval needed to *add* new
+staged tasks (only removing a done one requires the approval gate), so
+no further action pending here beyond opening the PR.
