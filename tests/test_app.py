@@ -1823,6 +1823,71 @@ def test_app_generate_plain_english_summary_save_and_download_buttons_present(tm
     assert any(b.label == "Download summary" for b in at.download_button)
 
 
+def test_app_generate_plain_english_summary_shows_usage_caption_not_folded_into_text(monkeypatch):
+    pdf_bytes = Path(MINIMAL_TREATY_PATH).read_bytes()
+    mock_client = _mock_text_llm_client(text="A short plain-English summary.")
+    monkeypatch.setattr("src.llm_client.anthropic.Anthropic", lambda **kwargs: mock_client)
+
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+    at = _upload_treaty(at, "sample_treaty.pdf", pdf_bytes)
+    at = _click_button(at, "Generate Plain-English Summary")
+
+    assert not at.exception
+    captions = [c.value for c in at.caption]
+    assert any("LLM usage: input tokens: 100, output tokens: 50" in c for c in captions)
+    summary_markdown = next(m.value for m in at.markdown if "A short plain-English summary." in m.value)
+    assert "input tokens" not in summary_markdown
+
+
+def test_app_generate_plain_english_summary_can_be_closed(monkeypatch):
+    pdf_bytes = Path(MINIMAL_TREATY_PATH).read_bytes()
+    mock_client = _mock_text_llm_client(text="A short plain-English summary.")
+    monkeypatch.setattr("src.llm_client.anthropic.Anthropic", lambda **kwargs: mock_client)
+
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+    at = _upload_treaty(at, "sample_treaty.pdf", pdf_bytes)
+    at = _click_button(at, "Generate Plain-English Summary")
+
+    assert any("A short plain-English summary." in m.value for m in at.markdown)
+
+    at = _click_button(at, "Close")
+
+    assert not at.exception
+    assert not any("A short plain-English summary." in m.value for m in at.markdown)
+
+
+def test_app_generate_plain_english_summary_can_be_regenerated_any_time(monkeypatch):
+    pdf_bytes = Path(MINIMAL_TREATY_PATH).read_bytes()
+    mock_client = MagicMock()
+    mock_client.messages.create.side_effect = [
+        SimpleNamespace(
+            content=[SimpleNamespace(type="text", text="First summary.")],
+            usage=SimpleNamespace(input_tokens=100, output_tokens=50),
+        ),
+        SimpleNamespace(
+            content=[SimpleNamespace(type="text", text="Second, regenerated summary.")],
+            usage=SimpleNamespace(input_tokens=110, output_tokens=60),
+        ),
+    ]
+    monkeypatch.setattr("src.llm_client.anthropic.Anthropic", lambda **kwargs: mock_client)
+
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+    at = _upload_treaty(at, "sample_treaty.pdf", pdf_bytes)
+    at = _click_button(at, "Generate Plain-English Summary")
+    assert any("First summary." in m.value for m in at.markdown)
+
+    # Regenerating (without closing first) replaces the summary in place.
+    at = _click_button(at, "Generate Plain-English Summary")
+
+    assert not at.exception
+    assert mock_client.messages.create.call_count == 2
+    assert any("Second, regenerated summary." in m.value for m in at.markdown)
+    assert not any("First summary." in m.value for m in at.markdown)
+
+
 def test_app_saved_file_includes_every_selected_tasks_results(tmp_path, monkeypatch):
     """End-to-end: selecting two genuinely distinct implemented tasks
     (same monkeypatch technique as multi-task-results-ui's own test) and

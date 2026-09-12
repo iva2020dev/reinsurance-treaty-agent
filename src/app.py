@@ -1033,62 +1033,88 @@ def main() -> None:
         summary_state = None
 
     if generate_summary_clicked and selected_bytes is not None and selected_name is not None:
+        # Re-generating (whether the container below is still open or was
+        # closed) always overwrites this state and re-renders it -- there's
+        # no separate "regenerate" control, the same trigger button always
+        # produces a fresh summary and reopens/replaces the container.
         with st.spinner("Generating summary..."):
             try:
                 with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp:
                     tmp.write(selected_bytes)
                     tmp.flush()
                     sections = extract_treaty_sections(Path(tmp.name))
-                summary_text = generate_plain_english_treaty_summary(sections)
+                result = generate_plain_english_treaty_summary(sections)
             except Exception as exc:  # noqa: BLE001 -- any failure must be shown, not crash the app
                 summary_state = {
                     "fingerprint": selected_fingerprint,
                     "display_name": selected_name,
                     "text": None,
+                    "input_tokens": None,
+                    "output_tokens": None,
                     "error": str(exc),
                 }
             else:
                 summary_state = {
                     "fingerprint": selected_fingerprint,
                     "display_name": selected_name,
-                    "text": summary_text,
+                    "text": result.text,
+                    "input_tokens": result.input_tokens,
+                    "output_tokens": result.output_tokens,
                     "error": None,
                 }
             st.session_state["plain_english_summary"] = summary_state
 
     if summary_state is not None:
-        if summary_state["error"]:
-            st.error(f"Could not generate summary: {summary_state['error']}")
-        else:
-            st.markdown(summary_state["text"])
-            summary_format_choice = st.radio(
-                "Summary file format",
-                ["Markdown (.md)", "PDF (.pdf)"],
-                horizontal=True,
-                key="summary_format_choice",
-            )
-            summary_extension = "pdf" if summary_format_choice.startswith("PDF") else "md"
-            summary_save_col, summary_download_col = st.columns(2)
-            with summary_save_col:
-                if st.button("Save summary", icon=":material/save:"):
-                    saved_summary_path = save_summary_to_file(
-                        summary_state["text"], summary_state["display_name"], summary_extension
-                    )
-                    st.success(f"Saved summary to {saved_summary_path}.")
-            with summary_download_col:
-                summary_download_when = datetime.now()
-                st.download_button(
-                    "Download summary",
-                    data=render_summary_bytes(
-                        summary_state["text"],
-                        summary_state["display_name"],
-                        summary_extension,
-                        when=summary_download_when,
-                    ),
-                    file_name=format_summary_filename(summary_extension, when=summary_download_when),
-                    mime="application/pdf" if summary_extension == "pdf" else "text/markdown",
-                    icon=":material/download:",
+        with st.container(border=True):
+            summary_header_col, summary_close_col = st.columns([6, 1])
+            with summary_header_col:
+                st.subheader("Plain-English Summary")
+            with summary_close_col:
+                summary_close_clicked = st.button("Close", icon=":material/close:", key="close_summary_button")
+            if summary_close_clicked:
+                del st.session_state["plain_english_summary"]
+                st.rerun()
+
+            if summary_state["error"]:
+                st.error(f"Could not generate summary: {summary_state['error']}")
+            else:
+                st.markdown(summary_state["text"])
+                # LLM usage is generation metadata, not part of the summary
+                # itself -- shown as its own info line, never folded into
+                # the text that gets saved/downloaded below.
+                usage_cost = actual_task_cost(summary_state["input_tokens"], summary_state["output_tokens"])
+                st.caption(
+                    f"LLM usage: input tokens: {summary_state['input_tokens']}, "
+                    f"output tokens: {summary_state['output_tokens']} (${usage_cost:,.4f})"
                 )
+                summary_format_choice = st.radio(
+                    "Summary file format",
+                    ["Markdown (.md)", "PDF (.pdf)"],
+                    horizontal=True,
+                    key="summary_format_choice",
+                )
+                summary_extension = "pdf" if summary_format_choice.startswith("PDF") else "md"
+                summary_save_col, summary_download_col = st.columns(2)
+                with summary_save_col:
+                    if st.button("Save summary", icon=":material/save:"):
+                        saved_summary_path = save_summary_to_file(
+                            summary_state["text"], summary_state["display_name"], summary_extension
+                        )
+                        st.success(f"Saved summary to {saved_summary_path}.")
+                with summary_download_col:
+                    summary_download_when = datetime.now()
+                    st.download_button(
+                        "Download summary",
+                        data=render_summary_bytes(
+                            summary_state["text"],
+                            summary_state["display_name"],
+                            summary_extension,
+                            when=summary_download_when,
+                        ),
+                        file_name=format_summary_filename(summary_extension, when=summary_download_when),
+                        mime="application/pdf" if summary_extension == "pdf" else "text/markdown",
+                        icon=":material/download:",
+                    )
 
     st.subheader("Domain tasks to run")
     header_task_col, header_type_col, header_cost_col = st.columns(

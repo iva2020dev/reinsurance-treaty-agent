@@ -22,21 +22,26 @@ SECTIONS = [
 ]
 
 
-def test_generate_plain_english_treaty_summary_returns_text_from_response(monkeypatch):
+def test_generate_plain_english_treaty_summary_returns_text_and_usage_from_response(monkeypatch):
     text_block = SimpleNamespace(type="text", text="A short plain-English summary.")
     mock_client = MagicMock()
     mock_usage = SimpleNamespace(input_tokens=128, output_tokens=32)
     mock_client.messages.create.return_value = SimpleNamespace(content=[text_block], usage=mock_usage)
     monkeypatch.setattr("src.llm_client.anthropic.Anthropic", lambda **kwargs: mock_client)
 
-    summary = generate_plain_english_treaty_summary(SECTIONS)
+    result = generate_plain_english_treaty_summary(SECTIONS)
 
-    assert summary == "A short plain-English summary."
+    assert result.text == "A short plain-English summary."
+    assert result.input_tokens == 128
+    assert result.output_tokens == 32
     mock_client.messages.create.assert_called_once()
     prompt = mock_client.messages.create.call_args.kwargs["messages"][0]["content"]
     assert "Test Cedent Co." in prompt
     assert "100,000" in prompt
     assert "War" in prompt
+    # Usage must never be folded into the returned text itself.
+    assert "128" not in result.text
+    assert "32" not in result.text
 
 
 def test_generate_plain_english_treaty_summary_concatenates_multiple_text_blocks(monkeypatch):
@@ -49,9 +54,9 @@ def test_generate_plain_english_treaty_summary_concatenates_multiple_text_blocks
     mock_client.messages.create.return_value = SimpleNamespace(content=blocks, usage=mock_usage)
     monkeypatch.setattr("src.llm_client.anthropic.Anthropic", lambda **kwargs: mock_client)
 
-    summary = generate_plain_english_treaty_summary(SECTIONS)
+    result = generate_plain_english_treaty_summary(SECTIONS)
 
-    assert summary == "First part. Second part."
+    assert result.text == "First part. Second part."
 
 
 def test_generate_plain_english_treaty_summary_propagates_failure_after_retries_exhausted(monkeypatch):

@@ -22,11 +22,27 @@ extracted) TreatyTerms.
 
 import logging
 import time
+from dataclasses import dataclass
 
 from src.llm_client import call_with_retry, get_client
 from src.parser import PageSection
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class PlainEnglishSummaryResult:
+    """The generated summary text plus the LLM call's real token usage.
+
+    Usage is returned as its own field (not appended into `text`) so a
+    caller can surface it separately -- e.g. as an on-screen info line --
+    without it ever being written into the saved/downloaded summary
+    document itself.
+    """
+
+    text: str
+    input_tokens: int
+    output_tokens: int
 
 _LLM_MODEL = "claude-haiku-4-5-20251001"
 _LLM_TIMEOUT_SECONDS = 30.0
@@ -47,7 +63,7 @@ def _build_prompt(sections: list[PageSection]) -> str:
     )
 
 
-def generate_plain_english_treaty_summary(sections: list[PageSection]) -> str:
+def generate_plain_english_treaty_summary(sections: list[PageSection]) -> PlainEnglishSummaryResult:
     """Produce a short plain-English executive summary of the treaty via a
     single LLM call, working directly off its raw parsed page text --
     doesn't need (and doesn't wait for) the treaty's extracted TreatyTerms,
@@ -81,4 +97,6 @@ def generate_plain_english_treaty_summary(sections: list[PageSection]) -> str:
         usage.input_tokens,
         usage.output_tokens,
     )
-    return summary_text
+    return PlainEnglishSummaryResult(
+        text=summary_text, input_tokens=usage.input_tokens, output_tokens=usage.output_tokens
+    )

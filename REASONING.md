@@ -6158,3 +6158,51 @@ tests.eval.run_eval` -- all 5 golden cases still 100%. Manually ran
 (before "Analyze"), clicking it displays the summary without ever
 calling "Analyze", and "Save summary"/"Download summary" appear
 afterward.
+
+## 2026-09-12 12:05:00 — Update: closeable container, regenerate-any-time, LLM usage line (human feedback on open PR #112)
+
+**Human feedback** (on the still-open PR #112, after the earlier
+placement change): (1) wrap the summary in a closeable container; (2)
+confirm/support regenerating the summary at any time; (3) show the
+LLM's token usage as an info bottom line, not folded into the summary
+text itself.
+
+**Action**:
+- `src/services/plain_english_treaty_summary.py`: `generate_plain_
+  english_treaty_summary()` now returns a new frozen dataclass,
+  `PlainEnglishSummaryResult(text, input_tokens, output_tokens)`,
+  instead of a bare string -- usage travels as its own field precisely
+  so a caller can surface it separately from the text that gets saved/
+  downloaded.
+- `src/app.py`: the summary display now lives inside `st.container(
+  border=True)` with a header row (subheader + "Close" button, same
+  pattern as the "Analysis Results" container), clicking Close deletes
+  `st.session_state["plain_english_summary"]` and reruns. The existing
+  "Generate Plain-English Summary" trigger button was already always
+  visible/enabled regardless of whether a summary exists yet, so
+  clicking it again already regenerates in place (overwriting the
+  session-state entry) and reopens the container even after Close --
+  confirmed via a new test that regenerates twice with different mocked
+  responses and asserts the second replaces the first. A new `st.
+  caption` inside the container (below the summary markdown, above the
+  save/download controls) reports `input tokens: N, output tokens: M
+  ($cost)` via the already-imported `actual_task_cost()` -- built from
+  `PlainEnglishSummaryResult`'s fields directly, never concatenated
+  into `summary_state["text"]`, so it's absent from both the on-screen
+  markdown and the saved/downloaded document.
+- Needed an explicit `key="close_summary_button"` on the new "Close"
+  button, since "Analysis Results" already has its own button with the
+  identical label + icon -- Streamlit would otherwise treat the two as
+  colliding widgets.
+- Tests: `tests/services/test_plain_english_treaty_summary.py`'s
+  assertions updated for the dataclass return value (plus a new
+  assertion that neither token count leaks into `result.text`).
+  `tests/test_app.py`: three new tests -- the usage caption's exact
+  text and that it's absent from the summary's own markdown block;
+  clicking Close removes the summary from view; regenerating (via
+  `mock_client.messages.create.side_effect` returning two different
+  responses across two clicks) replaces the displayed text and usage
+  without needing to close first.
+
+**Verification**: `python -m pytest -q` -- 205 passed (202 + 3 new).
+`python -m tests.eval.run_eval` -- all 5 golden cases still 100%.
