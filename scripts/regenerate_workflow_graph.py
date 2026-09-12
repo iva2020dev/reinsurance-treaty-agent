@@ -40,14 +40,22 @@ MULTI_TASK_END_MARKER = "<!-- workflow-graph-multi-task:end -->"
 
 
 def get_multi_task_selected_ids() -> set[str]:
-    """Every currently-implemented domain task's id.
+    """Every currently-implemented, graph-fannable domain task's id.
 
     Computed from DOMAIN_TASKS rather than a fixed constant, so the
     multi-task diagram always reflects real fan-out as of whatever's
     actually shipped -- it grows on its own as more tasks are
-    implemented, instead of needing a manual edit each time.
+    implemented, instead of needing a manual edit each time. Excludes any
+    implemented task with no workflow_node (today: plain_english_treaty_
+    summary) -- it's not a graph node at all (see src/domain_tasks.py's
+    module docstring), so build_workflow_graph() itself skips it too even
+    if it were included here.
     """
-    return {task.id for task in DOMAIN_TASKS if task.implementation_status == "implemented"}
+    return {
+        task.id
+        for task in DOMAIN_TASKS
+        if task.implementation_status == "implemented" and task.workflow_node is not None
+    }
 
 
 def get_mermaid_text() -> str:

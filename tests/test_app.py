@@ -193,14 +193,34 @@ def test_app_shows_one_checkbox_per_domain_task_only_implemented_enabled():
     at = AppTest.from_file("../src/app.py")
     at.run()
 
-    assert len(at.checkbox) == len(DOMAIN_TASKS)
-    implemented_titles = {t.title for t in DOMAIN_TASKS if t.implementation_status == "implemented"}
+    # Every task gets a checkbox row EXCEPT a standalone opt-in task that's
+    # implemented but has no workflow_node (today: plain_english_treaty_
+    # summary) -- it's deliberately excluded from this checklist since it
+    # has its own separate UI trigger, not the graph/fan-out mechanism
+    # every other task here shares.
+    checklist_tasks = [
+        t for t in DOMAIN_TASKS if not (t.implementation_status == "implemented" and t.workflow_node is None)
+    ]
+    assert len(at.checkbox) == len(checklist_tasks)
+    implemented_titles = {t.title for t in checklist_tasks if t.implementation_status == "implemented"}
     for checkbox in at.checkbox:
         if checkbox.label in implemented_titles:
             assert not checkbox.disabled
         else:
             assert checkbox.disabled
             assert not checkbox.value
+
+
+def test_app_standalone_opt_in_task_never_appears_in_domain_tasks_checklist():
+    """plain_english_treaty_summary is implemented but has no workflow_node
+    -- it must never render as a checkbox in "Domain tasks to run", since
+    checking it alongside other tasks and clicking "Analyze" would run its
+    LLM call as part of that batch, defeating its whole opt-in design."""
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    checkbox_labels = {c.label for c in at.checkbox}
+    assert "Plain-English treaty summary" not in checkbox_labels
 
 
 def test_app_review_treaty_button_renders_before_domain_tasks_checklist():
@@ -1690,6 +1710,63 @@ def test_app_save_analysis_results_button_writes_pdf_when_selected(tmp_path, mon
     assert not at.exception
     saved_files = list((tmp_path / "results" / "acme_insurance_co").glob("*.pdf"))
     assert len(saved_files) == 1
+
+
+def _mock_text_llm_client(*, text: str | None = None, error: Exception | None = None) -> MagicMock:
+    """A mock anthropic.Anthropic() client returning a plain text block
+    (unlike _mock_llm_client's tool_use block), for plain_english_treaty_
+    summary's non-tool-use call."""
+    mock_client = MagicMock()
+    if error is not None:
+        mock_client.messages.create.side_effect = error
+        return mock_client
+    text_block = SimpleNamespace(type="text", text=text)
+    mock_client.messages.create.return_value = SimpleNamespace(
+        content=[text_block], usage=SimpleNamespace(input_tokens=100, output_tokens=50)
+    )
+    return mock_client
+
+
+def test_app_generate_plain_english_summary_button_present_but_never_called_automatically(monkeypatch):
+    pdf_bytes = Path(MINIMAL_TREATY_PATH).read_bytes()
+    mock_client = _mock_text_llm_client(text="A short plain-English summary.")
+    monkeypatch.setattr("src.llm_client.anthropic.Anthropic", lambda **kwargs: mock_client)
+
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+    at = _upload_and_click_analyze(at, "sample_treaty.pdf", pdf_bytes)
+
+    assert any(b.label == "Generate Plain-English Summary" for b in at.button)
+    mock_client.messages.create.assert_not_called()
+
+
+def test_app_generate_plain_english_summary_button_displays_result_when_clicked(monkeypatch):
+    pdf_bytes = Path(MINIMAL_TREATY_PATH).read_bytes()
+    mock_client = _mock_text_llm_client(text="A short plain-English summary.")
+    monkeypatch.setattr("src.llm_client.anthropic.Anthropic", lambda **kwargs: mock_client)
+
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+    at = _upload_and_click_analyze(at, "sample_treaty.pdf", pdf_bytes)
+    at = _click_button(at, "Generate Plain-English Summary")
+
+    assert not at.exception
+    mock_client.messages.create.assert_called_once()
+    assert any("A short plain-English summary." in m.value for m in at.markdown)
+
+
+def test_app_generate_plain_english_summary_button_shows_error_on_failure(monkeypatch):
+    pdf_bytes = Path(MINIMAL_TREATY_PATH).read_bytes()
+    mock_client = _mock_text_llm_client(error=RuntimeError("LLM call failed"))
+    monkeypatch.setattr("src.llm_client.anthropic.Anthropic", lambda **kwargs: mock_client)
+
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+    at = _upload_and_click_analyze(at, "sample_treaty.pdf", pdf_bytes)
+    at = _click_button(at, "Generate Plain-English Summary")
+
+    assert not at.exception
+    assert any("Could not generate summary" in e.value for e in at.error)
 
 
 def test_app_saved_file_includes_every_selected_tasks_results(tmp_path, monkeypatch):

@@ -26,6 +26,7 @@ from src.domain_tasks import DOMAIN_TASKS
 from src.models import AnomalyFinding, AnomalyReport, TaskResult
 from src.parser import ParserError, extract_treaty_sections
 from src.sample_treaties import SAMPLE_TREATIES, get_sample_bytes
+from src.services.plain_english_treaty_summary import generate_plain_english_treaty_summary
 from src.workflow import DEFAULT_SELECTED_TASK_IDS, WorkflowState, run_workflow_from_pdf
 
 SEVERITY_ICONS = {"low": "ℹ️", "medium": "⚠️", "high": "🚨"}
@@ -943,6 +944,16 @@ def main() -> None:
     selected_task_ids: set[str] = set()
     total_estimated_cost = 0.0
     for task in DOMAIN_TASKS:
+        if task.implementation_status == "implemented" and task.workflow_node is None:
+            # A standalone opt-in task (today: plain_english_treaty_summary)
+            # with its own separate UI trigger elsewhere, not a graph node --
+            # it must never appear in this checklist, since selecting it
+            # here and clicking "Analyze" would run it alongside whatever
+            # else is selected, defeating its whole "opt-in, not automatic"
+            # requirement. Every still-not-implemented task (workflow_node
+            # is also None) still renders its usual disabled placeholder row
+            # below -- this only excludes the implemented-but-standalone case.
+            continue
         is_implemented = task.implementation_status == "implemented"
         checkbox_col, shape_col, label_col, value_col = st.columns(
             _TASK_ROW_COLUMN_WEIGHTS, vertical_alignment="center"
@@ -1060,6 +1071,32 @@ def main() -> None:
                             st.markdown(section_markdown)
                         else:
                             _SEVERITY_STREAMLIT_CONTAINERS[highest_severity_label(findings)](section_markdown)
+
+                # Plain-English Treaty Summary (B7): a standalone opt-in
+                # action, wholly independent of the "Domain tasks to run"
+                # checklist above -- it's never in result_selected_task_ids
+                # and never runs just because this button is on the same
+                # page as other results. Its own result is cached inside
+                # this same run_result dict (mutated in place), so it's
+                # naturally invalidated whenever a new analysis run replaces
+                # st.session_state["workflow_run"] -- no separate cache-
+                # invalidation logic needed.
+                st.divider()
+                st.subheader("Plain-English Summary")
+                if st.button("Generate Plain-English Summary", icon=":material/summarize:"):
+                    with st.spinner("Generating summary..."):
+                        try:
+                            run_result["plain_english_summary"] = generate_plain_english_treaty_summary(
+                                report.treaty, state.get("sections", [])
+                            )
+                            run_result.pop("plain_english_summary_error", None)
+                        except Exception as exc:  # noqa: BLE001 -- any failure must be shown, not crash the app
+                            run_result["plain_english_summary_error"] = str(exc)
+                            run_result.pop("plain_english_summary", None)
+                if run_result.get("plain_english_summary"):
+                    st.markdown(run_result["plain_english_summary"])
+                elif run_result.get("plain_english_summary_error"):
+                    st.error(f"Could not generate summary: {run_result['plain_english_summary_error']}")
 
                 format_choice = st.radio(
                     "Result file format",

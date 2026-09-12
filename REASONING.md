@@ -5952,3 +5952,142 @@ Removing the task entry from `TASKS.md`'s P1 section and logging it in
 the "Recently completed" block. No `CANDIDATE_TASKS.md` sync needed —
 this task was never graduated from there (found directly while
 implementing `key-date-renewal-calendar-extraction`).
+
+## 2026-09-12 11:00:00 — Starting task: Plain-English treaty summary (plain-english-treaty-summary)
+
+**Goal**: Implement `B7` -- one opt-in LLM call producing a short
+executive summary of the treaty, genuinely never running unless
+explicitly triggered, even when other domain tasks are selected.
+
+**Analysis**: This task's own acceptance criteria ("it never runs
+unless explicitly triggered, even when other domain tasks are
+selected") rules out the normal domain-task pattern every other B-task
+follows (a node wired into `build_workflow_graph()`'s fan-out via a
+checkbox in "Domain tasks to run"), because that checklist's own
+`selected_task_ids` set is exactly "other domain tasks" — if this task
+had a `workflow_node` and appeared there, checking it alongside other
+tasks and clicking "Analyze" would run it as part of the same batch,
+which is precisely the automatic-LLM-cost outcome this task exists to
+avoid. Confirmed the checklist loop (`src/app.py`, "Domain tasks to
+run") renders one checkbox per `DOMAIN_TASKS` entry unconditionally,
+and `build_workflow_graph()`'s active-task loop does `globals()[task.
+workflow_node]` for every selected+implemented task -- giving this task
+a `workflow_node` while excluding it from the checklist wouldn't help
+(it could still be reached via `selected_task_ids` some other way and
+crash on `globals()[None]`), and giving it a real workflow_node defeats
+its whole "distinct opt-in action" requirement. So: this task is
+implemented, but deliberately has **no** `workflow_node` at all -- it
+isn't a graph node, isn't reachable via `build_workflow_graph()`, and
+never appears in the "Domain tasks to run" checklist.
+
+**Decision**:
+- `src/services/plain_english_treaty_summary.py`: a standalone function
+  `generate_plain_english_treaty_summary(treaty, sections) -> str`
+  (not a `_node(state)` function -- there's no `WorkflowState` here,
+  since it's not part of the graph), calling the LLM directly via
+  `src.llm_client`'s harness (`get_client`/`call_with_retry`), same
+  pattern as `llm_extraction_fallback`. Unlike the graceful-degradation
+  pattern the graph's nodes use, this function lets a failure propagate
+  after `call_with_retry`'s retries are exhausted -- there's no shared
+  "incomplete" state to fall back to outside the graph, so the caller
+  (the button handler in `src/app.py`) is responsible for catching and
+  displaying the failure.
+- `src/domain_tasks.py`: `plain_english_treaty_summary`'s entry flips to
+  `implementation_status="implemented"` but keeps `workflow_node=None`,
+  with a comment explaining why (deliberately not a graph node).
+- `src/app.py`: (1) the "Domain tasks to run" checklist loop skips any
+  task that is `implementation_status == "implemented" and
+  workflow_node is None` -- today, only this task matches that; every
+  not-yet-implemented task (whose `workflow_node` is also `None`) still
+  renders its usual disabled placeholder row, since the exclusion
+  specifically requires *both* conditions. (2) A new, wholly separate
+  "Plain-English Summary" button inside the Analysis Results container
+  (after `report`/`state["treaty"]` are available), calling the new
+  service function directly and caching its result inside the same
+  `st.session_state["workflow_run"]` dict the rest of the results
+  section already uses -- so it's naturally invalidated whenever a new
+  analysis run replaces that dict, with no separate cache-invalidation
+  logic needed.
+- Tests: `tests/services/test_plain_english_treaty_summary.py` mocks
+  `anthropic.Anthropic` at the SDK-construction level (same pattern
+  `tests/test_workflow.py` already uses for `llm_extraction_fallback`),
+  covering the success path (correct summary text extracted from the
+  mocked response, correct prompt content) and that a failure
+  propagates rather than being swallowed. `tests/test_app.py`'s
+  checkbox-count test updated for the now-excluded task; new tests for
+  the summary button's presence/behavior. `tests/test_domain_tasks.py`'s
+  "B0/B1/B2 implemented" test extended to include `B7`.
+
+**Action**: Implementing on `task/plain-english-treaty-summary`.
+
+## 2026-09-12 11:25:00 — Outcome: Plain-English treaty summary (plain-english-treaty-summary)
+
+**Implemented** per the plan above, with one correction found by the
+test suite itself:
+
+- New `src/services/plain_english_treaty_summary.py`:
+  `generate_plain_english_treaty_summary(treaty, sections) -> str`,
+  same call_with_retry/get_client harness pattern as
+  `llm_extraction_fallback`, no graceful-degradation fallback (raises
+  on failure -- there's no shared pipeline state to fall back to
+  outside the graph).
+- `src/domain_tasks.py`: `plain_english_treaty_summary` flipped to
+  `implementation_status="implemented"`, `workflow_node` stays `None`
+  with an explanatory comment; module docstring corrected (it was
+  already stale, still saying only B0 was implemented) and extended to
+  document this task as the one deliberate implemented-but-no-
+  workflow_node exception.
+- `src/app.py`: "Domain tasks to run" checklist loop now skips any task
+  that is `implementation_status == "implemented" and workflow_node is
+  None` (only this task matches today); a new standalone "Plain-English
+  Summary" section/button in the Analysis Results container, caching
+  its result (or error) directly inside `st.session_state["workflow_
+  run"]` so it's invalidated naturally alongside the rest of that dict.
+- **Bug caught by the test suite, not anticipated in the reasoning
+  above**: `scripts/regenerate_workflow_graph.py`'s `get_multi_task_
+  selected_ids()` (added in the prior `dynamic-workflow-graph-diagram`
+  task) computes "every implemented task's id" -- which, unmodified,
+  now included `plain_english_treaty_summary` too, and
+  `build_workflow_graph()`'s active-task loop unconditionally does
+  `globals()[task.workflow_node]`, crashing with `KeyError: None` the
+  moment that task's (nonexistent) node was looked up. Fixed in two
+  places: `build_workflow_graph()`'s `active_tasks` filter now also
+  requires `task.workflow_node is not None` (a defensive fix -- this
+  guards the function itself, not just its callers, against any
+  standalone task ever appearing in `selected_task_ids`); `get_multi_
+  task_selected_ids()` likewise filters on `workflow_node is not None`,
+  so the multi-task diagram continues to show only genuine graph
+  fan-out. Confirmed via `python3 scripts/regenerate_workflow_graph.py`
+  reporting both diagrams "already up to date" (still 3 tasks, not 4)
+  after the fix.
+- `tests/services/test_plain_english_treaty_summary.py` (3 cases):
+  success (correct text extracted, correct prompt content), multi-block
+  concatenation, and failure propagation -- mocking `anthropic.
+  Anthropic` at the SDK-construction level, same pattern `tests/
+  test_workflow.py` uses for `llm_extraction_fallback`.
+- `tests/test_app.py`: updated the checkbox-count test (now excludes
+  the standalone task, generalized via the same `workflow_node is
+  None` condition rather than hardcoding a new count) plus a new test
+  asserting the task never appears as a checkbox at all; 3 new tests
+  for the summary button (present but never auto-called after
+  "Analyze", displays the result when clicked, shows an error on
+  failure) -- **initial attempt monkeypatched `src.app.generate_
+  plain_english_treaty_summary` directly, which silently didn't take
+  effect under `AppTest` (made a real, billed LLM API call during the
+  test run instead -- caught because the test then timed out waiting
+  on real network latency)**; fixed by patching `src.llm_client.
+  anthropic.Anthropic` instead, the same lower-level pattern every
+  other LLM-mocking test in this file already uses.
+- `tests/test_domain_tasks.py`: `test_b0_b1_b2_are_implemented` renamed
+  to `test_b0_b1_b2_b7_are_implemented`, extended to assert `B7` is
+  implemented with `workflow_node is None`.
+
+**Verification**: `python -m pytest -q` -- 200 passed (193 + 3 service
+tests + net +4 app tests, with 2 test edits). `python -m
+tests.eval.run_eval` -- all 5 golden cases still 100%. Manually ran
+`AppTest` and confirmed the checklist's checkbox labels no longer
+include "Plain-English treaty summary" while every other task
+(implemented or not) still appears.
+
+Awaiting human review/approval before this task is marked done and
+removed from `TASKS.md`.

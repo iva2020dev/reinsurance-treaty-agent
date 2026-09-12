@@ -89,7 +89,7 @@
     accuracy below the agreed threshold fails the build with a clear
     message; a PR that doesn't regress passes.
 
-- [ ] Plain-English treaty summary
+- [ ] Plain-English treaty summary (@claude)
   - **ID**: plain-english-treaty-summary
   - **Tags**: business-domain, treaty, llm
   - **Candidate ID**: B7 (`CANDIDATE_TASKS.md`, re-ranked Pri 3 of 8 on
