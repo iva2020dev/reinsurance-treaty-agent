@@ -5942,3 +5942,13 @@ task nodes and their fan-out edges.
 
 Awaiting human review/approval before this task is marked done and
 removed from `TASKS.md`.
+
+## 2026-09-12 10:50:00 — Closing task: Make the multi-task workflow graph example dynamic and widen its regen trigger (dynamic-workflow-graph-diagram)
+
+PR #110 merged to `main` per human confirmation ("pr 110 merged"). Human
+then approved closing it out ("yes, close it out").
+
+Removing the task entry from `TASKS.md`'s P1 section and logging it in
+the "Recently completed" block. No `CANDIDATE_TASKS.md` sync needed —
+this task was never graduated from there (found directly while
+implementing `key-date-renewal-calendar-extraction`).
