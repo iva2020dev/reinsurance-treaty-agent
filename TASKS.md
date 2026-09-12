@@ -56,6 +56,7 @@
      ✅ 2026-09-11 15:22:12 Mandatory-clause / exclusion completeness checklist (exclusion-completeness-checklist)
      ✅ 2026-09-12 07:34:37 Add a Download button (with format selection) for the "Analysis Workflow execution" debug panel (debug-panel-download)
      ✅ 2026-09-12 08:10:00 Regenerate workflow diagram for a multi-task selection example (multi-task-graph-diagram-example)
+     ✅ 2026-09-12 09:15:00 Isolate domain-task business logic into per-task service modules (isolate-domain-task-services)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -65,46 +66,6 @@
 ## P1
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
-
-- [ ] Isolate domain-task business logic into per-task service modules (@claude)
-  - **ID**: isolate-domain-task-services
-  - **Tags**: harness, refactor, multi-domain-task-selection
-  - **Candidate ID**: N/A (not graduated from `CANDIDATE_TASKS.md`;
-    requested directly by the human as a refactor of `src/workflow.py`)
-  - **Details**: `src/workflow.py` mixes the shared pipeline (Extractor
-    → LLM Extraction Fallback → Verifier, `build_workflow_graph()`,
-    `run_workflow()`/`run_workflow_from_pdf()`) with each domain task's
-    own analysis logic (`burn_cost_check_node` +
-    `LOSS_RATIO_MEDIUM_THRESHOLD`/`LOSS_RATIO_HIGH_THRESHOLD`;
-    `exclusion_completeness_checklist_node` +
-    `MANDATORY_EXCLUSION_CLAUSES`/`_missing_mandatory_clauses`) living
-    inline in the same file. Every future task from `CANDIDATE_TASKS.md`
-    (B2-B9, C1-C5, F1-F4) would otherwise add another node function to
-    this same shared file. Move each implemented task's node function
-    (+ its own constants/helpers) into its own module under a new
-    `src/services/` package, callable from `workflow.py`, so a new task
-    means adding a new file rather than editing a shared one. Matches
-    `CLAUDE.md`'s "Test Isolation Follows Code Split" convention — each
-    service module's tests move with it into `tests/services/`.
-    Requires extracting `WorkflowState` (+ its `_merge_task_results`
-    reducer) out of `workflow.py` into a new `src/workflow_state.py` to
-    avoid a circular import between `workflow.py` and the new service
-    modules; `workflow.py` re-exports `WorkflowState` so existing
-    importers (`src/app.py`) don't need to change.
-  - **Files**: `src/workflow.py`, `src/workflow_state.py` (new),
-    `src/services/__init__.py` (new), `src/services/burn_cost_check.py`
-    (new), `src/services/exclusion_completeness_checklist.py` (new),
-    `src/domain_tasks.py` (docstring only), `tests/test_workflow.py`,
-    `tests/services/test_burn_cost_check.py` (new),
-    `tests/services/test_exclusion_completeness_checklist.py` (new)
-  - **Acceptance**: `burn_cost_check_node` and
-    `exclusion_completeness_checklist_node` (with their task-specific
-    constants/helpers) live in their own `src/services/*.py` modules;
-    `src/workflow.py` contains no task-specific business logic, only
-    the shared pipeline and graph wiring; each moved node's own tests
-    live in a matching `tests/services/test_*.py` file; `python -m
-    pytest -q` passes with the same test count as before (moved, not
-    lost); `python -m tests.eval.run_eval` stays at 100%.
 
 - [ ] CI-Integrated Regression Eval Gate
   - **ID**: extraction-eval-ci-gate
