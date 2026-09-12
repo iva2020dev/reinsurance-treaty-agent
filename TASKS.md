@@ -62,6 +62,7 @@
      ✅ 2026-09-12 12:05:00 Plain-English treaty summary (plain-english-treaty-summary)
      ✅ 2026-09-12 12:30:00 Add UX-polish animations to UI actions (ui-action-animations)
      ✅ 2026-09-12 13:25:00 Fix "Analysis Results" incorrectly erroring when burn_cost_check isn't selected (fix-analysis-results-report-gating)
+     ✅ 2026-09-12 13:00:00 Semantic compliance/clause matching (semantic-clause-matching)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -149,31 +150,6 @@
     changed field (rate/attachment/limit/premium, added/removed
     exclusions) between them; registered in `domain_tasks.py` as
     implemented; `python -m pytest -q` passes.
-
-- [ ] Semantic compliance/clause matching (@claude)
-  - **ID**: semantic-clause-matching
-  - **Tags**: business-domain, treaty, llm
-  - **Candidate ID**: B6 (`CANDIDATE_TASKS.md`, re-ranked Pri 6 of 8 on
-    2026-09-12)
-  - **Details**: LLM version of `B1` (`exclusion_completeness_
-    checklist`), matching mandatory-clause *intent* rather than
-    keyword substrings, so it survives wording variation `B1`'s
-    keyword-matching approach would miss. Important for compliance/risk
-    sign-off on every treaty, but ranked after the cheaper deterministic
-    B-series wins above since it's LLM-shaped (real per-run cost if run
-    on every upload — see `CANDIDATE_TASKS.md`'s note on B6-B8/C4's cost
-    profile if made automatic rather than opt-in).
-  - **Files**: `src/services/semantic_clause_matching.py` (new),
-    `src/domain_tasks.py`, `tests/services/
-    test_semantic_clause_matching.py` (new), `CANDIDATE_TASKS.md`
-  - **Acceptance**: given a treaty's extracted exclusions text, the
-    node flags any of `B1`'s mandatory clause categories whose *intent*
-    isn't covered, even when the exact keyword isn't present (e.g.
-    "acts of aggression between sovereign states" for "war"); a golden/
-    example-based test set (not just exact-match) covers at least one
-    wording-variation case per mandatory clause category; registered in
-    `domain_tasks.py` as implemented (`shape="llm"`); `python -m pytest
-    -q` passes.
 
 - [ ] Reinstatement cost modeling
   - **ID**: reinstatement-cost-modeling

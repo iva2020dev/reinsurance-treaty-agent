@@ -6518,3 +6518,17 @@ Removing the task entry from `TASKS.md`'s P0 section and logging it in
 the "Recently completed" block. No `CANDIDATE_TASKS.md` sync needed —
 this was a bug found directly while manually verifying `semantic-
 clause-matching`, never graduated from there.
+
+## 2026-09-12 13:00:00 — Closing task: Semantic compliance/clause matching (semantic-clause-matching)
+
+PR #116 merged to `main` per human confirmation ("pr 116 merged"), after
+resolving a merge conflict against `main` (per the human's "resolve pr
+116" request) caused by other tasks merging in the meantime --
+`REASONING.md` conflict resolved by keeping both branches' content in
+chronological order, no code conflicts. Human then approved closing it
+out ("yes, close it out").
+
+Removing the task entry from `TASKS.md`'s P1 section and logging it in
+the "Recently completed" block. Synced `CANDIDATE_TASKS.md`'s `B6` row
+and detailed entry to `✅ Done (shipped as \`semantic-clause-matching\`)`,
+per `AGENTS.md`'s "Keeping CANDIDATE_TASKS.md in Sync" rule, same PR.
