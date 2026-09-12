@@ -5483,3 +5483,56 @@ This file contains the reasoning transcript of the AI agent for the current sess
   the mandatory task-closing workflow. No `CANDIDATE_TASKS.md` update
   needed — this task was never graduated from there (`Candidate ID:
   N/A`, added directly to `TASKS.md`).
+
+## 2026-09-12 — Task: Regenerate workflow diagram for a multi-task selection example (multi-task-graph-diagram-example)
+
+- **Goal**: Add a second, clearly-labeled diagram to `README.md`
+  showing `build_workflow_graph()` for a real multi-task selection
+  (`Verifier` fanning out to 2+ analysis nodes), kept in sync with the
+  live graph the same way the existing single-task diagram already is.
+- **Analysis**: This task's own caveat (noted when it was drafted) —
+  that it needed a second real domain task to be meaningfully
+  verifiable — is now resolved: `exclusion_completeness_checklist`
+  (B1) is genuinely `implementation_status="implemented"`. Synced
+  `TASKS.md`'s Details to record this. `scripts/regenerate_workflow_
+  graph.py`'s `get_mermaid_text()`/`update_readme()` only ever handle
+  the single default-selection diagram, hardcoded to the `<!--
+  workflow-graph:start/end -->` markers; `tests/test_workflow_graph_
+  docs.py` only checks that one block.
+- **Decision**: Add a second, parallel set of functions
+  (`get_multi_task_mermaid_text()`, `update_readme_multi_task()`)
+  rather than generalizing the existing ones to take a selection
+  parameter — the single-task diagram documents the app's actual
+  *default* behavior (what a fresh page load runs), which must stay
+  tied to `build_workflow_graph()`'s own default (no selection
+  argument); the multi-task diagram documents a *chosen example*
+  selection, a fundamentally different thing to keep in sync, even
+  though the underlying mechanics (replace text between two HTML
+  comment markers) are identical. Use `{"burn_cost_check",
+  "exclusion_completeness_checklist"}` as the example selection — the
+  only two tasks actually implemented today, so this is exactly what
+  a real user could select in production, not a contrived choice.
+- **Action**: Adding the second marker pair (`<!-- workflow-graph-
+  multi-task:start/end -->`) and a new "Workflow Graph (Multi-Task
+  Example)" README subsection; extending `scripts/regenerate_
+  workflow_graph.py`'s `main()` to regenerate both blocks; adding a
+  sibling test in `tests/test_workflow_graph_docs.py` for the second
+  diagram, mirroring the existing one.
+- **Outcome**: Implemented as described. Manually generated
+  `get_multi_task_mermaid_text()`'s real output first (confirmed
+  `Verifier` genuinely branches to both `burn_cost_check` and
+  `exclusion_completeness_checklist` in parallel, ending at two
+  separate edges into `__end__`) before writing it into `README.md`,
+  rather than guessing the exact mermaid syntax by hand.
+  `python3 scripts/regenerate_workflow_graph.py` — both diagrams
+  report "already up to date" (confirms the hand-added README content
+  matches byte-for-byte what the script itself generates).
+  `python3 scripts/regenerate_workflow_graph.py --png` — the default-
+  selection PNG is unaffected (`git status` shows no diff), as
+  expected, since only the *default* selection ever gets a PNG and
+  that hasn't changed. `python -m pytest tests/test_workflow_graph_
+  docs.py -v` — 2 passed. Full suite `python -m pytest -q` — 185
+  passed, no other regressions. `python -m tests.eval.run_eval` — all
+  5 golden cases still 100% (unaffected — pure docs/script change, no
+  extraction/workflow logic touched). Awaiting human review/approval
+  before this task is marked done and removed from `TASKS.md`.
