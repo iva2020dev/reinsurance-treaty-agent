@@ -67,6 +67,39 @@
 
 <!-- policy: P0 tasks are critical, urgent, blocks other work. Tasks that should ship ASAP. -->
 
+- [ ] Fix "Analysis Results" incorrectly erroring when burn_cost_check isn't selected (@claude)
+  - **ID**: fix-analysis-results-report-gating
+  - **Tags**: bug, multi-domain-task-selection
+  - **Candidate ID**: N/A (not graduated from `CANDIDATE_TASKS.md`; a
+    real bug found directly by the human testing `semantic-clause-
+    matching`: selecting "Mandatory-clause / exclusion completeness
+    checklist" + "Semantic compliance/clause matching" — deliberately
+    *not* `burn_cost_check` — and clicking "Analyze" shows "Could not
+    extract required treaty terms: unknown fields" even though
+    extraction actually succeeded)
+  - **Details**: `src/app.py`'s `main()` gates the whole "Analysis
+    Results" section on `extract_report(state)`, which raises unless
+    `state["report"]` is set — but `state["report"]` is *only* ever
+    populated by `burn_cost_check_node`. Every other domain task (`B1`,
+    `B2`, `B6`, ...) only writes to `state["task_results"]`, never
+    `state["report"]`. So whenever `burn_cost_check` isn't among the
+    selected tasks, this gate incorrectly reports extraction failure —
+    the real "did extraction succeed" signal is `state["treaty"]`
+    (set by the shared Extractor/LLM-fallback pipeline regardless of
+    which analysis tasks are selected), not `state["report"]`
+    (burn_cost_check-specific).
+  - **Files**: `src/app.py`, `tests/test_app.py`
+  - **Acceptance**: selecting any combination of implemented tasks that
+    excludes `burn_cost_check` (e.g. just B1+B6) and clicking "Analyze"
+    renders the Analysis Results section normally (treaty terms +
+    per-task sections) whenever extraction actually succeeded, with no
+    false "Could not extract required treaty terms" error; selecting
+    `burn_cost_check` (alone or combined with others) continues to work
+    exactly as before, including its own Loss Ratio section; a real
+    extraction failure (missing required fields) still shows the error
+    message, regardless of which tasks were selected; `python -m
+    pytest -q` passes.
+
 ## P1
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
