@@ -57,6 +57,7 @@
      ✅ 2026-09-12 07:34:37 Add a Download button (with format selection) for the "Analysis Workflow execution" debug panel (debug-panel-download)
      ✅ 2026-09-12 08:10:00 Regenerate workflow diagram for a multi-task selection example (multi-task-graph-diagram-example)
      ✅ 2026-09-12 09:15:00 Isolate domain-task business logic into per-task service modules (isolate-domain-task-services)
+     ✅ 2026-09-12 10:20:00 Key-date/renewal calendar extraction (key-date-renewal-calendar-extraction)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -86,37 +87,6 @@
   - **Acceptance**: A CI run on a PR that regresses extraction
     accuracy below the agreed threshold fails the build with a clear
     message; a PR that doesn't regress passes.
-
-- [ ] Key-date/renewal calendar extraction (@claude)
-  - **ID**: key-date-renewal-calendar-extraction
-  - **Tags**: business-domain, treaty, extraction
-  - **Candidate ID**: B2 (`CANDIDATE_TASKS.md`, re-ranked Pri 2 of 8 on
-    2026-09-12 by business importance/frequency/urgency — see
-    `REASONING.md`'s 2026-09-12 entry)
-  - **Details**: Extract inception/expiry/notice-period dates from
-    treaty text and flag treaties whose renewal/notice deadline falls
-    within a configurable upcoming window. Deterministic (regex-first),
-    following the `B0`/`B1` extraction pattern — may need the same
-    regex-then-LLM-fallback shape as `B0` if real treaties skew toward
-    prose dates (see `CANDIDATE_TASKS.md`'s "Document-quality
-    sensitivity" section). **Highest business priority of the B-series**:
-    every treaty under review needs its renewal/notice dates tracked,
-    and a missed notice-period deadline has real financial/legal
-    consequences — checked more often, and with more time-pressure,
-    than any other candidate in this list.
-  - **Files**: `src/services/key_date_renewal_calendar_extraction.py`
-    (new node module, per the `isolate-domain-task-services`
-    convention), `src/domain_tasks.py` (flip `implementation_status` to
-    `implemented`, set `workflow_node`), `tests/services/
-    test_key_date_renewal_calendar_extraction.py` (new),
-    `CANDIDATE_TASKS.md` (status sync on completion)
-  - **Acceptance**: the node extracts inception/expiry/notice-period
-    dates from treaty sections and flags a finding when the
-    expiry/notice deadline falls within the configured window;
-    registered in `domain_tasks.py` as implemented and selectable from
-    the existing multi-task selection UI with no `src/workflow.py`
-    changes needed (the shared-pipeline/graph-wiring mechanism already
-    supports this); `python -m pytest -q` passes.
 
 - [ ] Plain-English treaty summary
   - **ID**: plain-english-treaty-summary

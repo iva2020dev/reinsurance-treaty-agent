@@ -5850,3 +5850,14 @@ extraction`'s `TaskResult` populates as expected.
 
 Awaiting human review/approval before this task is marked done and
 removed from `TASKS.md`.
+
+## 2026-09-12 10:20:00 — Closing task: Key-date/renewal calendar extraction (key-date-renewal-calendar-extraction)
+
+PR #108 merged to `main` per human confirmation ("pr 108 merged"). Human
+then approved closing it out ("yes, close it out").
+
+Removing the task entry from `TASKS.md`'s P1 section and logging it in
+the "Recently completed" block. Synced `CANDIDATE_TASKS.md`'s `B2` row
+and detailed entry to `✅ Done (shipped as
+\`key-date-renewal-calendar-extraction\`)`, per `AGENTS.md`'s "Keeping
+CANDIDATE_TASKS.md in Sync" rule, same PR.
