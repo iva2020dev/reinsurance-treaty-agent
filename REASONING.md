@@ -5471,3 +5471,15 @@ This file contains the reasoning transcript of the AI agent for the current sess
   render correctly, including the `state is None` (parser failure)
   case. Awaiting human review/approval before this task is marked
   done and removed from `TASKS.md`.
+
+## 2026-09-12 07:34:37 — Closing task: Add a Download button (with format selection) for the "Analysis Workflow execution" debug panel (debug-panel-download)
+
+- PR #101 merged into `main` at 2026-09-12T07:34:37Z. Human explicitly
+  approved marking `debug-panel-download` done. Removing it from
+  `TASKS.md`'s P1 section (and adding it to the "Recently completed"
+  list) on this `close/debug-panel-download` branch/PR, titled
+  `Closing task as "Done": Add a Download button (with format
+  selection) for the "Analysis Workflow execution" debug panel`, per
+  the mandatory task-closing workflow. No `CANDIDATE_TASKS.md` update
+  needed — this task was never graduated from there (`Candidate ID:
+  N/A`, added directly to `TASKS.md`).
