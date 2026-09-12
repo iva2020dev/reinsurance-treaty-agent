@@ -1,20 +1,23 @@
 """Regenerate the workflow graph diagrams in README.md and the default
 selection's PNG copy: the default (single-task) diagram and a second,
-fixed multi-task selection example (MULTI_TASK_SELECTED_IDS below).
+multi-task diagram showing every currently-implemented domain task
+fanning out (get_multi_task_selected_ids() below).
 
 Run manually:
     python3 scripts/regenerate_workflow_graph.py         # updates README.md's mermaid blocks only
     python3 scripts/regenerate_workflow_graph.py --png    # also regenerates data/workflow_graph.png (default selection only)
 
 Both steps are invoked automatically by the pre-commit hook in
-.githooks/pre-commit whenever src/workflow.py is staged for commit. The
-PNG step calls the public mermaid.ink rendering service over the
-network via draw_mermaid_png(); if that call fails (offline, service
-down), update_png() prints a warning and returns instead of raising, so
-an unrelated commit touching src/workflow.py doesn't hard-fail just
-because the network/service is unavailable -- only README.md's diagram
-is guaranteed to stay in sync (enforced by
-tests/test_workflow_graph_docs.py).
+.githooks/pre-commit whenever src/workflow.py or src/domain_tasks.py is
+staged for commit -- the latter because get_multi_task_selected_ids()
+reads DOMAIN_TASKS directly, so a task's implementation_status flipping
+there is exactly the kind of change that can change this diagram's
+content. The PNG step calls the public mermaid.ink rendering service
+over the network via draw_mermaid_png(); if that call fails (offline,
+service down), update_png() prints a warning and returns instead of
+raising, so an unrelated commit doesn't hard-fail just because the
+network/service is unavailable -- only README.md's diagram is
+guaranteed to stay in sync (enforced by tests/test_workflow_graph_docs.py).
 """
 
 import argparse
@@ -23,6 +26,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from src.domain_tasks import DOMAIN_TASKS  # noqa: E402
 from src.workflow import build_workflow_graph  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -31,12 +35,19 @@ PNG_PATH = REPO_ROOT / "data" / "workflow_graph.png"
 START_MARKER = "<!-- workflow-graph:start -->"
 END_MARKER = "<!-- workflow-graph:end -->"
 
-# A real, currently-implemented multi-task selection -- both are actually
-# implemented in src/domain_tasks.py today, so this is exactly what a real
-# user could select in production, not a contrived/mocked example.
-MULTI_TASK_SELECTED_IDS = {"burn_cost_check", "exclusion_completeness_checklist"}
 MULTI_TASK_START_MARKER = "<!-- workflow-graph-multi-task:start -->"
 MULTI_TASK_END_MARKER = "<!-- workflow-graph-multi-task:end -->"
+
+
+def get_multi_task_selected_ids() -> set[str]:
+    """Every currently-implemented domain task's id.
+
+    Computed from DOMAIN_TASKS rather than a fixed constant, so the
+    multi-task diagram always reflects real fan-out as of whatever's
+    actually shipped -- it grows on its own as more tasks are
+    implemented, instead of needing a manual edit each time.
+    """
+    return {task.id for task in DOMAIN_TASKS if task.implementation_status == "implemented"}
 
 
 def get_mermaid_text() -> str:
@@ -44,7 +55,7 @@ def get_mermaid_text() -> str:
 
 
 def get_multi_task_mermaid_text() -> str:
-    return build_workflow_graph(MULTI_TASK_SELECTED_IDS).get_graph().draw_mermaid()
+    return build_workflow_graph(get_multi_task_selected_ids()).get_graph().draw_mermaid()
 
 
 def _replace_between_markers(text: str, start_marker: str, end_marker: str, mermaid_text: str) -> str:

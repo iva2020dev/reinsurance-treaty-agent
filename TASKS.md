@@ -88,6 +88,47 @@
     accuracy below the agreed threshold fails the build with a clear
     message; a PR that doesn't regress passes.
 
+- [ ] Make the multi-task workflow graph example dynamic and widen its regen trigger (@claude)
+  - **ID**: dynamic-workflow-graph-diagram
+  - **Tags**: harness, docs, multi-domain-task-selection
+  - **Candidate ID**: N/A (not graduated from `CANDIDATE_TASKS.md`;
+    found directly while implementing `key-date-renewal-calendar-
+    extraction` — the human asked "why is the graph still the same?"
+    after that task shipped a third implemented domain task)
+  - **Details**: Two related gaps discovered together:
+    (1) `scripts/regenerate_workflow_graph.py`'s
+    `MULTI_TASK_SELECTED_IDS` is a hardcoded fixed set (`{"burn_cost_
+    check", "exclusion_completeness_checklist"}`), so implementing a
+    new domain task (e.g. `key_date_renewal_calendar_extraction`,
+    B2) doesn't change that diagram at all — it keeps showing the same
+    two tasks forever unless someone remembers to manually edit this
+    constant. It should instead be computed dynamically from `src/
+    domain_tasks.py`'s `DOMAIN_TASKS` registry (every currently
+    `implemented` task's id), so the diagram always reflects real
+    fan-out as of whatever's actually shipped, growing on its own as
+    more tasks get implemented. (2) `.githooks/pre-commit` only
+    regenerates the diagrams when `src/workflow.py` is part of the
+    commit — this happened to still work for `B2` because wiring in a
+    new node always requires importing it into `workflow.py` too (the
+    `globals()` lookup mechanism), but that's incidental, not
+    guaranteed by the trigger condition itself. The hook should also
+    trigger on `src/domain_tasks.py` changes (where a task's
+    `implementation_status` actually flips), since that's the more
+    direct signal that the multi-task diagram's dynamic selection
+    could have changed.
+  - **Files**: `scripts/regenerate_workflow_graph.py`,
+    `.githooks/pre-commit`, `README.md`, `tests/
+    test_workflow_graph_docs.py`
+  - **Acceptance**: the multi-task example diagram's selection is
+    computed from `DOMAIN_TASKS`'s currently-implemented tasks rather
+    than a hardcoded constant, and after this change it shows all
+    three currently-implemented tasks (`burn_cost_check`,
+    `exclusion_completeness_checklist`,
+    `key_date_renewal_calendar_extraction`) fanning out from Verifier;
+    `.githooks/pre-commit` also regenerates on a `src/domain_tasks.py`
+    change alone (verified with a commit that touches only that file);
+    `python -m pytest -q` passes.
+
 - [ ] Plain-English treaty summary
   - **ID**: plain-english-treaty-summary
   - **Tags**: business-domain, treaty, llm
