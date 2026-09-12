@@ -22,14 +22,16 @@ def test_ids_are_unique():
     assert len(ids) == len(set(ids))
 
 
-def test_b0_and_b1_are_implemented():
+def test_b0_b1_b2_are_implemented():
     implemented = {task.candidate_id: task for task in DOMAIN_TASKS if task.implementation_status == "implemented"}
 
-    assert set(implemented) == {"B0", "B1"}
+    assert set(implemented) == {"B0", "B1", "B2"}
     assert implemented["B0"].title == "Burn-Cost Check"
     assert implemented["B0"].workflow_node == "burn_cost_check_node"
     assert implemented["B1"].title == "Mandatory-clause / exclusion completeness checklist"
     assert implemented["B1"].workflow_node == "exclusion_completeness_checklist_node"
+    assert implemented["B2"].title == "Key-date/renewal calendar extraction"
+    assert implemented["B2"].workflow_node == "key_date_renewal_calendar_extraction_node"
 
 
 def test_non_implemented_tasks_have_no_workflow_node():
