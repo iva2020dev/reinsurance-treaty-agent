@@ -5548,3 +5548,107 @@ Removing the task entry from `TASKS.md`'s P1 section and logging it in
 the "Recently completed" block, per the mandatory closing workflow. No
 `CANDIDATE_TASKS.md` sync needed — this task was never graduated from
 there (found directly while discussing `multi-task-graph-fanout`).
+
+## 2026-09-12 08:30:00 — Starting task: Isolate domain-task business logic into per-task service modules (isolate-domain-task-services)
+
+**Goal**: Split each implemented domain task's own analysis logic out of
+`src/workflow.py` into its own module, so that implementing a future task
+(B2-B9, C1-C5, F1-F4 from `CANDIDATE_TASKS.md`) means adding a new file
+rather than editing a shared one that would otherwise grow unbounded.
+Requested directly by the human after closing out `multi-task-graph-
+diagram-example`.
+
+**Analysis**: `src/workflow.py` today mixes two concerns: (1) the shared
+pipeline that every run goes through (Extractor → LLM Extraction Fallback
+→ Verifier, `build_workflow_graph()`, `run_workflow()`/
+`run_workflow_from_pdf()`), and (2) each domain task's own node function
+plus task-specific constants/helpers (`burn_cost_check_node` +
+`LOSS_RATIO_MEDIUM_THRESHOLD`/`LOSS_RATIO_HIGH_THRESHOLD`;
+`exclusion_completeness_checklist_node` + `MANDATORY_EXCLUSION_CLAUSES`/
+`_missing_mandatory_clauses`). `build_workflow_graph()` resolves a task's
+node function via `globals()[task.workflow_node]`, looking it up by the
+string name stored in `src/domain_tasks.py`'s `DomainTask.workflow_node`
+field — this mechanism can stay unchanged as long as each node function is
+still imported by name into `workflow.py`'s module namespace.
+
+**Decision**: Create a new `src/services/` package, one module per
+implemented task (`src/services/burn_cost_check.py`,
+`src/services/exclusion_completeness_checklist.py`), each containing that
+task's node function and its own constants/helpers. `workflow.py` keeps
+the shared pipeline and imports each node function from its service
+module (`from src.services.burn_cost_check import burn_cost_check_node`),
+preserving the `globals()` lookup mechanism with zero changes to
+`domain_tasks.py`'s registry shape. To avoid a circular import (both node
+functions type-hint `state: WorkflowState`, which is defined in
+`workflow.py`, which would need to import the service modules), extract
+`WorkflowState` and its `_merge_task_results` reducer into a new
+`src/workflow_state.py` that both `workflow.py` and every service module
+import from with no dependency the other way; `workflow.py` re-exports
+`WorkflowState` so `src/app.py`'s existing `from src.workflow import
+WorkflowState` keeps working unchanged.
+
+This directly follows `CLAUDE.md`'s already-documented "Test Isolation
+Follows Code Split" convention: each service module's own tests move with
+it into `tests/services/test_<task_id>.py`, tested directly against the
+node function rather than only indirectly through `test_workflow.py`;
+`test_workflow.py` keeps only the shared-pipeline tests (extractor, LLM
+fallback, verifier, `run_workflow*` integration, `build_workflow_graph`
+fan-out) — this is a pure code-motion refactor, no behavior changes, so
+the full suite's test count should stay the same (moved, not lost) and
+the eval suite should stay at 100%.
+
+**Action**: Approved via plan mode (`/Users/FlyingMiner/.claude/plans/
+abundant-fluttering-hoare.md`). Proceeding to implement on
+`task/isolate-domain-task-services`.
+
+## 2026-09-12 08:55:00 — Outcome: Isolate domain-task business logic into per-task service modules (isolate-domain-task-services)
+
+**Implemented** exactly per the approved plan:
+- New `src/workflow_state.py`: `WorkflowState` + `_merge_task_results`,
+  extracted out of `src/workflow.py` to break the circular import with the
+  new service modules (both need `WorkflowState` as their node function's
+  type hint).
+- New `src/services/` package: `src/services/burn_cost_check.py`
+  (`burn_cost_check_node`, `LOSS_RATIO_MEDIUM_THRESHOLD`/
+  `LOSS_RATIO_HIGH_THRESHOLD`) and `src/services/
+  exclusion_completeness_checklist.py` (`exclusion_completeness_
+  checklist_node`, `MANDATORY_EXCLUSION_CLAUSES`, `_missing_mandatory_
+  clauses`), each moved verbatim (no logic changes) from `src/workflow.py`.
+  `src/services/__init__.py` documents the convention for future tasks.
+- `src/workflow.py` now imports both node functions from their service
+  modules (`from src.services.burn_cost_check import
+  burn_cost_check_node`, etc.) -- this keeps `build_workflow_graph()`'s
+  `globals()[task.workflow_node]` lookup working unchanged, since an
+  imported name is still bound in the importing module's globals.
+  `WorkflowState` is re-exported the same way, so `src/app.py`'s `from
+  src.workflow import WorkflowState` needed no change. Module docstring
+  updated to state workflow.py's narrowed scope (shared pipeline + graph
+  wiring only).
+- `src/domain_tasks.py`: docstring and the `workflow_node` field comment
+  updated to point at `src/services/` instead of `src/workflow.py`; no
+  functional change (the field is still a bare function-name string).
+- Tests split per `CLAUDE.md`'s "Test Isolation Follows Code Split":
+  `tests/services/test_burn_cost_check.py` and `tests/services/
+  test_exclusion_completeness_checklist.py` (new), each importing the node
+  function directly from its own service module. The burn-cost-check log
+  line test's `caplog.at_level(..., logger=...)` target updated from
+  `"src.workflow"` to `"src.services.burn_cost_check"` to match the node's
+  new module (each module logs via its own `logging.getLogger(__name__)`,
+  same harness convention as `src/llm_client.py`). `tests/test_workflow.py`
+  keeps only shared-pipeline tests; dropped now-unused imports
+  (`ClaimsData`, `datetime.date`) left over from the moved tests.
+
+**Verification**: `python -m pytest -q` -- 185 passed (identical count to
+before the split -- tests moved, none lost or duplicated). `python -m
+tests.eval.run_eval` -- all 5 golden cases still 100%. Manually rebuilt
+the graph via `build_workflow_graph({"burn_cost_check",
+"exclusion_completeness_checklist"})` and re-ran `python3 scripts/
+regenerate_workflow_graph.py` -- both README.md diagrams report "already
+up to date" (graph shape is unchanged, confirming this was a pure
+code-motion refactor with no behavioral difference). Manually grepped for
+any stray reference to the moved names (`LOSS_RATIO_*`,
+`MANDATORY_EXCLUSION_CLAUSES`, `_missing_mandatory_clauses`) outside the
+new service modules -- none found.
+
+Awaiting human review/approval before this task is marked done and
+removed from `TASKS.md`.
