@@ -99,6 +99,40 @@ def extract_report(state: WorkflowState) -> AnomalyReport:
     return report
 
 
+def resolve_report_for_display(state: WorkflowState) -> AnomalyReport:
+    """Build the AnomalyReport used for the shared treaty-terms display and
+    burn_cost_check's own section, regardless of whether burn_cost_check
+    was selected/ran.
+
+    state["report"] is only ever populated by burn_cost_check_node --
+    every other domain task only writes to state["task_results"]. Gating
+    on state["report"] (extract_report()'s check) would incorrectly
+    report "could not extract required treaty terms" whenever
+    burn_cost_check isn't selected, even though extraction (state
+    ["treaty"]) actually succeeded. This checks state["treaty"] instead
+    -- the real extraction-succeeded signal, set by the shared pipeline
+    regardless of which analysis tasks are selected -- and falls back to
+    a placeholder AnomalyReport (empty claims/findings, loss_ratio 0.0)
+    when burn_cost_check didn't run. Safe: every place that reads
+    report.loss_ratio/report.findings is already guarded by `task_id ==
+    "burn_cost_check"` (_task_section_content(), _task_findings_for_
+    severity(), format_findings_summary()), reached only when that task
+    was actually selected -- so the placeholder's dummy values are never
+    surfaced to the user.
+
+    Raises ValueError (same message as extract_report()) if extraction
+    itself failed -- state["treaty"] is None.
+    """
+    treaty = state.get("treaty")
+    if treaty is None:
+        missing = ", ".join(state.get("missing_fields", [])) or "unknown fields"
+        raise ValueError(f"Could not extract required treaty terms: {missing}")
+    report = state.get("report")
+    if report is not None:
+        return report
+    return AnomalyReport(treaty=treaty, claims=state.get("claims", []), loss_ratio=0.0, findings=[])
+
+
 def analyze_uploaded_pdf(file_bytes: bytes) -> AnomalyReport:
     """Run the full agent workflow on an uploaded PDF's raw bytes.
 
@@ -1295,7 +1329,7 @@ def main() -> None:
             st.error(f"Could not read this PDF: {parser_error}")
         else:
             try:
-                report = extract_report(state)
+                report = resolve_report_for_display(state)
             except ValueError as exc:
                 message = str(exc)
                 llm_error = state.get("llm_error")

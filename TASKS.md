@@ -61,6 +61,7 @@
      ✅ 2026-09-12 10:50:00 Make the multi-task workflow graph example dynamic and widen its regen trigger (dynamic-workflow-graph-diagram)
      ✅ 2026-09-12 12:05:00 Plain-English treaty summary (plain-english-treaty-summary)
      ✅ 2026-09-12 12:30:00 Add UX-polish animations to UI actions (ui-action-animations)
+     ✅ 2026-09-12 13:25:00 Fix "Analysis Results" incorrectly erroring when burn_cost_check isn't selected (fix-analysis-results-report-gating)
      See REASONING.md for detailed decision logs. -->
 
 ## P0

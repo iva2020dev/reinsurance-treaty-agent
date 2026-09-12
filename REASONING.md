@@ -6423,3 +6423,98 @@ a 4-task graph including it successfully.
 
 Awaiting human review/approval before this task is marked done and
 removed from `TASKS.md`.
+## 2026-09-12 13:15:00 — Starting task: Fix "Analysis Results" incorrectly erroring when burn_cost_check isn't selected (fix-analysis-results-report-gating)
+
+**Goal**: Fix a real bug the human hit while manually verifying
+`semantic-clause-matching`: selecting `exclusion_completeness_
+checklist` + `semantic_clause_matching` (deliberately excluding
+`burn_cost_check`) and clicking "Analyze" shows "Could not extract
+required treaty terms: unknown fields" even though extraction actually
+succeeded.
+
+**Analysis**: `src/app.py`'s `main()` gates the entire "Analysis
+Results" render on `extract_report(state)`:
+```python
+def extract_report(state: WorkflowState) -> AnomalyReport:
+    report = state.get("report")
+    if report is None:
+        missing = ", ".join(state.get("missing_fields", [])) or "unknown fields"
+        raise ValueError(f"Could not extract required treaty terms: {missing}")
+    return report
+```
+`state["report"]` is written *only* by `burn_cost_check_node`
+(`return {"report": report, "task_results": {...}}`) -- every other
+task (`B1`, `B2`, `B6`) only ever writes to `state["task_results"]`.
+So this check conflates two unrelated things: "did extraction succeed"
+(the real question, answered by `state["treaty"]`, set by the shared
+Extractor/LLM-fallback pipeline regardless of which analysis tasks are
+selected) and "did burn_cost_check specifically run" (only true when
+that task is selected). Confirmed no other code path already handles
+this: grepped every `report.<attr>` access in `src/app.py` -- every one
+of `report.loss_ratio`/`report.findings` is already guarded by `task_id
+== "burn_cost_check"` (`_task_section_content()`, `_task_findings_for_
+severity()`, `format_findings_summary()`), which is itself only reached
+when `burn_cost_check` is actually in the selected/rendered task list --
+so a placeholder `AnomalyReport` (real `treaty`, empty `claims`/
+`findings`, `loss_ratio=0.0`) is safe to substitute when `burn_cost_
+check` didn't run: nothing reads its dummy values unless that task was
+actually selected, in which case the real `state["report"]` is used
+instead.
+
+**Decision**: Add `resolve_report_for_display(state) -> AnomalyReport`,
+checking `state.get("treaty")` (not `state.get("report")`) as the real
+extraction-succeeded gate, returning `state["report"]` when present
+(burn_cost_check ran) or a placeholder `AnomalyReport` built from the
+real `treaty` otherwise. `main()`'s `report = extract_report(state)`
+call becomes `report = resolve_report_for_display(state)`. Left
+`extract_report()` itself unchanged -- it's still correct for its own
+caller, `analyze_uploaded_pdf()`, which always runs the single-task
+default (`burn_cost_check` always selected), so `state["report"]` is
+always populated there; no reason to touch a function that's correct
+for its actual use case.
+
+**Action**: Implementing on `task/fix-analysis-results-report-gating`.
+
+## 2026-09-12 13:25:00 — Outcome: Fix "Analysis Results" incorrectly erroring when burn_cost_check isn't selected (fix-analysis-results-report-gating)
+
+**Implemented** per the plan above:
+- New `resolve_report_for_display(state)` in `src/app.py`, gating on
+  `state["treaty"]` instead of `state["report"]`; returns the real
+  `state["report"]` when present, else a placeholder `AnomalyReport`
+  built from the real `treaty` (empty `claims`/`findings`,
+  `loss_ratio=0.0`). `main()`'s `report = extract_report(state)` call
+  site replaced with `report = resolve_report_for_display(state)`.
+  `extract_report()` itself is untouched -- still correct for its only
+  other caller, `analyze_uploaded_pdf()`, whose default single-task run
+  always includes `burn_cost_check`.
+- Reproduced the exact bug first: `run_workflow_from_pdf(...,
+  selected_task_ids={"exclusion_completeness_checklist"})` confirmed
+  `state["report"]` is `None` while `state["treaty"]`/`state["task_
+  results"]` are both correctly populated -- verifying the diagnosis
+  before writing the fix, not just assuming it.
+- Tests: 3 unit tests for `resolve_report_for_display` (uses the real
+  report when present, builds a correct placeholder when absent, still
+  raises on genuine extraction failure) plus an end-to-end `AppTest`
+  regression test reproducing the human's exact repro (uncheck
+  Burn-Cost Check, check `exclusion_completeness_checklist`, Analyze)
+  and asserting no false error and that both the treaty terms and that
+  task's own finding render.
+
+**Verification**: `python -m pytest -q` -- 210 passed. `python -m
+tests.eval.run_eval` -- all 5 golden cases still 100%. Manually
+re-ran the exact `AppTest` repro from before the fix (same
+uncheck-B0/check-B1/Analyze sequence) and confirmed it now renders
+correctly with zero errors, where it previously would have raised.
+
+Awaiting human review/approval before this task is marked done and
+removed from `TASKS.md`.
+
+## 2026-09-12 13:25:00 — Closing task: Fix "Analysis Results" incorrectly erroring when burn_cost_check isn't selected (fix-analysis-results-report-gating)
+
+PR #117 merged to `main` per human confirmation ("pr 117 merged"). Human
+then approved closing it out ("yes, close it out").
+
+Removing the task entry from `TASKS.md`'s P0 section and logging it in
+the "Recently completed" block. No `CANDIDATE_TASKS.md` sync needed —
+this was a bug found directly while manually verifying `semantic-
+clause-matching`, never graduated from there.
