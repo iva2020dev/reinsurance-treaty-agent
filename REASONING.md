@@ -5536,3 +5536,15 @@ This file contains the reasoning transcript of the AI agent for the current sess
   5 golden cases still 100% (unaffected — pure docs/script change, no
   extraction/workflow logic touched). Awaiting human review/approval
   before this task is marked done and removed from `TASKS.md`.
+
+## 2026-09-12 08:10:00 — Closing task: Regenerate workflow diagram for a multi-task selection example (multi-task-graph-diagram-example)
+
+PR #103 ("multi-task-graph-diagram-example" branch) merged to `main` per
+human confirmation ("pr 103 merged"). Human then approved closing it out
+("close it out (open the close/multi-task-graph-diagram-example branch/PR
+to remove it from TASKS.md)").
+
+Removing the task entry from `TASKS.md`'s P1 section and logging it in
+the "Recently completed" block, per the mandatory closing workflow. No
+`CANDIDATE_TASKS.md` sync needed — this task was never graduated from
+there (found directly while discussing `multi-task-graph-fanout`).
