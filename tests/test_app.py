@@ -223,11 +223,23 @@ def test_app_standalone_opt_in_task_never_appears_in_domain_tasks_checklist():
     assert "Plain-English treaty summary" not in checkbox_labels
 
 
+def _flatten_blocks_in_order(block) -> list:
+    """Recursively walk an AppTest block's children (and their children,
+    e.g. blocks nested inside st.columns) in document order, so a search
+    for a specific label/value isn't fooled by nesting."""
+    flattened = []
+    for child in block.children.values():
+        flattened.append(child)
+        if hasattr(child, "children"):
+            flattened.extend(_flatten_blocks_in_order(child))
+    return flattened
+
+
 def test_app_review_treaty_button_renders_before_domain_tasks_checklist():
     at = AppTest.from_file("../src/app.py")
     at.run()
 
-    main_children = list(at.main.children.values())
+    main_children = _flatten_blocks_in_order(at.main)
     review_index = next(i for i, block in enumerate(main_children) if getattr(block, "label", None) == "Review treaty")
     subheader_index = next(
         i
@@ -1727,17 +1739,40 @@ def _mock_text_llm_client(*, text: str | None = None, error: Exception | None = 
     return mock_client
 
 
-def test_app_generate_plain_english_summary_button_present_but_never_called_automatically(monkeypatch):
+def _upload_treaty(at: AppTest, filename: str, file_bytes: bytes) -> AppTest:
+    """Upload a PDF via the uploader path (no Analyze click), returning the rerun app."""
+    at.file_uploader[0].set_value([(filename, file_bytes, "application/pdf")])
+    return at.run()
+
+
+def test_app_generate_plain_english_summary_button_present_before_analyze_and_never_called_automatically(
+    monkeypatch,
+):
+    """The button must be usable as soon as a treaty is picked -- it
+    doesn't depend on extraction/"Analyze" at all -- and must never call
+    the LLM just because a treaty was selected or "Analyze" was clicked."""
     pdf_bytes = Path(MINIMAL_TREATY_PATH).read_bytes()
     mock_client = _mock_text_llm_client(text="A short plain-English summary.")
     monkeypatch.setattr("src.llm_client.anthropic.Anthropic", lambda **kwargs: mock_client)
 
     at = AppTest.from_file("../src/app.py")
     at.run()
-    at = _upload_and_click_analyze(at, "sample_treaty.pdf", pdf_bytes)
+    at = _upload_treaty(at, "sample_treaty.pdf", pdf_bytes)
 
-    assert any(b.label == "Generate Plain-English Summary" for b in at.button)
+    summary_button = next(b for b in at.button if b.label == "Generate Plain-English Summary")
+    assert not summary_button.disabled
     mock_client.messages.create.assert_not_called()
+
+    at = _click_button(at, "Analyze")
+    mock_client.messages.create.assert_not_called()
+
+
+def test_app_generate_plain_english_summary_button_disabled_until_treaty_selected():
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    summary_button = next(b for b in at.button if b.label == "Generate Plain-English Summary")
+    assert summary_button.disabled
 
 
 def test_app_generate_plain_english_summary_button_displays_result_when_clicked(monkeypatch):
@@ -1747,7 +1782,7 @@ def test_app_generate_plain_english_summary_button_displays_result_when_clicked(
 
     at = AppTest.from_file("../src/app.py")
     at.run()
-    at = _upload_and_click_analyze(at, "sample_treaty.pdf", pdf_bytes)
+    at = _upload_treaty(at, "sample_treaty.pdf", pdf_bytes)
     at = _click_button(at, "Generate Plain-English Summary")
 
     assert not at.exception
@@ -1762,11 +1797,30 @@ def test_app_generate_plain_english_summary_button_shows_error_on_failure(monkey
 
     at = AppTest.from_file("../src/app.py")
     at.run()
-    at = _upload_and_click_analyze(at, "sample_treaty.pdf", pdf_bytes)
+    at = _upload_treaty(at, "sample_treaty.pdf", pdf_bytes)
     at = _click_button(at, "Generate Plain-English Summary")
 
     assert not at.exception
     assert any("Could not generate summary" in e.value for e in at.error)
+
+
+def test_app_generate_plain_english_summary_save_and_download_buttons_present(tmp_path, monkeypatch):
+    pdf_bytes = Path(MINIMAL_TREATY_PATH).read_bytes()
+    monkeypatch.chdir(tmp_path)
+    mock_client = _mock_text_llm_client(text="A short plain-English summary.")
+    monkeypatch.setattr("src.llm_client.anthropic.Anthropic", lambda **kwargs: mock_client)
+
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+    at = _upload_treaty(at, "sample_treaty.pdf", pdf_bytes)
+    at = _click_button(at, "Generate Plain-English Summary")
+    at = _click_button(at, "Save summary")
+
+    assert not at.exception
+    assert any("Saved summary to" in s.value for s in at.success)
+    saved_files = list((tmp_path / "results" / "sample_treaty_pdf").glob("*.md"))
+    assert len(saved_files) == 1
+    assert any(b.label == "Download summary" for b in at.download_button)
 
 
 def test_app_saved_file_includes_every_selected_tasks_results(tmp_path, monkeypatch):

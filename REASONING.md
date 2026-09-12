@@ -6091,3 +6091,70 @@ include "Plain-English treaty summary" while every other task
 
 Awaiting human review/approval before this task is marked done and
 removed from `TASKS.md`.
+
+## 2026-09-12 11:45:00 — Update: Plain-English Summary moved to treaty-selection area, save/download added (human feedback on open PR #112)
+
+**Human feedback** (on the still-open, unmerged PR #112): the summary
+only depends on which treaty is picked, not on the analysis run, so its
+button should sit right below "Choose a reinsurance treaty" (alongside
+"Review treaty"), not inside "Analysis Results" after "Analyze". Also
+requested save/download logic for the summary with format selection,
+matching the existing analysis-results pattern.
+
+**Analysis**: The original placement (inside Analysis Results, using
+`report.treaty` + `state["sections"]`) implicitly required "Analyze" to
+have already run -- which is unnecessary, since the summary never used
+`report`'s burn-cost-check-specific fields, only the treaty's raw text.
+The right fix is to stop depending on the extracted `TreatyTerms`
+entirely and generate the summary directly from the picked treaty's
+raw parsed sections, exactly like `_show_review_dialog()` already does
+for "Review treaty" (same tempfile + `extract_treaty_sections()`
+pattern) -- making it genuinely independent of extraction/"Analyze",
+not just relocated in the UI.
+
+**Action**:
+- `src/services/plain_english_treaty_summary.py`:
+  `generate_plain_english_treaty_summary()` signature narrowed to just
+  `(sections)` -- dropped the `treaty: TreatyTerms` parameter entirely;
+  the prompt now asks the LLM to identify parties/attachment/limit/
+  premium/exclusions directly from the raw treaty text, rather than
+  being handed already-extracted fields.
+- `src/app.py`: removed the button/display from inside "Analysis
+  Results"; added it in a new column alongside "Review treaty",
+  disabled until a treaty is selected (`has_selection`), extracting
+  sections from `selected_bytes` via a temp file (same pattern
+  `_show_review_dialog()` uses) and calling the narrowed service
+  function. Result cached in its own `st.session_state["plain_english_
+  summary"]` entry (not `run_result`, which doesn't exist yet at this
+  point in the page) keyed by the treaty selection's fingerprint, same
+  invalidation pattern the main `workflow_run` already uses.
+- New save/download helpers mirroring the existing analysis-results
+  ones but simplified for plain prose (no severity/findings structure):
+  `format_summary_document()`, `render_summary_pdf()`/`render_summary_
+  bytes()` (same DejaVu-font PDF setup as `render_report_pdf()`),
+  `format_summary_filename()`, `summary_results_subdirectory()` (keyed
+  by the treaty's own display name/filename via `slugify_treaty_name()`,
+  not a cedent name -- there's no extracted cedent at this point),
+  `save_summary_to_file()`. A "Summary file format" radio (Markdown/
+  PDF) plus "Save summary"/"Download summary" buttons appear once a
+  summary exists, independent of the main results' own format/save/
+  download controls.
+- Tests updated: `tests/services/test_plain_english_treaty_summary.py`
+  reworked for the narrowed signature; `tests/test_app.py`'s three
+  summary-button tests reworked to upload-without-analyzing (new
+  `_upload_treaty()` helper, vs. the existing `_upload_and_click_
+  analyze()`), plus new tests for the disabled-until-selected state,
+  that clicking "Analyze" never triggers the summary call either, and
+  the new save/download buttons. Also fixed a now-brittle existing
+  test, `test_app_review_treaty_button_renders_before_domain_tasks_
+  checklist`, which walked `at.main.children` assuming every button was
+  a direct child -- wrapping "Review treaty" in `st.columns` broke that
+  assumption; replaced with a small recursive flattening helper
+  (`_flatten_blocks_in_order()`) so nesting doesn't matter.
+
+**Verification**: `python -m pytest -q` -- 202 passed. `python -m
+tests.eval.run_eval` -- all 5 golden cases still 100%. Manually ran
+`AppTest`: confirmed the button is enabled immediately after upload
+(before "Analyze"), clicking it displays the summary without ever
+calling "Analyze", and "Save summary"/"Download summary" appear
+afterward.

@@ -788,6 +788,91 @@ def save_analysis_result_to_file(
     return path
 
 
+def format_summary_document(summary_text: str, display_name: str, when: datetime | None = None) -> str:
+    """A saved/downloaded plain-English summary document: title, generation
+    timestamp, the picked treaty's display name, and the summary text.
+
+    Deliberately independent of format_results_document()/AnomalyReport --
+    the summary is generated straight from a picked treaty's raw sections,
+    before (and regardless of whether) extraction/analysis ever runs, so
+    there's no report to key this off.
+    """
+    timestamp = (when or datetime.now()).strftime("%Y-%m-%d %H:%M:%S")
+    return (
+        f"# Plain-English Treaty Summary\nGenerated: {timestamp}\nTreaty: {display_name}\n\n{summary_text}"
+    )
+
+
+def render_summary_pdf(summary_text: str, display_name: str, when: datetime | None = None) -> bytes:
+    """Render a plain-English summary as PDF bytes, mirroring
+    render_report_pdf's DejaVu-font setup (Unicode support) but without
+    any of that function's severity-coloring/Findings-block handling --
+    this document is just a title, a timestamp line, and prose.
+    """
+    pdf = FPDF()
+    pdf.add_font("DejaVu", "", str(_DEJAVU_REGULAR_PATH))
+    pdf.add_font("DejaVu", "B", str(_DEJAVU_BOLD_PATH))
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+
+    document = format_summary_document(summary_text, display_name, when=when)
+    for raw_line in document.split("\n"):
+        line = raw_line.strip()
+        if not line:
+            pdf.ln(4)
+            continue
+        heading_match = re.match(r"^(#+)\s*", line)
+        heading_level = len(heading_match.group(1)) if heading_match else 0
+        line = re.sub(r"^#+\s*", "", line)
+        size = _PDF_HEADING_FONT_SIZES.get(heading_level, 11)
+        pdf.set_font("DejaVu", style="B" if heading_level else "", size=size)
+        pdf.multi_cell(0, 7, line, new_x="LMARGIN", new_y="NEXT")
+
+    return bytes(pdf.output())
+
+
+def render_summary_bytes(summary_text: str, display_name: str, extension: str, when: datetime | None = None) -> bytes:
+    """Render a plain-English summary as bytes in the given format ("md" or "pdf")."""
+    if extension == "pdf":
+        return render_summary_pdf(summary_text, display_name, when=when)
+    return format_summary_document(summary_text, display_name, when=when).encode("utf-8")
+
+
+def format_summary_filename(extension: str, when: datetime | None = None) -> str:
+    timestamp = (when or datetime.now()).strftime("%Y%m%d_%H%M%S")
+    return f"{timestamp}_plain_english_summary.{extension}"
+
+
+def summary_results_subdirectory(display_name: str, base: Path = DEFAULT_RESULTS_DIR) -> Path:
+    """The per-treaty subdirectory a saved summary is organized under.
+
+    Keyed by the picked treaty's own display name/filename (slugified),
+    not a cedent name -- unlike results_subdirectory(), the summary can be
+    generated before extraction ever runs, so there's no extracted cedent
+    name to key off yet.
+    """
+    return base / slugify_treaty_name(display_name)
+
+
+def save_summary_to_file(
+    summary_text: str,
+    display_name: str,
+    extension: str,
+    directory: Path = DEFAULT_RESULTS_DIR,
+    when: datetime | None = None,
+) -> Path:
+    """Write a plain-English summary to a new timestamped file (under a
+    per-treaty subdirectory of directory) in the given format, returning
+    its path.
+    """
+    when = when or datetime.now()
+    target_dir = summary_results_subdirectory(display_name, directory)
+    target_dir.mkdir(parents=True, exist_ok=True)
+    path = target_dir / format_summary_filename(extension, when=when)
+    path.write_bytes(render_summary_bytes(summary_text, display_name, extension, when=when))
+    return path
+
+
 def _fingerprint(file_bytes: bytes) -> str:
     """A cheap content fingerprint used to detect a changed treaty selection."""
     return hashlib.sha256(file_bytes).hexdigest()
@@ -925,9 +1010,85 @@ def main() -> None:
     has_selection = selected_bytes is not None
     selected_fingerprint = _fingerprint(selected_bytes) if selected_bytes is not None else None
 
-    review_clicked = st.button("Review treaty", disabled=not has_selection)
+    review_col, summary_col = st.columns(2)
+    with review_col:
+        review_clicked = st.button("Review treaty", disabled=not has_selection)
+    with summary_col:
+        generate_summary_clicked = st.button(
+            "Generate Plain-English Summary", icon=":material/summarize:", disabled=not has_selection
+        )
     if review_clicked and selected_bytes is not None and selected_name is not None:
         _show_review_dialog(selected_bytes, selected_name)
+
+    # Plain-English Treaty Summary (B7): a standalone opt-in action that
+    # only depends on which treaty is picked, not on extraction/"Analyze"
+    # -- placed here, right where the treaty is chosen, rather than in the
+    # Analysis Results section below. Cached in its own session_state
+    # entry (not run_result, which doesn't exist until "Analyze" is
+    # clicked), invalidated whenever the treaty selection's fingerprint
+    # changes.
+    summary_state = st.session_state.get("plain_english_summary")
+    if summary_state is not None and summary_state.get("fingerprint") != selected_fingerprint:
+        del st.session_state["plain_english_summary"]
+        summary_state = None
+
+    if generate_summary_clicked and selected_bytes is not None and selected_name is not None:
+        with st.spinner("Generating summary..."):
+            try:
+                with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp:
+                    tmp.write(selected_bytes)
+                    tmp.flush()
+                    sections = extract_treaty_sections(Path(tmp.name))
+                summary_text = generate_plain_english_treaty_summary(sections)
+            except Exception as exc:  # noqa: BLE001 -- any failure must be shown, not crash the app
+                summary_state = {
+                    "fingerprint": selected_fingerprint,
+                    "display_name": selected_name,
+                    "text": None,
+                    "error": str(exc),
+                }
+            else:
+                summary_state = {
+                    "fingerprint": selected_fingerprint,
+                    "display_name": selected_name,
+                    "text": summary_text,
+                    "error": None,
+                }
+            st.session_state["plain_english_summary"] = summary_state
+
+    if summary_state is not None:
+        if summary_state["error"]:
+            st.error(f"Could not generate summary: {summary_state['error']}")
+        else:
+            st.markdown(summary_state["text"])
+            summary_format_choice = st.radio(
+                "Summary file format",
+                ["Markdown (.md)", "PDF (.pdf)"],
+                horizontal=True,
+                key="summary_format_choice",
+            )
+            summary_extension = "pdf" if summary_format_choice.startswith("PDF") else "md"
+            summary_save_col, summary_download_col = st.columns(2)
+            with summary_save_col:
+                if st.button("Save summary", icon=":material/save:"):
+                    saved_summary_path = save_summary_to_file(
+                        summary_state["text"], summary_state["display_name"], summary_extension
+                    )
+                    st.success(f"Saved summary to {saved_summary_path}.")
+            with summary_download_col:
+                summary_download_when = datetime.now()
+                st.download_button(
+                    "Download summary",
+                    data=render_summary_bytes(
+                        summary_state["text"],
+                        summary_state["display_name"],
+                        summary_extension,
+                        when=summary_download_when,
+                    ),
+                    file_name=format_summary_filename(summary_extension, when=summary_download_when),
+                    mime="application/pdf" if summary_extension == "pdf" else "text/markdown",
+                    icon=":material/download:",
+                )
 
     st.subheader("Domain tasks to run")
     header_task_col, header_type_col, header_cost_col = st.columns(
@@ -1071,32 +1232,6 @@ def main() -> None:
                             st.markdown(section_markdown)
                         else:
                             _SEVERITY_STREAMLIT_CONTAINERS[highest_severity_label(findings)](section_markdown)
-
-                # Plain-English Treaty Summary (B7): a standalone opt-in
-                # action, wholly independent of the "Domain tasks to run"
-                # checklist above -- it's never in result_selected_task_ids
-                # and never runs just because this button is on the same
-                # page as other results. Its own result is cached inside
-                # this same run_result dict (mutated in place), so it's
-                # naturally invalidated whenever a new analysis run replaces
-                # st.session_state["workflow_run"] -- no separate cache-
-                # invalidation logic needed.
-                st.divider()
-                st.subheader("Plain-English Summary")
-                if st.button("Generate Plain-English Summary", icon=":material/summarize:"):
-                    with st.spinner("Generating summary..."):
-                        try:
-                            run_result["plain_english_summary"] = generate_plain_english_treaty_summary(
-                                report.treaty, state.get("sections", [])
-                            )
-                            run_result.pop("plain_english_summary_error", None)
-                        except Exception as exc:  # noqa: BLE001 -- any failure must be shown, not crash the app
-                            run_result["plain_english_summary_error"] = str(exc)
-                            run_result.pop("plain_english_summary", None)
-                if run_result.get("plain_english_summary"):
-                    st.markdown(run_result["plain_english_summary"])
-                elif run_result.get("plain_english_summary_error"):
-                    st.error(f"Could not generate summary: {run_result['plain_english_summary_error']}")
 
                 format_choice = st.radio(
                     "Result file format",

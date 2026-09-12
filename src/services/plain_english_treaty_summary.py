@@ -6,19 +6,24 @@ exclusion_completeness_checklist_node, key_date_renewal_calendar_
 extraction_node), this one is NOT wired into build_workflow_graph()'s
 node/fan-out mechanism at all -- src/domain_tasks.py registers it with
 workflow_node=None even though it's implemented. It's triggered by its
-own standalone button in src/app.py, independent of the "Domain tasks
-to run" checklist and the shared Extractor/Verifier pipeline's per-task
-fan-out. This is deliberate: this task's own acceptance criteria
-requires it never run just because other domain tasks are selected and
-"Analyze" is clicked -- the only way to guarantee that is to keep it
-entirely outside the graph/checklist mechanism those other tasks share.
+own standalone button in src/app.py, placed right where a treaty is
+picked (alongside "Review treaty"), independent of the "Domain tasks to
+run" checklist and the shared Extractor/Verifier pipeline's per-task
+fan-out -- and independent of "Analyze" too, since it only depends on
+which treaty was picked, not on that treaty's extracted terms. This is
+deliberate: this task's own acceptance criteria requires it never run
+just because other domain tasks are selected and "Analyze" is clicked,
+and it should be available as soon as a treaty is selected -- the only
+way to guarantee both is to keep it entirely outside the graph/
+checklist/extraction mechanism those other tasks share, working
+directly off the treaty's raw parsed text instead of its (not yet
+extracted) TreatyTerms.
 """
 
 import logging
 import time
 
 from src.llm_client import call_with_retry, get_client
-from src.models import TreatyTerms
 from src.parser import PageSection
 
 logger = logging.getLogger(__name__)
@@ -31,26 +36,22 @@ def _format_sections_for_llm(sections: list[PageSection]) -> str:
     return "\n\n".join(f"--- Page {s.page_number} ---\n{s.text}" for s in sections)
 
 
-def _build_prompt(treaty: TreatyTerms, sections: list[PageSection]) -> str:
-    exclusions_text = ", ".join(treaty.exclusions) if treaty.exclusions else "none extracted"
+def _build_prompt(sections: list[PageSection]) -> str:
     return (
         "Write a short, plain-English executive summary of this reinsurance "
         "treaty for a non-technical stakeholder. Cover the parties, the "
         "layer (attachment point and limit), the premium, and any notable "
-        "exclusions. Keep it to 3-5 sentences, no bullet points.\n\n"
-        "Extracted terms:\n"
-        f"Cedent: {treaty.cedent_name}\n"
-        f"Attachment point: {treaty.attachment_point:,.0f}\n"
-        f"Limit: {treaty.limit:,.0f}\n"
-        f"Reinsurance premium: {treaty.reinsurance_premium:,.0f}\n"
-        f"Exclusions: {exclusions_text}\n\n"
-        f"Full treaty text for additional context:\n\n{_format_sections_for_llm(sections)}"
+        "exclusions. Identify these directly from the treaty text below. "
+        "Keep it to 3-5 sentences, no bullet points.\n\n"
+        f"Treaty text:\n\n{_format_sections_for_llm(sections)}"
     )
 
 
-def generate_plain_english_treaty_summary(treaty: TreatyTerms, sections: list[PageSection]) -> str:
+def generate_plain_english_treaty_summary(sections: list[PageSection]) -> str:
     """Produce a short plain-English executive summary of the treaty via a
-    single LLM call.
+    single LLM call, working directly off its raw parsed page text --
+    doesn't need (and doesn't wait for) the treaty's extracted TreatyTerms,
+    so it's available as soon as a treaty is picked, before "Analyze".
 
     Raises whatever exception the underlying call raises once
     call_with_retry's retries are exhausted -- there's no graph state to
@@ -64,7 +65,7 @@ def generate_plain_english_treaty_summary(treaty: TreatyTerms, sections: list[Pa
         return client.messages.create(
             model=_LLM_MODEL,
             max_tokens=512,
-            messages=[{"role": "user", "content": _build_prompt(treaty, sections)}],
+            messages=[{"role": "user", "content": _build_prompt(sections)}],
         )
 
     response = call_with_retry(_create_completion, description="Plain-English Treaty Summary")

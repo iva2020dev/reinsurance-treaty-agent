@@ -5,18 +5,21 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.models import TreatyTerms
 from src.parser import PageSection
 from src.services.plain_english_treaty_summary import generate_plain_english_treaty_summary
 
-TREATY = TreatyTerms(
-    cedent_name="Test Cedent Co.",
-    attachment_point=100_000,
-    limit=200_000,
-    reinsurance_premium=10_000,
-    exclusions=["War", "Nuclear"],
-)
-SECTIONS = [PageSection(page_number=1, text="Cedent: Test Cedent Co.")]
+SECTIONS = [
+    PageSection(
+        page_number=1,
+        text=(
+            "Cedent: Test Cedent Co.\n"
+            "Attachment Point: 100,000\n"
+            "Limit: 200,000\n"
+            "Reinsurance Premium: 10,000"
+        ),
+    ),
+    PageSection(page_number=2, text="EXCLUSIONS\nWar\nNuclear"),
+]
 
 
 def test_generate_plain_english_treaty_summary_returns_text_from_response(monkeypatch):
@@ -26,7 +29,7 @@ def test_generate_plain_english_treaty_summary_returns_text_from_response(monkey
     mock_client.messages.create.return_value = SimpleNamespace(content=[text_block], usage=mock_usage)
     monkeypatch.setattr("src.llm_client.anthropic.Anthropic", lambda **kwargs: mock_client)
 
-    summary = generate_plain_english_treaty_summary(TREATY, SECTIONS)
+    summary = generate_plain_english_treaty_summary(SECTIONS)
 
     assert summary == "A short plain-English summary."
     mock_client.messages.create.assert_called_once()
@@ -46,7 +49,7 @@ def test_generate_plain_english_treaty_summary_concatenates_multiple_text_blocks
     mock_client.messages.create.return_value = SimpleNamespace(content=blocks, usage=mock_usage)
     monkeypatch.setattr("src.llm_client.anthropic.Anthropic", lambda **kwargs: mock_client)
 
-    summary = generate_plain_english_treaty_summary(TREATY, SECTIONS)
+    summary = generate_plain_english_treaty_summary(SECTIONS)
 
     assert summary == "First part. Second part."
 
@@ -57,4 +60,4 @@ def test_generate_plain_english_treaty_summary_propagates_failure_after_retries_
     monkeypatch.setattr("src.llm_client.anthropic.Anthropic", lambda **kwargs: mock_client)
 
     with pytest.raises(RuntimeError, match="boom"):
-        generate_plain_english_treaty_summary(TREATY, SECTIONS)
+        generate_plain_english_treaty_summary(SECTIONS)
