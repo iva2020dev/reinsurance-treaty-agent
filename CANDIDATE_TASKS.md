@@ -100,14 +100,24 @@ discussion on how document quality drives task shape (see
 |---|---|---|---|---|---|---|---|
 | — | B0 | **Burn-Cost Check** | **✅ Done** | Hybrid | Extraction | — (shipped) | — |
 | 1 | B1 | Mandatory-clause / exclusion completeness checklist | ✅ Done | Deterministic | Extraction | S | — |
-| 2 | B2 | Key-date/renewal calendar extraction | Proposed | Deterministic | Extraction | S | — |
-| 3 | B3 | Renewal year-over-year diff | Proposed | Deterministic | Extraction | M | — |
-| 4 | B4 | Multi-layer program extraction & aggregation | Proposed | Deterministic | Extraction | L | — |
-| 5 | B5 | Reinstatement cost modeling | Proposed | Deterministic | Extraction | M | B4 |
-| 6 | B6 | Semantic compliance/clause matching | Proposed | LLM | Both | M | — |
-| 7 | B7 | Plain-English treaty summary | Proposed | LLM | Both | S/M | — |
-| 8 | B8 | Clause ambiguity/contradiction detection | Proposed | LLM | Both | M | — |
-| 9 | B9 | Peer/portfolio benchmarking | Proposed | Deterministic | Extraction | L | — |
+| 2 | B2 | Key-date/renewal calendar extraction | 📋 In TASKS.md as `key-date-renewal-calendar-extraction` | Deterministic | Extraction | S | — |
+| 5 | B3 | Renewal year-over-year diff | 📋 In TASKS.md as `renewal-year-over-year-diff` | Deterministic | Extraction | M | — |
+| 4 | B4 | Multi-layer program extraction & aggregation | 📋 In TASKS.md as `multi-layer-program-extraction` | Deterministic | Extraction | L | — |
+| 7 | B5 | Reinstatement cost modeling | 📋 In TASKS.md as `reinstatement-cost-modeling` | Deterministic | Extraction | M | B4 |
+| 6 | B6 | Semantic compliance/clause matching | 📋 In TASKS.md as `semantic-clause-matching` | LLM | Both | M | — |
+| 3 | B7 | Plain-English treaty summary | 📋 In TASKS.md as `plain-english-treaty-summary` | LLM | Both | S/M | — |
+| 8 | B8 | Clause ambiguity/contradiction detection | 📋 In TASKS.md as `clause-ambiguity-detection` | LLM | Both | M | — |
+| 9 | B9 | Peer/portfolio benchmarking | 📋 In TASKS.md as `peer-portfolio-benchmarking` | Deterministic | Extraction | L | — |
+
+**Pri column note (2026-09-12)**: re-ranked by business
+importance/day-to-day frequency/urgency at the human's request when
+`B2`-`B9` graduated into `TASKS.md` -- no longer the original
+effort/value/dependency-based ranking the rest of this file's
+methodology (see "Notes for prioritization discussion" below) still
+uses for every other section. IDs are untouched (they're referenced
+elsewhere -- `src/domain_tasks.py`'s `candidate_id`, `C2`'s `Depends
+on`), only `Pri` changed. See `REASONING.md`'s 2026-09-12 entry for the
+full per-item rationale.
 
 ### Business Domain — Claims
 
@@ -284,16 +294,24 @@ work tracked separately in `DOMAIN_TASK_SELECTION_PLAN.md`.*
   flag missing ones as a new finding category.
   *Deterministic. Effort: S. Answer type: Extraction (a set comparison
   over already-extracted clause names, no semantic judgment).*
-- **B2. Key-date/renewal calendar extraction** — Priority 2 — extract
-  inception/expiry/notice-period dates and flag treaties approaching
+- **B2. Key-date/renewal calendar extraction** — Priority 2 — 📋 In TASKS.md as `key-date-renewal-calendar-extraction` —
+  extract inception/expiry/notice-period dates and flag treaties approaching
   renewal.
-  *Deterministic. Effort: S. Answer type: Extraction.*
-- **B3. Renewal year-over-year diff** — Priority 3 — accept two treaty
+  *Deterministic. Effort: S. Answer type: Extraction. Business-priority
+  rationale: re-ranked #1 among B2-B9 on 2026-09-12 — every treaty needs
+  its renewal/notice dates tracked, and a missed notice-period deadline
+  has real financial/legal consequences; checked more often, and with
+  more time-pressure, than anything else in this section.*
+- **B3. Renewal year-over-year diff** — Priority 5 — 📋 In TASKS.md as `renewal-year-over-year-diff` —
+  accept two treaty
   PDFs (this year vs. last), extract both, diff `TreatyTerms`
   field-by-field, report what changed (rate, attachment, limit,
   new/removed exclusions).
-  *Deterministic. Effort: M. Answer type: Extraction.*
-- **B4. Multi-layer program extraction & aggregation** — Priority 4 —
+  *Deterministic. Effort: M. Answer type: Extraction. Business-priority
+  rationale: re-ranked #4 on 2026-09-12 — high value at every renewal
+  (informs the actual negotiation), and renewals recur constantly across
+  a portfolio even though any single treaty only renews annually.*
+- **B4. Multi-layer program extraction & aggregation** — Priority 4 — 📋 In TASKS.md as `multi-layer-program-extraction` —
   today only Layer 1 of a multi-layer treaty is extracted; lift that
   simplification, extract all layers, compute burn cost per layer and
   for the combined program. Real schema change
@@ -304,39 +322,68 @@ work tracked separately in `DOMAIN_TASK_SELECTION_PLAN.md`.*
   segmenting which prose belongs to which layer is itself a
   document-quality-sensitive sub-problem (see "Document-quality
   sensitivity" below); may need LLM-assisted layer boundary detection
-  even though per-layer figures stay a regex/arithmetic problem.*
-- **B5. Reinstatement cost modeling** — Priority 5 — extract
+  even though per-layer figures stay a regex/arithmetic problem.
+  Business-priority rationale: re-ranked #3 on 2026-09-12 — most real
+  treaties *are* multi-layer programs, so today's single-layer
+  simplification is a correctness gap affecting the majority of
+  real-world documents, not an edge case; ranked ahead of its effort
+  size because a task this large should start early even though it
+  delivers later.*
+- **B5. Reinstatement cost modeling** — Priority 7 — 📋 In TASKS.md as `reinstatement-cost-modeling` —
+  extract
   reinstatement terms and compute the added premium cost if a layer is
   fully exhausted.
-  *Deterministic, depends on B4. Effort: M. Answer type: Extraction.*
-- **B6. Semantic compliance/clause matching** — Priority 6 — LLM
+  *Deterministic, depends on B4. Effort: M. Answer type: Extraction.
+  Business-priority rationale: re-ranked #6 on 2026-09-12 — real but
+  specialized to layered programs already exhausted/reinstated, narrower
+  and lower-frequency than B2-B4/B6-B7; still ranked after B4, which it
+  depends on.*
+- **B6. Semantic compliance/clause matching** — Priority 6 — 📋 In TASKS.md as `semantic-clause-matching` —
+  LLM
   version of B1, matching clause *intent* rather than keywords, so it
   survives wording variation.
   *LLM. Effort: M. Answer type: Both — extracts candidate clause text,
   then interprets whether its intent matches the expected clause
-  despite different wording.*
-- **B7. Plain-English treaty summary** — Priority 7 — one LLM call
+  despite different wording. Business-priority rationale: re-ranked #5
+  on 2026-09-12 — important for compliance/risk sign-off on every
+  treaty, but ranked after the cheaper deterministic wins above since
+  it's LLM-shaped (real per-run cost if made automatic rather than
+  opt-in — see "Notes for prioritization discussion" below).*
+- **B7. Plain-English treaty summary** — Priority 3 — 📋 In TASKS.md as `plain-english-treaty-summary` —
+  one LLM call
   producing a short executive summary (parties, layer, key dates,
   notable clauses). Should be opt-in (a button), not automatic, to
   preserve today's "LLM cost only when needed" default.
   *LLM. Effort: S/M. Answer type: Both — selects/extracts the salient
-  facts, then composes an interpretive narrative from them.*
-- **B8. Clause ambiguity/contradiction detection** — Priority 8 — LLM
+  facts, then composes an interpretive narrative from them.
+  Business-priority rationale: re-ranked #2 on 2026-09-12 — used on
+  nearly every treaty reviewed in real practice (new submissions and
+  renewals alike); cheap and immediately useful to non-technical
+  stakeholders, second only to B2's time-bound urgency.*
+- **B8. Clause ambiguity/contradiction detection** — Priority 8 — 📋 In TASKS.md as `clause-ambiguity-detection` —
+  LLM
   reviews the whole document for internally inconsistent terms (e.g.
   attachment point defined differently in two places). Judgment-based
   output — harder to test than field extraction (needs
   example-based/golden tests, not just exact-match).
   *LLM. Effort: M. Answer type: Both — extracts candidate statements
   about the same concept from multiple locations, then judges whether
-  they're consistent.*
-- **B9. Peer/portfolio benchmarking** — Priority 9 — is this treaty's
+  they're consistent. Business-priority rationale: re-ranked #7 on
+  2026-09-12 — valuable QA, but an occasional deep-review activity
+  rather than daily underwriting work.*
+- **B9. Peer/portfolio benchmarking** — Priority 9 — 📋 In TASKS.md as `peer-portfolio-benchmarking` —
+  is this treaty's
   pricing an outlier vs. similar treaties already on file. Needs a
   portfolio data model (multiple treaties), not just single-document
   analysis — a bigger data-model addition than the others in this
   section.
   *Deterministic (once a portfolio store exists). Effort: L. Answer
   type: Extraction — "outlier" is a statistical threshold rule (e.g.
-  z-score) over extracted figures, not a semantic judgment.*
+  z-score) over extracted figures, not a semantic judgment.
+  Business-priority rationale: re-ranked #8 (last) on 2026-09-12 —
+  strategic and periodic (quarterly/annual portfolio review), needs a
+  new persistent portfolio data model; least frequent/urgent for a
+  per-treaty review tool today.*
 
 ### Claims (new line — claims handling/adjustment, distinct from underwriting)
 
