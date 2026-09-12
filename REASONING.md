@@ -6206,3 +6206,14 @@ text itself.
 
 **Verification**: `python -m pytest -q` -- 205 passed (202 + 3 new).
 `python -m tests.eval.run_eval` -- all 5 golden cases still 100%.
+
+## 2026-09-12 12:05:00 — Closing task: Plain-English treaty summary (plain-english-treaty-summary)
+
+PR #112 merged to `main` per human confirmation ("pr 112 merged"). Human
+then approved closing it out ("yes, close it out").
+
+Removing the task entry from `TASKS.md`'s P1 section and logging it in
+the "Recently completed" block. Synced `CANDIDATE_TASKS.md`'s `B7` row
+and detailed entry to `✅ Done (shipped as
+\`plain-english-treaty-summary\`)`, per `AGENTS.md`'s "Keeping
+CANDIDATE_TASKS.md in Sync" rule, same PR.
