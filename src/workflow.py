@@ -276,7 +276,11 @@ def build_workflow_graph(selected_task_ids: set[str] | None = None):
     implemented (or not selected at all) is simply skipped, same as if it
     didn't exist. The registry's `workflow_node` field names the actual
     node function to wire in, so this is the only place that decision is
-    made -- src/domain_tasks.py can't drift from what actually runs.
+    made -- src/domain_tasks.py can't drift from what actually runs. A
+    task marked implemented but with no `workflow_node` at all (today:
+    plain_english_treaty_summary, a standalone opt-in feature with its
+    own separate UI trigger) is also skipped here even if selected --
+    it's simply not a graph node.
 
     selected_task_ids defaults to {"burn_cost_check"} (B0, today's only
     implemented task) when not given, matching this function's previous
@@ -284,7 +288,9 @@ def build_workflow_graph(selected_task_ids: set[str] | None = None):
     """
     selected = frozenset(selected_task_ids) if selected_task_ids is not None else DEFAULT_SELECTED_TASK_IDS
     active_tasks = [
-        task for task in DOMAIN_TASKS if task.id in selected and task.implementation_status == "implemented"
+        task
+        for task in DOMAIN_TASKS
+        if task.id in selected and task.implementation_status == "implemented" and task.workflow_node is not None
     ]
     active_task_ids = [task.id for task in active_tasks]
 

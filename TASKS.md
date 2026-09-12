@@ -89,30 +89,42 @@
     accuracy below the agreed threshold fails the build with a clear
     message; a PR that doesn't regress passes.
 
-- [ ] Plain-English treaty summary
+- [ ] Plain-English treaty summary (@claude)
   - **ID**: plain-english-treaty-summary
   - **Tags**: business-domain, treaty, llm
   - **Candidate ID**: B7 (`CANDIDATE_TASKS.md`, re-ranked Pri 3 of 8 on
     2026-09-12)
   - **Details**: One LLM call producing a short executive summary
-    (parties, layer, key dates, notable clauses) from the extracted
-    treaty terms and source sections. Must be opt-in (an explicit
-    button/action), not automatic, to preserve the app's "LLM cost only
-    when needed" default — see `CANDIDATE_TASKS.md`'s note that
-    B6-B8/C4 would change the app's cost profile if made automatic.
-    High business priority: used on nearly every treaty reviewed in
-    real practice (new submissions and renewals alike), cheap and
-    immediately useful to non-technical stakeholders.
+    (parties, layer, key dates, notable clauses) directly from the
+    picked treaty's raw parsed sections — not the extracted `TreatyTerms`
+    (there's no dependency on extraction/"Analyze" at all, only on which
+    treaty was picked). Must be opt-in (an explicit button/action), not
+    automatic, to preserve the app's "LLM cost only when needed" default
+    — see `CANDIDATE_TASKS.md`'s note that B6-B8/C4 would change the
+    app's cost profile if made automatic. High business priority: used
+    on nearly every treaty reviewed in real practice (new submissions
+    and renewals alike), cheap and immediately useful to non-technical
+    stakeholders.
+    **Update (2026-09-12)**: human feedback on the open PR — since the
+    summary only depends on which treaty is picked, its button moved to
+    sit alongside "Review treaty" (right below "Choose a reinsurance
+    treaty"), available before "Analyze", not inside "Analysis Results"
+    after it; added save/download logic for the summary with format
+    selection (Markdown/PDF), matching the existing analysis-results
+    pattern.
   - **Files**: `src/services/plain_english_treaty_summary.py` (new),
-    `src/domain_tasks.py`, `src/app.py` (opt-in trigger UI, since this
-    should not run automatically with the other selected tasks),
+    `src/domain_tasks.py`, `src/app.py` (standalone trigger UI next to
+    "Review treaty", plus save/download helpers for the summary),
     `tests/services/test_plain_english_treaty_summary.py` (new),
     `CANDIDATE_TASKS.md`
-  - **Acceptance**: a distinct opt-in action produces a short
-    plain-English summary from the current treaty's extracted terms and
-    sections; it never runs unless explicitly triggered, even when other
-    domain tasks are selected; registered in `domain_tasks.py` as
-    implemented (`shape="llm"`); `python -m pytest -q` passes.
+  - **Acceptance**: a distinct opt-in action, available as soon as a
+    treaty is picked (before "Analyze"), produces a short plain-English
+    summary from that treaty's raw text; it never runs unless explicitly
+    triggered, even when other domain tasks are selected or "Analyze" is
+    clicked; the summary can be saved/downloaded with a format choice
+    (Markdown/PDF), like the main analysis results; registered in
+    `domain_tasks.py` as implemented (`shape="llm"`); `python -m pytest
+    -q` passes.
 
 - [ ] Multi-layer program extraction & aggregation
   - **ID**: multi-layer-program-extraction
