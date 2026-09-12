@@ -6300,3 +6300,17 @@ exact content.
 
 Awaiting human review/approval before this task is marked done and
 removed from `TASKS.md`.
+
+## 2026-09-12 12:35:00 — Closing task: Add UX-polish animations to UI actions (ui-action-animations)
+
+PR #113 merged to `main` per human confirmation ("pr 113 merged"), after
+resolving a merge conflict against `main` (per the human's "resolve pr
+113" request) caused by several other tasks merging in the meantime --
+`TASKS.md`/`REASONING.md` conflicts resolved by keeping both branches'
+content in chronological order, no code conflicts. Human then approved
+closing it out ("yes, close it out").
+
+Removing the task entry from `TASKS.md`'s P1 section and logging it in
+the "Recently completed" block. No `CANDIDATE_TASKS.md` sync needed --
+this task was never graduated from there (requested directly by the
+human).
