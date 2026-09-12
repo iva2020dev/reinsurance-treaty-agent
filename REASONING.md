@@ -5406,3 +5406,68 @@ This file contains the reasoning transcript of the AI agent for the current sess
   were picked up and closed out first while this one sat merged but
   still open in `TASKS.md`; no drift resulted since nothing else
   depended on its specific closure timing.
+
+## 2026-09-12 — Task: Add a Download button (with format selection) for the "Analysis Workflow execution" debug panel (debug-panel-download)
+
+- **Goal**: Human asked for a Download button, with format selection,
+  for the debug expander's content — mirroring the pattern already
+  used in "Analysis Results" (a format radio + Save/Download buttons).
+- **Analysis**: The debug expander (`main()`, `src/app.py`) currently
+  shows: extraction status or a "no state" caption, `format_multi_
+  task_status()`'s output, the captured `log_lines` (raw text via
+  `st.code`), and — when `state is not None` — the full `serialize_
+  state_for_debug(state)` JSON via `st.json`. Its only export
+  mechanism today is "Save to logs file" (a fixed default path,
+  Append/Overwrite mode, no client-side download, no format choice).
+  `task_results` isn't reliably in scope at the debug expander's
+  indentation level — it's only defined inside the successful-
+  extraction `else` branch above it, so a parser failure or missing-
+  fields `ValueError` leaves it undefined; the existing code already
+  works around this by reading `(state or {}).get("task_results",
+  {})` directly rather than referencing the `task_results` variable,
+  and the new code needs the same defensive pattern.
+- **Decision**: Unlike Analysis Results (Markdown/PDF, since a PDF
+  document makes sense for a "final report"), the debug content is
+  fundamentally either free-text (log lines) or a JSON dict (the
+  serialized state) — PDF doesn't fit either well, and forcing one
+  combined Markdown format would lose the JSON's structure. Offer
+  "Text (.txt)" (human-readable: header + statuses + log lines + a
+  pretty-printed JSON dump, mirroring what's already shown on screen)
+  and "JSON (.json)" (a real, `json.loads`-parseable document bundling
+  header/statuses/log_lines/state) instead. Add only a Download button
+  (client-side, matches what the human asked for) — leaving the
+  existing "Save to logs file" form untouched, since that already
+  covers server-side persistence with its own Append/Overwrite
+  semantics; duplicating a second "Save" control for the same
+  underlying data would be redundant.
+- **Action**: Adding `format_debug_report_text()`, `format_debug_
+  report_json()`, and `format_debug_report_filename()` to `src/app.py`
+  (all defensive against `state is None`); adding the format radio +
+  download button in `main()`'s debug expander, right after the
+  existing content and before the "Save to logs file" divider/form.
+- **Outcome**: Implemented as described, reading `debug_task_results =
+  (state or {}).get("task_results", {})` right in `main()` (matching
+  the existing defensive pattern) rather than relying on the
+  `task_results` variable, which isn't in scope on a parser-failure/
+  missing-fields path. Added 6 unit tests
+  (`test_format_debug_report_text_includes_header_statuses_logs_
+  and_state`, `..._handles_none_state`,
+  `test_format_debug_report_json_round_trips_through_json_loads`,
+  `..._handles_none_state`,
+  `test_format_debug_report_filename_matches_naming_rule`) plus 2
+  `AppTest` end-to-end tests. Discovered mid-implementation: `AppTest`'s
+  `download_button` wrapper in this installed Streamlit version has no
+  `.data`/`.file_name` accessor (only a mock media `url`) — adjusted
+  the two end-to-end tests to check the served URL's file extension
+  switches with the format radio and that the button renders without
+  crashing even on parser failure, relying on the unit tests above for
+  exact content correctness rather than trying to inspect bytes
+  `AppTest` doesn't expose. `python -m pytest tests/test_app.py -q` —
+  102 passed. Full suite `python -m pytest -q` — 184 passed, no other
+  regressions. `python -m tests.eval.run_eval` — all 5 golden cases
+  still 100% (unaffected — pure UI addition, no extraction/workflow
+  logic touched). Manually verified via a standalone `AppTest` run and
+  direct function calls that both the `.txt` and `.json` outputs
+  render correctly, including the `state is None` (parser failure)
+  case. Awaiting human review/approval before this task is marked
+  done and removed from `TASKS.md`.

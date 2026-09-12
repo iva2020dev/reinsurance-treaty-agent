@@ -1,6 +1,7 @@
 """Streamlit UI / FastAPI endpoints."""
 
 import hashlib
+import json
 import logging
 import re
 import sys
@@ -204,6 +205,67 @@ def save_logs_to_file(log_lines: list[str], mode: str, path: Path = DEFAULT_LOG_
     with open(path, file_mode, encoding="utf-8") as f:
         for line in log_lines:
             f.write(line + "\n")
+
+
+def _debug_extraction_status_text(state: WorkflowState | None) -> str:
+    """Same status text as the debug panel's own caption -- extracted so
+    it's shared by the on-screen caption and the downloadable report.
+    """
+    if state is None:
+        return "No workflow state was produced -- the PDF could not be parsed, so no node ran."
+    return format_extraction_status(state)
+
+
+def format_debug_report_text(
+    filename: str,
+    state: WorkflowState | None,
+    log_lines: list[str],
+    selected_task_ids: set[str],
+    task_results: dict[str, TaskResult],
+    when: datetime | None = None,
+) -> str:
+    """Plain-text rendering of the "Analysis Workflow execution" debug
+    panel's content (extraction status, multi-task status, captured log
+    lines, and the full serialized workflow state), for direct download --
+    mirrors what's already shown on screen.
+    """
+    lines = [format_log_header(filename, when=when), "", _debug_extraction_status_text(state)]
+    lines.append(format_multi_task_status(selected_task_ids, task_results))
+    lines.append("")
+    lines.append("=== Captured log lines ===")
+    lines.extend(log_lines or ["No log lines captured."])
+    if state is not None:
+        lines.append("")
+        lines.append("=== Workflow state (debug) ===")
+        lines.append(json.dumps(serialize_state_for_debug(state), indent=2))
+    return "\n".join(lines)
+
+
+def format_debug_report_json(
+    filename: str,
+    state: WorkflowState | None,
+    log_lines: list[str],
+    selected_task_ids: set[str],
+    task_results: dict[str, TaskResult],
+    when: datetime | None = None,
+) -> dict:
+    """Same content as format_debug_report_text(), as a real JSON-safe
+    dict instead of a formatted string -- for the "JSON (.json)" download
+    format choice.
+    """
+    return {
+        "header": format_log_header(filename, when=when),
+        "extraction_status": _debug_extraction_status_text(state),
+        "multi_task_status": format_multi_task_status(selected_task_ids, task_results),
+        "log_lines": list(log_lines or []),
+        "state": serialize_state_for_debug(state) if state is not None else None,
+    }
+
+
+def format_debug_report_filename(extension: str, when: datetime | None = None) -> str:
+    """Build the debug-report download filename: <timestamp>_debug.<extension>."""
+    timestamp = (when or datetime.now()).strftime("%Y%m%d_%H%M%S")
+    return f"{timestamp}_debug.{extension}"
 
 
 def _task_title(task_id: str) -> str:
@@ -1060,6 +1122,46 @@ def main() -> None:
                 st.write("No log lines captured.")
             if state is not None:
                 st.json(serialize_state_for_debug(state))
+
+            debug_task_results = (state or {}).get("task_results", {})
+            debug_format_choice = st.radio(
+                "Debug report format",
+                ["Text (.txt)", "JSON (.json)"],
+                horizontal=True,
+                key="debug_report_format_choice",
+            )
+            debug_extension = "json" if debug_format_choice.startswith("JSON") else "txt"
+            debug_download_when = datetime.now()
+            if debug_extension == "json":
+                debug_report_data = json.dumps(
+                    format_debug_report_json(
+                        result_name,
+                        state,
+                        log_lines,
+                        result_selected_task_ids,
+                        debug_task_results,
+                        when=debug_download_when,
+                    ),
+                    indent=2,
+                ).encode("utf-8")
+                debug_mime = "application/json"
+            else:
+                debug_report_data = format_debug_report_text(
+                    result_name,
+                    state,
+                    log_lines,
+                    result_selected_task_ids,
+                    debug_task_results,
+                    when=debug_download_when,
+                ).encode("utf-8")
+                debug_mime = "text/plain"
+            st.download_button(
+                "Download workflow execution details",
+                data=debug_report_data,
+                file_name=format_debug_report_filename(debug_extension, when=debug_download_when),
+                mime=debug_mime,
+                icon=":material/download:",
+            )
 
             st.divider()
             with st.form("save_logs_form"):

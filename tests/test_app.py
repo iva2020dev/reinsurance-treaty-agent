@@ -17,6 +17,9 @@ from src.app import (
     extract_llm_actual_cost,
     extract_llm_usage_summary,
     format_combined_results_summary,
+    format_debug_report_filename,
+    format_debug_report_json,
+    format_debug_report_text,
     format_extraction_cost_note,
     format_extraction_status,
     format_findings_summary,
@@ -866,6 +869,110 @@ def test_app_debug_panel_shows_log_lines_on_parser_failure():
     log_text = "\n".join(c.value for c in at.code)
     assert log_text == ""  # ParserError raised before any node logs anything
     assert len(at.json) == 0  # no state was produced to show
+
+
+def test_format_debug_report_text_includes_header_statuses_logs_and_state():
+    state = {
+        "extraction_method": "regex",
+        "task_results": {"burn_cost_check": TaskResult(status="ran", findings=[], cost=0.0, latency=0.01)},
+    }
+    log_lines = ["INFO src.workflow: Parsed 2 page(s)"]
+
+    text = format_debug_report_text(
+        "sample_treaty.pdf",
+        state,
+        log_lines,
+        {"burn_cost_check"},
+        state["task_results"],
+        when=datetime(2026, 9, 12, 10, 0, 0),
+    )
+
+    assert text.startswith("=== Run at 2026-09-12 10:00:00 | file: sample_treaty.pdf ===")
+    assert "no LLM call was needed" in text
+    assert "- **burn_cost_check**: ran (0 finding(s)" in text
+    assert "INFO src.workflow: Parsed 2 page(s)" in text
+    assert '"extraction_method": "regex"' in text
+
+
+def test_format_debug_report_text_handles_none_state():
+    text = format_debug_report_text("bad.pdf", None, [], set(), {})
+
+    assert "No workflow state was produced" in text
+    assert "No log lines captured." in text
+    assert "Workflow state (debug)" not in text  # nothing to dump when there's no state
+
+
+def test_format_debug_report_json_round_trips_through_json_loads():
+    state = {
+        "extraction_method": "llm",
+        "task_results": {"burn_cost_check": TaskResult(status="ran", findings=[], cost=0.001, latency=0.02)},
+    }
+    log_lines = ["INFO src.workflow: LLM Extraction Fallback ran"]
+
+    report = format_debug_report_json(
+        "fuzzy.pdf",
+        state,
+        log_lines,
+        {"burn_cost_check"},
+        state["task_results"],
+        when=datetime(2026, 9, 12, 10, 0, 0),
+    )
+    reloaded = json.loads(json.dumps(report))
+
+    assert reloaded["header"] == "=== Run at 2026-09-12 10:00:00 | file: fuzzy.pdf ==="
+    assert "LLM Extraction Fallback" in reloaded["extraction_status"]
+    assert reloaded["log_lines"] == log_lines
+    assert reloaded["state"]["extraction_method"] == "llm"
+
+
+def test_format_debug_report_json_handles_none_state():
+    report = format_debug_report_json("bad.pdf", None, [], set(), {})
+
+    assert report["state"] is None
+    assert "No workflow state was produced" in report["extraction_status"]
+
+
+def test_format_debug_report_filename_matches_naming_rule():
+    assert format_debug_report_filename("txt", when=datetime(2026, 9, 12, 10, 0, 0)) == "20260912_100000_debug.txt"
+    assert format_debug_report_filename("json", when=datetime(2026, 9, 12, 10, 0, 0)) == "20260912_100000_debug.json"
+
+
+def test_app_debug_panel_download_button_offers_text_and_json_formats():
+    """AppTest's download_button wrapper doesn't expose the raw bytes it
+    would hand the browser (no .data/.file_name accessor in this Streamlit
+    version) -- content correctness is covered directly by
+    test_format_debug_report_text/json's own unit tests. This confirms the
+    UI wiring itself: the format radio exists with both choices, a
+    download button renders for each choice, and its served media URL's
+    extension switches with the selected format.
+    """
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    with open(MINIMAL_TREATY_PATH, "rb") as f:
+        at = _upload_and_click_analyze(at, "sample_treaty.pdf", f.read())
+
+    assert not at.exception
+    format_radio = next(r for r in at.radio if r.label == "Debug report format")
+    assert format_radio.options == ["Text (.txt)", "JSON (.json)"]
+
+    download_button = next(d for d in at.download_button if d.label == "Download workflow execution details")
+    assert download_button.proto.url.endswith(".txt")
+
+    at = format_radio.set_value("JSON (.json)").run()
+    assert not at.exception
+    download_button = next(d for d in at.download_button if d.label == "Download workflow execution details")
+    assert download_button.proto.url.endswith(".json")
+
+
+def test_app_debug_panel_download_button_works_on_parser_failure():
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    at = _upload_and_click_analyze(at, "bad.pdf", b"not a pdf at all")
+
+    assert not at.exception
+    assert any(d.label == "Download workflow execution details" for d in at.download_button)
 
 
 def test_format_extraction_status_for_each_extraction_method():
