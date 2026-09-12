@@ -93,6 +93,7 @@ graph TD;
 	burn_cost_check(burn_cost_check)
 	exclusion_completeness_checklist(exclusion_completeness_checklist)
 	key_date_renewal_calendar_extraction(key_date_renewal_calendar_extraction)
+	semantic_clause_matching(semantic_clause_matching)
 	__end__([<p>__end__</p>]):::last
 	__start__ --> extractor;
 	extractor -.-> llm_extraction_fallback;
@@ -102,9 +103,11 @@ graph TD;
 	verifier -.-> burn_cost_check;
 	verifier -.-> exclusion_completeness_checklist;
 	verifier -.-> key_date_renewal_calendar_extraction;
+	verifier -.-> semantic_clause_matching;
 	burn_cost_check --> __end__;
 	exclusion_completeness_checklist --> __end__;
 	key_date_renewal_calendar_extraction --> __end__;
+	semantic_clause_matching --> __end__;
 	classDef default fill:#f2f0ff,line-height:1.2
 	classDef first fill-opacity:0
 	classDef last fill:#bfb6fc

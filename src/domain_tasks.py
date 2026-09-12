@@ -96,9 +96,9 @@ DOMAIN_TASKS: list[DomainTask] = [
         id="semantic_clause_matching",
         title="Semantic compliance/clause matching",
         candidate_id="B6",
-        implementation_status="not_implemented",
+        implementation_status="implemented",
         shape="llm",
-        workflow_node=None,
+        workflow_node="semantic_clause_matching_node",
     ),
     DomainTask(
         id="plain_english_treaty_summary",

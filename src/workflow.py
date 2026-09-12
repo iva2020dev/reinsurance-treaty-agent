@@ -25,6 +25,7 @@ from src.parser import PageSection, extract_treaty_sections
 from src.services.burn_cost_check import burn_cost_check_node
 from src.services.exclusion_completeness_checklist import exclusion_completeness_checklist_node
 from src.services.key_date_renewal_calendar_extraction import key_date_renewal_calendar_extraction_node
+from src.services.semantic_clause_matching import semantic_clause_matching_node
 from src.tools import check_treaty_grounding, query_historical_claims
 from src.workflow_state import WorkflowState  # noqa: F401 -- re-exported for existing importers (src/app.py)
 

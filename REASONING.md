@@ -6314,3 +6314,112 @@ Removing the task entry from `TASKS.md`'s P1 section and logging it in
 the "Recently completed" block. No `CANDIDATE_TASKS.md` sync needed --
 this task was never graduated from there (requested directly by the
 human).
+
+## 2026-09-12 12:45:00 — Starting task: Semantic compliance/clause matching (semantic-clause-matching)
+
+**Goal**: Implement `B6` -- an LLM-shaped version of `B1` (`exclusion_
+completeness_checklist`), flagging a mandatory exclusion clause
+category as missing based on *intent*, not keyword substring match, so
+it survives wording variation `B1`'s keyword list would miss (e.g. "acts
+of aggression between sovereign states" for "war").
+
+**Analysis**: Unlike `plain_english_treaty_summary` (B7), this task
+genuinely fits the standard per-task graph-node pattern every other
+implemented task uses: it reads from `state["treaty"].exclusions`
+(already extracted by the shared pipeline), same as `B1`, so it belongs
+in `build_workflow_graph()`'s fan-out with a real `workflow_node`,
+selectable from the "Domain tasks to run" checklist like `B0`-`B2` --
+no repeat of `B7`'s standalone-button design is needed or appropriate
+here. Reused `B1`'s own mandatory-clause category labels (war, nuclear,
+cyber, pandemic, sanctions, tria) from `src.services.exclusion_
+completeness_checklist.MANDATORY_EXCLUSION_CLAUSES.keys()` rather than
+redefining a second, driftable copy of the same six categories -- only
+the *keyword lists* are `B1`-specific (irrelevant here, since this task
+asks the LLM to judge intent directly against the raw exclusions text,
+not match substrings).
+
+**Decision**:
+- New `src/services/semantic_clause_matching.py`:
+  `semantic_clause_matching_node(state) -> dict`, using a tool-use call
+  (same harness as `llm_extraction_fallback`/`llm_client.call_with_
+  retry`/`get_client`) asking the model to return which of the six
+  category labels are NOT covered by the treaty's exclusions text, given
+  its full text (not just keywords) so wording variation is exactly
+  what the model is meant to handle. Tool schema constrains the
+  returned array to the six known category labels (`enum`), so a
+  malformed/hallucinated category can't silently corrupt findings.
+- **Failure handling differs from `B7` on purpose**: this node is wired
+  into the graph via `build_workflow_graph()`'s fan-out, so raising on
+  failure (like `B7`'s standalone function does) would crash the whole
+  multi-task run for every other selected task too -- instead, on
+  failure this returns `TaskResult(status="failed", findings=[],
+  cost=0.0, latency=...)`, which `src/app.py`'s existing generic
+  rendering (`_task_section_content()`'s `task_result.status != "ran"`
+  branch, `format_multi_task_status()`'s generic `else` branch) already
+  displays correctly with zero UI changes needed -- confirmed by
+  reading both functions before writing this node, rather than
+  assuming.
+- Real dollar cost via `src.cost_estimation.actual_task_cost()` (LLM-
+  shaped task, unlike `B0`-`B2`'s always-`0.0`).
+- Severity `MEDIUM` for a missing category, matching `B1`'s own choice
+  for the same conceptual finding.
+- Tests: `tests/services/test_semantic_clause_matching.py`, mocking
+  `anthropic.Anthropic` (same pattern as every other LLM-calling
+  test in this repo) -- covers no-missing-categories, some-missing,
+  failure-degrades-gracefully-to-a-failed-TaskResult, and one
+  wording-variation input example per mandatory category (verifying the
+  node correctly reflects whatever the mocked tool-use response says
+  for exclusions text phrased differently than the raw category
+  keyword -- this tests the node's wiring/output-shape against varied
+  *input* phrasing, not the live model's actual semantic judgment
+  quality, which would require a real API call and belongs in a
+  golden-dataset eval suite like `tests/eval/`, out of scope for this
+  task's own file list).
+
+**Action**: Implementing on `task/semantic-clause-matching`.
+
+## 2026-09-12 13:00:00 — Outcome: Semantic compliance/clause matching (semantic-clause-matching)
+
+**Implemented** per the plan above:
+- New `src/services/semantic_clause_matching.py`:
+  `semantic_clause_matching_node`, a tool-use call (same harness as
+  `llm_extraction_fallback`) asking the model which of `B1`'s six
+  mandatory-clause categories (imported from `src.services.exclusion_
+  completeness_checklist.MANDATORY_EXCLUSION_CLAUSES.keys()`, not
+  redefined) aren't covered by the treaty's raw exclusions text, tool
+  schema constrained via `enum` to those six labels. Real dollar cost
+  via `src.cost_estimation.actual_task_cost()`. On failure, degrades to
+  `TaskResult(status="failed", ...)` instead of raising -- confirmed
+  `src/app.py`'s existing generic status handling
+  (`_task_section_content()`, `format_multi_task_status()`) already
+  renders a `"failed"` status correctly with zero UI changes needed.
+- `src/domain_tasks.py`: flipped to `implementation_status="implemented"`,
+  `workflow_node="semantic_clause_matching_node"`.
+- `src/workflow.py`: imports the new node (preserves the `globals()`
+  lookup mechanism).
+- `tests/services/test_semantic_clause_matching.py` (9 cases): no
+  missing categories, some missing categories, LLM failure degrades to
+  a failed `TaskResult` rather than raising, and one wording-variation
+  input example per mandatory category (war, nuclear, cyber, pandemic,
+  sanctions, tria) -- each verifies the node correctly reflects the
+  mocked tool-use response for exclusions text phrased very differently
+  from the raw category keyword; these test the node's wiring against
+  varied input phrasing, not the live model's real semantic judgment
+  (that would need a real API call/golden-dataset eval, out of this
+  task's scope).
+- `tests/test_domain_tasks.py`: `test_b0_b1_b2_b7_are_implemented`
+  renamed to `test_b0_b1_b2_b6_b7_are_implemented`, extended for `B6`.
+- Regenerated the multi-task README diagram (`python3 scripts/
+  regenerate_workflow_graph.py`) -- caught by `tests/test_workflow_
+  graph_docs.py` itself failing until regenerated, confirming the
+  dynamic-selection mechanism from `dynamic-workflow-graph-diagram`
+  works exactly as designed for a newly-implemented task.
+
+**Verification**: `python -m pytest -q` -- 215 passed (206 + 9 new).
+`python -m tests.eval.run_eval` -- all 5 golden cases still 100%.
+Manually confirmed via `AppTest` that "Semantic compliance/clause
+matching" now renders as an enabled (non-disabled) checkbox, and built
+a 4-task graph including it successfully.
+
+Awaiting human review/approval before this task is marked done and
+removed from `TASKS.md`.

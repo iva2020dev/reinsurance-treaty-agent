@@ -149,7 +149,7 @@
     exclusions) between them; registered in `domain_tasks.py` as
     implemented; `python -m pytest -q` passes.
 
-- [ ] Semantic compliance/clause matching
+- [ ] Semantic compliance/clause matching (@claude)
   - **ID**: semantic-clause-matching
   - **Tags**: business-domain, treaty, llm
   - **Candidate ID**: B6 (`CANDIDATE_TASKS.md`, re-ranked Pri 6 of 8 on
