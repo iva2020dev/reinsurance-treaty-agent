@@ -1,17 +1,14 @@
 """Tests for src.workflow."""
 
-from datetime import date
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import anthropic
 import pytest
 
-from src.models import ClaimsData, Severity, TaskResult, TreatyTerms
+from src.models import Severity, TaskResult, TreatyTerms
 from src.parser import PageSection, extract_treaty_sections
 from src.workflow import (
-    burn_cost_check_node,
-    exclusion_completeness_checklist_node,
     extract_treaty_terms,
     extractor_node,
     llm_extraction_fallback,
@@ -321,123 +318,6 @@ def test_verifier_node_flags_incompleteness_without_calling_tools():
 
     assert result["complete"] is False
     assert result["claims"] == []
-
-
-def test_burn_cost_check_node_no_anomalies():
-    treaty = TreatyTerms(
-        cedent_name="X", attachment_point=1_000_000, limit=5_000_000, reinsurance_premium=250_000
-    )
-    claims = [ClaimsData(cedent_name="X", claim_amount=1_100_000, claim_date=date(2025, 1, 1))]
-
-    result = burn_cost_check_node({"treaty": treaty, "claims": claims})
-
-    report = result["report"]
-    assert report.findings == []
-    assert report.loss_ratio == 100_000 / 5_000_000
-
-
-def test_burn_cost_check_node_flags_at_least_one_anomaly():
-    treaty = TreatyTerms(
-        cedent_name="X", attachment_point=1_000_000, limit=5_000_000, reinsurance_premium=250_000
-    )
-
-    result = burn_cost_check_node({"treaty": treaty, "claims": []})
-
-    report = result["report"]
-    assert len(report.findings) >= 1
-    assert report.findings[0].severity == Severity.LOW
-    assert "No historical claims data" in report.findings[0].description
-
-
-def test_burn_cost_check_node_also_populates_task_results_alongside_report():
-    treaty = TreatyTerms(
-        cedent_name="X", attachment_point=1_000_000, limit=5_000_000, reinsurance_premium=250_000
-    )
-    claims = [ClaimsData(cedent_name="X", claim_amount=1_100_000, claim_date=date(2025, 1, 1))]
-
-    result = burn_cost_check_node({"treaty": treaty, "claims": claims})
-
-    assert set(result["task_results"]) == {"burn_cost_check"}
-    task_result = result["task_results"]["burn_cost_check"]
-    assert isinstance(task_result, TaskResult)
-    assert task_result.status == "ran"
-    assert task_result.findings == result["report"].findings
-    assert task_result.cost == 0.0
-    assert task_result.latency >= 0.0
-
-
-def test_burn_cost_check_node_log_line_is_tagged_with_its_task_id(caplog):
-    treaty = TreatyTerms(
-        cedent_name="X", attachment_point=1_000_000, limit=5_000_000, reinsurance_premium=250_000
-    )
-
-    with caplog.at_level("INFO", logger="src.workflow"):
-        burn_cost_check_node({"treaty": treaty, "claims": []})
-
-    messages = [record.message for record in caplog.records]
-    assert any(message.startswith("[burn_cost_check] ") for message in messages)
-
-
-def test_exclusion_completeness_checklist_node_flags_every_missing_clause():
-    treaty = TreatyTerms(
-        cedent_name="X",
-        attachment_point=1_000_000,
-        limit=5_000_000,
-        reinsurance_premium=250_000,
-        exclusions=["War and warlike operations", "Nuclear reaction or contamination"],
-    )
-
-    result = exclusion_completeness_checklist_node({"treaty": treaty})
-
-    task_result = result["task_results"]["exclusion_completeness_checklist"]
-    assert task_result.status == "ran"
-    missing_clauses = {f.field for f in task_result.findings}  # sanity: field is always "exclusions"
-    assert missing_clauses == {"exclusions"}
-    descriptions = " ".join(f.description for f in task_result.findings)
-    assert "cyber" in descriptions
-    assert "pandemic" in descriptions
-    assert "sanctions" in descriptions
-    assert "tria" in descriptions
-    assert "war" not in descriptions
-    assert "nuclear" not in descriptions
-    assert len(task_result.findings) == 4
-    assert all(f.severity == "medium" for f in task_result.findings)
-
-
-def test_exclusion_completeness_checklist_node_flags_only_the_one_missing_clause():
-    treaty = TreatyTerms(
-        cedent_name="X",
-        attachment_point=1_000_000,
-        limit=5_000_000,
-        reinsurance_premium=250_000,
-        exclusions=[
-            "War, invasion, act of foreign enemy, hostilities or warlike operations",
-            "Nuclear reaction, nuclear radiation, or radioactive contamination",
-            "Terrorism, as defined under the Terrorism Risk Insurance Act (TRIA)",
-            "Cyber-attack, data breach, or loss of electronic data",
-            "Communicable disease, pandemic, or epidemic-related business interruption",
-        ],
-    )
-
-    result = exclusion_completeness_checklist_node({"treaty": treaty})
-
-    task_result = result["task_results"]["exclusion_completeness_checklist"]
-    assert len(task_result.findings) == 1
-    assert "sanctions" in task_result.findings[0].description
-
-
-def test_exclusion_completeness_checklist_node_no_findings_when_all_clauses_present():
-    treaty = TreatyTerms(
-        cedent_name="X",
-        attachment_point=1_000_000,
-        limit=5_000_000,
-        reinsurance_premium=250_000,
-        exclusions=["war", "nuclear", "cyber", "pandemic", "sanctions", "terrorism"],
-    )
-
-    result = exclusion_completeness_checklist_node({"treaty": treaty})
-
-    assert result["task_results"]["exclusion_completeness_checklist"].findings == []
 
 
 def test_run_workflow_real_two_implemented_tasks_both_run_via_real_pdf():

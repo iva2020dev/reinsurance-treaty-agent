@@ -6,10 +6,12 @@ future consumers (a graph builder that only runs implemented+selected
 tasks, a frontend task selector) read from this list rather than each
 maintaining their own copy, so they can't drift apart.
 
-Only `B0` (the Burn-Cost Check, `burn_cost_check_node` in `src/workflow.py`) is
-implemented today; every other entry mirrors a still-`Proposed`
-candidate in `CANDIDATE_TASKS.md`'s Business Domain tables and has no
-workflow node yet.
+Only `B0` (the Burn-Cost Check, `burn_cost_check_node` in
+`src/services/burn_cost_check.py`) is implemented today; every other
+entry mirrors a still-`Proposed` candidate in `CANDIDATE_TASKS.md`'s
+Business Domain tables and has no workflow node yet. Each implemented
+task's node function lives in its own module under `src/services/` --
+see `src/services/__init__.py` for the convention.
 """
 
 from dataclasses import dataclass
@@ -26,7 +28,8 @@ class DomainTask:
     candidate_id: str  # this task's ID in CANDIDATE_TASKS.md, e.g. "B0"
     implementation_status: ImplementationStatus
     shape: TaskShape
-    workflow_node: str | None  # the src/workflow.py node function name, if implemented
+    workflow_node: str | None  # the node function's name (defined in its src/services/ module,
+    # imported into src/workflow.py's namespace), if implemented
 
 
 DOMAIN_TASKS: list[DomainTask] = [

@@ -1,10 +1,18 @@
-"""LangGraph state machine & agent logic."""
+"""LangGraph state machine & shared extraction/verification pipeline.
+
+Each domain task's own analysis logic (node function + task-specific
+constants/helpers) lives in its own module under src/services/, not here
+-- see src/services/__init__.py for the convention. This module only
+contains the shared pipeline (Extractor -> LLM Extraction Fallback ->
+Verifier) that every run goes through, plus the graph builder that wires
+in whichever task nodes are selected and implemented.
+"""
 
 import logging
 import re
 import time
 from pathlib import Path
-from typing import Annotated, Literal, TypedDict
+from typing import Literal
 
 from dotenv import load_dotenv
 from langgraph.graph import END, StateGraph
@@ -12,9 +20,12 @@ from pydantic import ValidationError
 
 from src.domain_tasks import DOMAIN_TASKS
 from src.llm_client import call_with_retry, get_client
-from src.models import AnomalyFinding, AnomalyReport, ClaimsData, Severity, TaskResult, TreatyTerms
+from src.models import TreatyTerms
 from src.parser import PageSection, extract_treaty_sections
-from src.tools import calculate_loss_ratio, check_treaty_grounding, query_historical_claims
+from src.services.burn_cost_check import burn_cost_check_node
+from src.services.exclusion_completeness_checklist import exclusion_completeness_checklist_node
+from src.tools import check_treaty_grounding, query_historical_claims
+from src.workflow_state import WorkflowState  # noqa: F401 -- re-exported for existing importers (src/app.py)
 
 load_dotenv()  # no-op in production, where ANTHROPIC_API_KEY comes from a real env var/secret
 
@@ -83,44 +94,6 @@ _FIELD_PATTERNS = {
 
 _EXCLUSIONS_SECTION_PATTERN = re.compile(r"EXCLUSIONS\s*\n(.*)", re.DOTALL | re.IGNORECASE)
 _LEADING_NUMBERING_PATTERN = re.compile(r"^\d+\.\s*")
-
-LOSS_RATIO_MEDIUM_THRESHOLD = 0.5
-LOSS_RATIO_HIGH_THRESHOLD = 1.0
-
-
-def _merge_task_results(
-    left: dict[str, TaskResult] | None, right: dict[str, TaskResult] | None
-) -> dict[str, TaskResult]:
-    """Combine concurrent per-task result writes into one dict.
-
-    LangGraph's default state channel rejects a second write to the same
-    key within one step -- when multiple analysis nodes run in parallel
-    (multi-task fan-out), each returns its own {task_id: TaskResult} entry
-    for the *same* `task_results` key, so it needs this reducer to merge
-    rather than conflict. Each node only ever writes its own task_id, so a
-    plain dict union is safe -- no two nodes should ever share a key.
-    """
-    return {**(left or {}), **(right or {})}
-
-
-class WorkflowState(TypedDict, total=False):
-    """State passed between workflow nodes."""
-
-    sections: list[PageSection]
-    treaty: TreatyTerms | None
-    missing_fields: list[str]
-    extraction_method: Literal["regex", "llm", "none"]
-    llm_error: str | None
-    ungrounded_fields: list[str]
-    claims: list[ClaimsData]
-    complete: bool
-    report: AnomalyReport | None
-    # Additive alongside `report` (not a replacement) -- keyed by domain-task
-    # id (src/domain_tasks.py), populated only for tasks that actually ran.
-    # Annotated with a merge reducer so multiple analysis nodes running in
-    # parallel (multi-task fan-out) each contribute their own entry instead
-    # of conflicting -- see _merge_task_results().
-    task_results: Annotated[dict[str, TaskResult], _merge_task_results]
 
 
 def _extract_exclusions(sections: list[PageSection]) -> tuple[list[str], int | None]:
@@ -279,115 +252,6 @@ def verifier_node(state: WorkflowState) -> dict:
     claims = query_historical_claims(treaty.cedent_name)
     logger.info("Verifier: found %d historical claim(s) for %r", len(claims), treaty.cedent_name)
     return {"complete": True, "claims": claims}
-
-
-def burn_cost_check_node(state: WorkflowState) -> dict:
-    """Compare treaty terms against historical claims and flag anomalies (the Burn-Cost Check, B0)."""
-    started_at = time.perf_counter()
-    treaty = state["treaty"]
-    claims = state.get("claims", [])
-    loss_ratio = calculate_loss_ratio(treaty.attachment_point, treaty.limit, claims)
-
-    findings = []
-    if not claims:
-        findings.append(
-            AnomalyFinding(
-                field="claims",
-                description=f"No historical claims data found for cedent '{treaty.cedent_name}'.",
-                severity=Severity.LOW,
-            )
-        )
-    if loss_ratio > LOSS_RATIO_HIGH_THRESHOLD:
-        findings.append(
-            AnomalyFinding(
-                field="loss_ratio",
-                description=(
-                    f"Historical losses (loss ratio {loss_ratio:.2f}) would have "
-                    "exceeded this layer's limit."
-                ),
-                severity=Severity.HIGH,
-            )
-        )
-    elif loss_ratio >= LOSS_RATIO_MEDIUM_THRESHOLD:
-        findings.append(
-            AnomalyFinding(
-                field="loss_ratio",
-                description=(
-                    f"Historical losses (loss ratio {loss_ratio:.2f}) would have "
-                    "consumed a majority of this layer."
-                ),
-                severity=Severity.MEDIUM,
-            )
-        )
-
-    report = AnomalyReport(treaty=treaty, claims=claims, loss_ratio=loss_ratio, findings=findings)
-    latency = time.perf_counter() - started_at
-    # Burn-Cost Check is a deterministic task (no LLM call) -- cost is always
-    # 0.0, matching src/cost_estimation.py's estimate_task_cost() for
-    # deterministic-shaped tasks.
-    task_result = TaskResult(status="ran", findings=findings, cost=0.0, latency=latency)
-    logger.info(
-        "[burn_cost_check] Burn-Cost Check: loss ratio %.2f, %d finding(s)",
-        loss_ratio,
-        len(findings),
-    )
-    return {"report": report, "task_results": {"burn_cost_check": task_result}}
-
-
-# Mandatory exclusion clauses expected in a well-drafted treaty (B1), each
-# mapped to case-insensitive substring(s) that identify it in real exclusion
-# text (which is full prose, e.g. "War and warlike operations," not a bare
-# keyword) -- configurable list per the candidate task's own description.
-MANDATORY_EXCLUSION_CLAUSES: dict[str, tuple[str, ...]] = {
-    "war": ("war",),
-    "nuclear": ("nuclear",),
-    "cyber": ("cyber",),
-    "pandemic": ("pandemic", "communicable disease", "epidemic"),
-    "sanctions": ("sanctions",),
-    "tria": ("tria", "terrorism"),
-}
-
-
-def _missing_mandatory_clauses(exclusions: list[str]) -> list[str]:
-    """Mandatory clause labels (from MANDATORY_EXCLUSION_CLAUSES) with no
-    matching keyword anywhere in the treaty's extracted exclusions text.
-    """
-    combined_text = " ".join(exclusions).lower()
-    return [
-        clause
-        for clause, keywords in MANDATORY_EXCLUSION_CLAUSES.items()
-        if not any(keyword in combined_text for keyword in keywords)
-    ]
-
-
-def exclusion_completeness_checklist_node(state: WorkflowState) -> dict:
-    """Flag any mandatory exclusion clause missing from the treaty's
-    extracted exclusions (the Mandatory-Clause / Exclusion Completeness
-    Checklist, B1).
-    """
-    started_at = time.perf_counter()
-    treaty = state["treaty"]
-    missing = _missing_mandatory_clauses(treaty.exclusions)
-
-    findings = [
-        AnomalyFinding(
-            field="exclusions",
-            description=f"Mandatory exclusion clause not found in this treaty: {clause}.",
-            severity=Severity.MEDIUM,
-        )
-        for clause in sorted(missing)
-    ]
-
-    latency = time.perf_counter() - started_at
-    # Deterministic task (keyword matching only, no LLM call) -- cost is
-    # always 0.0, matching src/cost_estimation.py's estimate_task_cost()
-    # for deterministic-shaped tasks.
-    task_result = TaskResult(status="ran", findings=findings, cost=0.0, latency=latency)
-    logger.info(
-        "[exclusion_completeness_checklist] Exclusion Completeness Checklist: %d missing clause(s)",
-        len(findings),
-    )
-    return {"task_results": {"exclusion_completeness_checklist": task_result}}
 
 
 def _route_after_extractor(state: WorkflowState) -> str:
