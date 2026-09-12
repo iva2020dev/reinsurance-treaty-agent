@@ -5953,6 +5953,270 @@ the "Recently completed" block. No `CANDIDATE_TASKS.md` sync needed —
 this task was never graduated from there (found directly while
 implementing `key-date-renewal-calendar-extraction`).
 
+## 2026-09-12 11:00:00 — Starting task: Plain-English treaty summary (plain-english-treaty-summary)
+
+**Goal**: Implement `B7` -- one opt-in LLM call producing a short
+executive summary of the treaty, genuinely never running unless
+explicitly triggered, even when other domain tasks are selected.
+
+**Analysis**: This task's own acceptance criteria ("it never runs
+unless explicitly triggered, even when other domain tasks are
+selected") rules out the normal domain-task pattern every other B-task
+follows (a node wired into `build_workflow_graph()`'s fan-out via a
+checkbox in "Domain tasks to run"), because that checklist's own
+`selected_task_ids` set is exactly "other domain tasks" — if this task
+had a `workflow_node` and appeared there, checking it alongside other
+tasks and clicking "Analyze" would run it as part of the same batch,
+which is precisely the automatic-LLM-cost outcome this task exists to
+avoid. Confirmed the checklist loop (`src/app.py`, "Domain tasks to
+run") renders one checkbox per `DOMAIN_TASKS` entry unconditionally,
+and `build_workflow_graph()`'s active-task loop does `globals()[task.
+workflow_node]` for every selected+implemented task -- giving this task
+a `workflow_node` while excluding it from the checklist wouldn't help
+(it could still be reached via `selected_task_ids` some other way and
+crash on `globals()[None]`), and giving it a real workflow_node defeats
+its whole "distinct opt-in action" requirement. So: this task is
+implemented, but deliberately has **no** `workflow_node` at all -- it
+isn't a graph node, isn't reachable via `build_workflow_graph()`, and
+never appears in the "Domain tasks to run" checklist.
+
+**Decision**:
+- `src/services/plain_english_treaty_summary.py`: a standalone function
+  `generate_plain_english_treaty_summary(treaty, sections) -> str`
+  (not a `_node(state)` function -- there's no `WorkflowState` here,
+  since it's not part of the graph), calling the LLM directly via
+  `src.llm_client`'s harness (`get_client`/`call_with_retry`), same
+  pattern as `llm_extraction_fallback`. Unlike the graceful-degradation
+  pattern the graph's nodes use, this function lets a failure propagate
+  after `call_with_retry`'s retries are exhausted -- there's no shared
+  "incomplete" state to fall back to outside the graph, so the caller
+  (the button handler in `src/app.py`) is responsible for catching and
+  displaying the failure.
+- `src/domain_tasks.py`: `plain_english_treaty_summary`'s entry flips to
+  `implementation_status="implemented"` but keeps `workflow_node=None`,
+  with a comment explaining why (deliberately not a graph node).
+- `src/app.py`: (1) the "Domain tasks to run" checklist loop skips any
+  task that is `implementation_status == "implemented" and
+  workflow_node is None` -- today, only this task matches that; every
+  not-yet-implemented task (whose `workflow_node` is also `None`) still
+  renders its usual disabled placeholder row, since the exclusion
+  specifically requires *both* conditions. (2) A new, wholly separate
+  "Plain-English Summary" button inside the Analysis Results container
+  (after `report`/`state["treaty"]` are available), calling the new
+  service function directly and caching its result inside the same
+  `st.session_state["workflow_run"]` dict the rest of the results
+  section already uses -- so it's naturally invalidated whenever a new
+  analysis run replaces that dict, with no separate cache-invalidation
+  logic needed.
+- Tests: `tests/services/test_plain_english_treaty_summary.py` mocks
+  `anthropic.Anthropic` at the SDK-construction level (same pattern
+  `tests/test_workflow.py` already uses for `llm_extraction_fallback`),
+  covering the success path (correct summary text extracted from the
+  mocked response, correct prompt content) and that a failure
+  propagates rather than being swallowed. `tests/test_app.py`'s
+  checkbox-count test updated for the now-excluded task; new tests for
+  the summary button's presence/behavior. `tests/test_domain_tasks.py`'s
+  "B0/B1/B2 implemented" test extended to include `B7`.
+
+**Action**: Implementing on `task/plain-english-treaty-summary`.
+
+## 2026-09-12 11:25:00 — Outcome: Plain-English treaty summary (plain-english-treaty-summary)
+
+**Implemented** per the plan above, with one correction found by the
+test suite itself:
+
+- New `src/services/plain_english_treaty_summary.py`:
+  `generate_plain_english_treaty_summary(treaty, sections) -> str`,
+  same call_with_retry/get_client harness pattern as
+  `llm_extraction_fallback`, no graceful-degradation fallback (raises
+  on failure -- there's no shared pipeline state to fall back to
+  outside the graph).
+- `src/domain_tasks.py`: `plain_english_treaty_summary` flipped to
+  `implementation_status="implemented"`, `workflow_node` stays `None`
+  with an explanatory comment; module docstring corrected (it was
+  already stale, still saying only B0 was implemented) and extended to
+  document this task as the one deliberate implemented-but-no-
+  workflow_node exception.
+- `src/app.py`: "Domain tasks to run" checklist loop now skips any task
+  that is `implementation_status == "implemented" and workflow_node is
+  None` (only this task matches today); a new standalone "Plain-English
+  Summary" section/button in the Analysis Results container, caching
+  its result (or error) directly inside `st.session_state["workflow_
+  run"]` so it's invalidated naturally alongside the rest of that dict.
+- **Bug caught by the test suite, not anticipated in the reasoning
+  above**: `scripts/regenerate_workflow_graph.py`'s `get_multi_task_
+  selected_ids()` (added in the prior `dynamic-workflow-graph-diagram`
+  task) computes "every implemented task's id" -- which, unmodified,
+  now included `plain_english_treaty_summary` too, and
+  `build_workflow_graph()`'s active-task loop unconditionally does
+  `globals()[task.workflow_node]`, crashing with `KeyError: None` the
+  moment that task's (nonexistent) node was looked up. Fixed in two
+  places: `build_workflow_graph()`'s `active_tasks` filter now also
+  requires `task.workflow_node is not None` (a defensive fix -- this
+  guards the function itself, not just its callers, against any
+  standalone task ever appearing in `selected_task_ids`); `get_multi_
+  task_selected_ids()` likewise filters on `workflow_node is not None`,
+  so the multi-task diagram continues to show only genuine graph
+  fan-out. Confirmed via `python3 scripts/regenerate_workflow_graph.py`
+  reporting both diagrams "already up to date" (still 3 tasks, not 4)
+  after the fix.
+- `tests/services/test_plain_english_treaty_summary.py` (3 cases):
+  success (correct text extracted, correct prompt content), multi-block
+  concatenation, and failure propagation -- mocking `anthropic.
+  Anthropic` at the SDK-construction level, same pattern `tests/
+  test_workflow.py` uses for `llm_extraction_fallback`.
+- `tests/test_app.py`: updated the checkbox-count test (now excludes
+  the standalone task, generalized via the same `workflow_node is
+  None` condition rather than hardcoding a new count) plus a new test
+  asserting the task never appears as a checkbox at all; 3 new tests
+  for the summary button (present but never auto-called after
+  "Analyze", displays the result when clicked, shows an error on
+  failure) -- **initial attempt monkeypatched `src.app.generate_
+  plain_english_treaty_summary` directly, which silently didn't take
+  effect under `AppTest` (made a real, billed LLM API call during the
+  test run instead -- caught because the test then timed out waiting
+  on real network latency)**; fixed by patching `src.llm_client.
+  anthropic.Anthropic` instead, the same lower-level pattern every
+  other LLM-mocking test in this file already uses.
+- `tests/test_domain_tasks.py`: `test_b0_b1_b2_are_implemented` renamed
+  to `test_b0_b1_b2_b7_are_implemented`, extended to assert `B7` is
+  implemented with `workflow_node is None`.
+
+**Verification**: `python -m pytest -q` -- 200 passed (193 + 3 service
+tests + net +4 app tests, with 2 test edits). `python -m
+tests.eval.run_eval` -- all 5 golden cases still 100%. Manually ran
+`AppTest` and confirmed the checklist's checkbox labels no longer
+include "Plain-English treaty summary" while every other task
+(implemented or not) still appears.
+
+Awaiting human review/approval before this task is marked done and
+removed from `TASKS.md`.
+
+## 2026-09-12 11:45:00 — Update: Plain-English Summary moved to treaty-selection area, save/download added (human feedback on open PR #112)
+
+**Human feedback** (on the still-open, unmerged PR #112): the summary
+only depends on which treaty is picked, not on the analysis run, so its
+button should sit right below "Choose a reinsurance treaty" (alongside
+"Review treaty"), not inside "Analysis Results" after "Analyze". Also
+requested save/download logic for the summary with format selection,
+matching the existing analysis-results pattern.
+
+**Analysis**: The original placement (inside Analysis Results, using
+`report.treaty` + `state["sections"]`) implicitly required "Analyze" to
+have already run -- which is unnecessary, since the summary never used
+`report`'s burn-cost-check-specific fields, only the treaty's raw text.
+The right fix is to stop depending on the extracted `TreatyTerms`
+entirely and generate the summary directly from the picked treaty's
+raw parsed sections, exactly like `_show_review_dialog()` already does
+for "Review treaty" (same tempfile + `extract_treaty_sections()`
+pattern) -- making it genuinely independent of extraction/"Analyze",
+not just relocated in the UI.
+
+**Action**:
+- `src/services/plain_english_treaty_summary.py`:
+  `generate_plain_english_treaty_summary()` signature narrowed to just
+  `(sections)` -- dropped the `treaty: TreatyTerms` parameter entirely;
+  the prompt now asks the LLM to identify parties/attachment/limit/
+  premium/exclusions directly from the raw treaty text, rather than
+  being handed already-extracted fields.
+- `src/app.py`: removed the button/display from inside "Analysis
+  Results"; added it in a new column alongside "Review treaty",
+  disabled until a treaty is selected (`has_selection`), extracting
+  sections from `selected_bytes` via a temp file (same pattern
+  `_show_review_dialog()` uses) and calling the narrowed service
+  function. Result cached in its own `st.session_state["plain_english_
+  summary"]` entry (not `run_result`, which doesn't exist yet at this
+  point in the page) keyed by the treaty selection's fingerprint, same
+  invalidation pattern the main `workflow_run` already uses.
+- New save/download helpers mirroring the existing analysis-results
+  ones but simplified for plain prose (no severity/findings structure):
+  `format_summary_document()`, `render_summary_pdf()`/`render_summary_
+  bytes()` (same DejaVu-font PDF setup as `render_report_pdf()`),
+  `format_summary_filename()`, `summary_results_subdirectory()` (keyed
+  by the treaty's own display name/filename via `slugify_treaty_name()`,
+  not a cedent name -- there's no extracted cedent at this point),
+  `save_summary_to_file()`. A "Summary file format" radio (Markdown/
+  PDF) plus "Save summary"/"Download summary" buttons appear once a
+  summary exists, independent of the main results' own format/save/
+  download controls.
+- Tests updated: `tests/services/test_plain_english_treaty_summary.py`
+  reworked for the narrowed signature; `tests/test_app.py`'s three
+  summary-button tests reworked to upload-without-analyzing (new
+  `_upload_treaty()` helper, vs. the existing `_upload_and_click_
+  analyze()`), plus new tests for the disabled-until-selected state,
+  that clicking "Analyze" never triggers the summary call either, and
+  the new save/download buttons. Also fixed a now-brittle existing
+  test, `test_app_review_treaty_button_renders_before_domain_tasks_
+  checklist`, which walked `at.main.children` assuming every button was
+  a direct child -- wrapping "Review treaty" in `st.columns` broke that
+  assumption; replaced with a small recursive flattening helper
+  (`_flatten_blocks_in_order()`) so nesting doesn't matter.
+
+**Verification**: `python -m pytest -q` -- 202 passed. `python -m
+tests.eval.run_eval` -- all 5 golden cases still 100%. Manually ran
+`AppTest`: confirmed the button is enabled immediately after upload
+(before "Analyze"), clicking it displays the summary without ever
+calling "Analyze", and "Save summary"/"Download summary" appear
+afterward.
+
+## 2026-09-12 12:05:00 — Update: closeable container, regenerate-any-time, LLM usage line (human feedback on open PR #112)
+
+**Human feedback** (on the still-open PR #112, after the earlier
+placement change): (1) wrap the summary in a closeable container; (2)
+confirm/support regenerating the summary at any time; (3) show the
+LLM's token usage as an info bottom line, not folded into the summary
+text itself.
+
+**Action**:
+- `src/services/plain_english_treaty_summary.py`: `generate_plain_
+  english_treaty_summary()` now returns a new frozen dataclass,
+  `PlainEnglishSummaryResult(text, input_tokens, output_tokens)`,
+  instead of a bare string -- usage travels as its own field precisely
+  so a caller can surface it separately from the text that gets saved/
+  downloaded.
+- `src/app.py`: the summary display now lives inside `st.container(
+  border=True)` with a header row (subheader + "Close" button, same
+  pattern as the "Analysis Results" container), clicking Close deletes
+  `st.session_state["plain_english_summary"]` and reruns. The existing
+  "Generate Plain-English Summary" trigger button was already always
+  visible/enabled regardless of whether a summary exists yet, so
+  clicking it again already regenerates in place (overwriting the
+  session-state entry) and reopens the container even after Close --
+  confirmed via a new test that regenerates twice with different mocked
+  responses and asserts the second replaces the first. A new `st.
+  caption` inside the container (below the summary markdown, above the
+  save/download controls) reports `input tokens: N, output tokens: M
+  ($cost)` via the already-imported `actual_task_cost()` -- built from
+  `PlainEnglishSummaryResult`'s fields directly, never concatenated
+  into `summary_state["text"]`, so it's absent from both the on-screen
+  markdown and the saved/downloaded document.
+- Needed an explicit `key="close_summary_button"` on the new "Close"
+  button, since "Analysis Results" already has its own button with the
+  identical label + icon -- Streamlit would otherwise treat the two as
+  colliding widgets.
+- Tests: `tests/services/test_plain_english_treaty_summary.py`'s
+  assertions updated for the dataclass return value (plus a new
+  assertion that neither token count leaks into `result.text`).
+  `tests/test_app.py`: three new tests -- the usage caption's exact
+  text and that it's absent from the summary's own markdown block;
+  clicking Close removes the summary from view; regenerating (via
+  `mock_client.messages.create.side_effect` returning two different
+  responses across two clicks) replaces the displayed text and usage
+  without needing to close first.
+
+**Verification**: `python -m pytest -q` -- 205 passed (202 + 3 new).
+`python -m tests.eval.run_eval` -- all 5 golden cases still 100%.
+
+## 2026-09-12 12:05:00 — Closing task: Plain-English treaty summary (plain-english-treaty-summary)
+
+PR #112 merged to `main` per human confirmation ("pr 112 merged"). Human
+then approved closing it out ("yes, close it out").
+
+Removing the task entry from `TASKS.md`'s P1 section and logging it in
+the "Recently completed" block. Synced `CANDIDATE_TASKS.md`'s `B7` row
+and detailed entry to `✅ Done (shipped as
+\`plain-english-treaty-summary\`)`, per `AGENTS.md`'s "Keeping
+CANDIDATE_TASKS.md in Sync" rule, same PR.
 ## 2026-09-12 12:20:00 — Starting task: Add UX-polish animations to UI actions (ui-action-animations)
 
 **Goal**: Add tasteful motion to the app's UI per the human's request

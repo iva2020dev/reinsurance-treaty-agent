@@ -105,7 +105,7 @@ discussion on how document quality drives task shape (see
 | 4 | B4 | Multi-layer program extraction & aggregation | 📋 In TASKS.md as `multi-layer-program-extraction` | Deterministic | Extraction | L | — |
 | 7 | B5 | Reinstatement cost modeling | 📋 In TASKS.md as `reinstatement-cost-modeling` | Deterministic | Extraction | M | B4 |
 | 6 | B6 | Semantic compliance/clause matching | 📋 In TASKS.md as `semantic-clause-matching` | LLM | Both | M | — |
-| 3 | B7 | Plain-English treaty summary | 📋 In TASKS.md as `plain-english-treaty-summary` | LLM | Both | S/M | — |
+| 3 | B7 | Plain-English treaty summary | ✅ Done (shipped as `plain-english-treaty-summary`) | LLM | Both | S/M | — |
 | 8 | B8 | Clause ambiguity/contradiction detection | 📋 In TASKS.md as `clause-ambiguity-detection` | LLM | Both | M | — |
 | 9 | B9 | Peer/portfolio benchmarking | 📋 In TASKS.md as `peer-portfolio-benchmarking` | Deterministic | Extraction | L | — |
 
@@ -349,7 +349,7 @@ work tracked separately in `DOMAIN_TASK_SELECTION_PLAN.md`.*
   treaty, but ranked after the cheaper deterministic wins above since
   it's LLM-shaped (real per-run cost if made automatic rather than
   opt-in — see "Notes for prioritization discussion" below).*
-- **B7. Plain-English treaty summary** — Priority 3 — 📋 In TASKS.md as `plain-english-treaty-summary` —
+- **B7. Plain-English treaty summary** — Priority 3 — ✅ Done (shipped as `plain-english-treaty-summary`) —
   one LLM call
   producing a short executive summary (parties, layer, key dates,
   notable clauses). Should be opt-in (a button), not automatic, to

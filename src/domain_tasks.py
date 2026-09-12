@@ -6,12 +6,16 @@ future consumers (a graph builder that only runs implemented+selected
 tasks, a frontend task selector) read from this list rather than each
 maintaining their own copy, so they can't drift apart.
 
-Only `B0` (the Burn-Cost Check, `burn_cost_check_node` in
-`src/services/burn_cost_check.py`) is implemented today; every other
-entry mirrors a still-`Proposed` candidate in `CANDIDATE_TASKS.md`'s
-Business Domain tables and has no workflow node yet. Each implemented
-task's node function lives in its own module under `src/services/` --
-see `src/services/__init__.py` for the convention.
+Every implemented task's own node function lives in its own module
+under `src/services/` -- see `src/services/__init__.py` for the
+convention. `workflow_node` names that node function for
+`build_workflow_graph()`'s fan-out and is required for a task to be
+selectable from the "Domain tasks to run" checklist in `src/app.py` --
+`plain_english_treaty_summary` (B7) is the one deliberate exception:
+implemented, but with no `workflow_node` at all, since it's a
+standalone opt-in feature with its own separate UI trigger, not a graph
+node (see that task's own entry below and its service module's
+docstring for why).
 """
 
 from dataclasses import dataclass
@@ -100,8 +104,15 @@ DOMAIN_TASKS: list[DomainTask] = [
         id="plain_english_treaty_summary",
         title="Plain-English treaty summary",
         candidate_id="B7",
-        implementation_status="not_implemented",
+        implementation_status="implemented",
         shape="llm",
+        # Deliberately no workflow_node: this task is never wired into
+        # build_workflow_graph()'s fan-out or the "Domain tasks to run"
+        # checklist (src/app.py excludes any implemented task with no
+        # workflow_node from that checklist) -- it has its own standalone
+        # opt-in button instead, so selecting other tasks and clicking
+        # "Analyze" can never trigger its LLM call. See src/services/
+        # plain_english_treaty_summary.py's module docstring.
         workflow_node=None,
     ),
     DomainTask(

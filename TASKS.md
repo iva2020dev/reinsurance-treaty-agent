@@ -59,6 +59,7 @@
      ✅ 2026-09-12 09:15:00 Isolate domain-task business logic into per-task service modules (isolate-domain-task-services)
      ✅ 2026-09-12 10:20:00 Key-date/renewal calendar extraction (key-date-renewal-calendar-extraction)
      ✅ 2026-09-12 10:50:00 Make the multi-task workflow graph example dynamic and widen its regen trigger (dynamic-workflow-graph-diagram)
+     ✅ 2026-09-12 12:05:00 Plain-English treaty summary (plain-english-treaty-summary)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -119,31 +120,6 @@
     containers and dialogs, plus hover/active transitions on buttons;
     `@media (prefers-reduced-motion: reduce)` disables all of it; a test
     confirms the style block renders; `python -m pytest -q` passes.
-
-- [ ] Plain-English treaty summary
-  - **ID**: plain-english-treaty-summary
-  - **Tags**: business-domain, treaty, llm
-  - **Candidate ID**: B7 (`CANDIDATE_TASKS.md`, re-ranked Pri 3 of 8 on
-    2026-09-12)
-  - **Details**: One LLM call producing a short executive summary
-    (parties, layer, key dates, notable clauses) from the extracted
-    treaty terms and source sections. Must be opt-in (an explicit
-    button/action), not automatic, to preserve the app's "LLM cost only
-    when needed" default — see `CANDIDATE_TASKS.md`'s note that
-    B6-B8/C4 would change the app's cost profile if made automatic.
-    High business priority: used on nearly every treaty reviewed in
-    real practice (new submissions and renewals alike), cheap and
-    immediately useful to non-technical stakeholders.
-  - **Files**: `src/services/plain_english_treaty_summary.py` (new),
-    `src/domain_tasks.py`, `src/app.py` (opt-in trigger UI, since this
-    should not run automatically with the other selected tasks),
-    `tests/services/test_plain_english_treaty_summary.py` (new),
-    `CANDIDATE_TASKS.md`
-  - **Acceptance**: a distinct opt-in action produces a short
-    plain-English summary from the current treaty's extracted terms and
-    sections; it never runs unless explicitly triggered, even when other
-    domain tasks are selected; registered in `domain_tasks.py` as
-    implemented (`shape="llm"`); `python -m pytest -q` passes.
 
 - [ ] Multi-layer program extraction & aggregation
   - **ID**: multi-layer-program-extraction
