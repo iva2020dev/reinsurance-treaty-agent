@@ -5861,3 +5861,84 @@ the "Recently completed" block. Synced `CANDIDATE_TASKS.md`'s `B2` row
 and detailed entry to `✅ Done (shipped as
 \`key-date-renewal-calendar-extraction\`)`, per `AGENTS.md`'s "Keeping
 CANDIDATE_TASKS.md in Sync" rule, same PR.
+
+## 2026-09-12 10:35:00 — Starting task: Make the multi-task workflow graph example dynamic and widen its regen trigger (dynamic-workflow-graph-diagram)
+
+**Goal**: Fix why the human observed the README's multi-task workflow
+graph diagram didn't change after `key-date-renewal-calendar-
+extraction` (B2) shipped a third implemented domain task.
+
+**Analysis**: Two separate causes, both real gaps:
+1. `scripts/regenerate_workflow_graph.py`'s `MULTI_TASK_SELECTED_IDS`
+   is a hardcoded fixed set (`{"burn_cost_check",
+   "exclusion_completeness_checklist"}`) drafted when only those two
+   tasks existed (`multi-task-graph-diagram-example`). It was always a
+   fixed *example* selection by design at the time, not "whatever's
+   implemented" -- but now that a third task exists, that design no
+   longer serves its original purpose (showing real fan-out) as well
+   as a dynamic "all implemented tasks" selection would, and requires
+   remembering to manually edit a constant every time a task ships.
+2. `.githooks/pre-commit` only regenerates when `src/workflow.py` is
+   part of the commit. This happened to still work for B2 only
+   incidentally, because wiring in a new node always requires
+   importing it into `workflow.py` too (the `globals()` lookup
+   mechanism established by `isolate-domain-task-services`) -- the
+   trigger condition itself doesn't actually key off the thing that
+   determines the diagram's content (`src/domain_tasks.py`'s
+   `implementation_status`/`workflow_node` fields).
+
+**Decision**:
+- Replace `MULTI_TASK_SELECTED_IDS` (a constant) with
+  `get_multi_task_selected_ids()` (a function): every `DOMAIN_TASKS`
+  entry with `implementation_status == "implemented"`. This makes the
+  "multi-task example" diagram track reality automatically -- it now
+  documents "every implemented task's real fan-out", a stronger and
+  more useful invariant than a fixed illustrative example, and the
+  documentation drift this bug caused becomes structurally impossible
+  going forward.
+- Widen `.githooks/pre-commit`'s trigger to `src/workflow\.py` OR
+  `src/domain_tasks\.py`, since the latter is the more direct signal
+  that the dynamic multi-task selection could have changed, and
+  shouldn't rely on the `workflow.py`-import side effect to keep
+  working.
+- Update `README.md`'s multi-task section wording (it currently says
+  "it always renders the same fixed example selection... so it only
+  changes if that example selection itself is edited" -- no longer
+  true once the selection is dynamic).
+
+**Action**: Implementing on `task/dynamic-workflow-graph-diagram`.
+
+## 2026-09-12 10:50:00 — Outcome: Make the multi-task workflow graph example dynamic and widen its regen trigger (dynamic-workflow-graph-diagram)
+
+**Implemented** per the plan above:
+- `scripts/regenerate_workflow_graph.py`: replaced the `MULTI_TASK_
+  SELECTED_IDS` constant with `get_multi_task_selected_ids()`, which
+  reads `DOMAIN_TASKS` directly and returns every
+  `implementation_status == "implemented"` task's id. Module docstring
+  updated to describe the new trigger condition and dynamic selection.
+- `.githooks/pre-commit`: trigger widened from `^src/workflow\.py$` to
+  `^src/(workflow|domain_tasks)\.py$` (via `grep -qE`), with an updated
+  comment explaining why `domain_tasks.py` is now also a trigger.
+- `README.md`: multi-task section's intro and closing paragraph
+  rewritten to describe the dynamic selection instead of the old fixed
+  example; `## Setup`'s hook description updated to mention both
+  trigger files. Regenerated via the script -- the diagram now shows
+  all three currently-implemented tasks (`burn_cost_check`,
+  `exclusion_completeness_checklist`,
+  `key_date_renewal_calendar_extraction`) fanning out from Verifier,
+  confirming the fix actually resolves the human's observation
+  ("why is the graph still the same?").
+- `data/workflow_graph.png` regenerated (default-selection PNG, so it's
+  unaffected by this change, as expected -- confirmed via `git status`
+  showing no diff for it beyond the routine regeneration).
+
+**Verification**: `python -m pytest -q` -- 193 passed, including
+`tests/test_workflow_graph_docs.py`'s check against the newly
+regenerated multi-task diagram. `python -m tests.eval.run_eval` -- all
+5 golden cases still 100% (unrelated to this change). Manually ran
+`python3 scripts/regenerate_workflow_graph.py` and confirmed the
+multi-task diagram's mermaid text now includes all three implemented
+task nodes and their fan-out edges.
+
+Awaiting human review/approval before this task is marked done and
+removed from `TASKS.md`.

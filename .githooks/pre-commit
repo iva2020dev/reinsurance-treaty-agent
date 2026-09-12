@@ -1,11 +1,16 @@
 #!/bin/sh
-# Auto-regenerates the workflow graph diagram in README.md, and the
-# data/workflow_graph.png copy, whenever src/workflow.py is part of
-# this commit. The PNG step calls the public mermaid.ink rendering
-# service over the network -- if that call fails (offline, service
-# down), the hook still succeeds and just leaves the PNG as-is; only
-# README.md's diagram is guaranteed to stay in sync (and is enforced
-# by tests/test_workflow_graph_docs.py).
+# Auto-regenerates the workflow graph diagrams in README.md, and the
+# data/workflow_graph.png copy, whenever src/workflow.py or
+# src/domain_tasks.py is part of this commit -- the latter because the
+# multi-task diagram's selection is computed from DOMAIN_TASKS'
+# currently-implemented tasks (see get_multi_task_selected_ids() in
+# scripts/regenerate_workflow_graph.py), so a task's
+# implementation_status flipping there can change that diagram even
+# with no src/workflow.py change at all. The PNG step calls the public
+# mermaid.ink rendering service over the network -- if that call fails
+# (offline, service down), the hook still succeeds and just leaves the
+# PNG as-is; only README.md's diagram is guaranteed to stay in sync
+# (and is enforced by tests/test_workflow_graph_docs.py).
 #
 # Enable with: git config core.hooksPath .githooks
 
@@ -21,8 +26,8 @@ if [ ! -x "$PYTHON" ]; then
     PYTHON="python3"
 fi
 
-if git diff --cached --name-only | grep -q '^src/workflow\.py$'; then
-    echo "src/workflow.py changed - regenerating workflow graph diagram (README.md + PNG)..."
+if git diff --cached --name-only | grep -qE '^src/(workflow|domain_tasks)\.py$'; then
+    echo "src/workflow.py or src/domain_tasks.py changed - regenerating workflow graph diagram (README.md + PNG)..."
     # On macOS, git itself may run under Rosetta (an x86_64-only git
     # binary), and a child process's architecture preference follows its
     # parent by default - `arch -arm64` overrides that so a
