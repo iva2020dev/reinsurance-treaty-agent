@@ -6400,3 +6400,13 @@ correctly with zero errors, where it previously would have raised.
 
 Awaiting human review/approval before this task is marked done and
 removed from `TASKS.md`.
+
+## 2026-09-12 13:25:00 — Closing task: Fix "Analysis Results" incorrectly erroring when burn_cost_check isn't selected (fix-analysis-results-report-gating)
+
+PR #117 merged to `main` per human confirmation ("pr 117 merged"). Human
+then approved closing it out ("yes, close it out").
+
+Removing the task entry from `TASKS.md`'s P0 section and logging it in
+the "Recently completed" block. No `CANDIDATE_TASKS.md` sync needed —
+this was a bug found directly while manually verifying `semantic-
+clause-matching`, never graduated from there.
