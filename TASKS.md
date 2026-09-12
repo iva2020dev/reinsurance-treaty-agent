@@ -89,6 +89,37 @@
     accuracy below the agreed threshold fails the build with a clear
     message; a PR that doesn't regress passes.
 
+- [ ] Add UX-polish animations to UI actions (@claude)
+  - **ID**: ui-action-animations
+  - **Tags**: harness, ux, frontend
+  - **Candidate ID**: N/A (not graduated from `CANDIDATE_TASKS.md`;
+    requested directly by the human: "add animation to UI actions,
+    closing and opening fading, etc.", later clarified as "according to
+    best practices of UX")
+  - **Details**: Add tasteful, low-risk motion to `src/app.py`'s UI —
+    entrance fade/slide-in for containers that appear conditionally
+    (Analysis Results, the Plain-English Summary container, `st.dialog`
+    modals, `st.success`/`st.error`/`st.warning`/`st.info` banners), and
+    smooth hover/active micro-interactions on buttons — via a single
+    injected CSS block (same `unsafe_allow_html=True` pattern as
+    `_inject_wide_main_container_css()`), targeting stable
+    `data-testid` hooks, never `st-emotion-cache-*` hash classes.
+    **Known Streamlit constraint (confirmed before implementing, not a
+    shortcut)**: a genuine fade-*out* on close isn't achievable —
+    Streamlit removes an element from the DOM the instant a rerun no
+    longer renders it, with no hook to delay that removal for a CSS
+    transition, short of injecting custom JS (fragile, unsupported,
+    explicitly out of scope). Scope is therefore entrance animations +
+    interactive-element polish, not exit animations; `prefers-reduced-
+    motion: reduce` must be honored (disables all injected motion),
+    per accessibility best practice.
+  - **Files**: `src/app.py`, `tests/test_app.py`
+  - **Acceptance**: a CSS block is injected once per page load defining
+    keyframe fade/slide-in animations applied to conditionally-rendered
+    containers and dialogs, plus hover/active transitions on buttons;
+    `@media (prefers-reduced-motion: reduce)` disables all of it; a test
+    confirms the style block renders; `python -m pytest -q` passes.
+
 - [ ] Plain-English treaty summary
   - **ID**: plain-english-treaty-summary
   - **Tags**: business-domain, treaty, llm

@@ -883,9 +883,87 @@ def _inject_wide_main_container_css() -> None:
     )
 
 
+def _inject_ui_animation_css() -> None:
+    """Tasteful, low-risk motion for the app's UI: fade/slide-in for
+    elements that appear conditionally (containers, dialogs, alert
+    banners), plus smooth hover/active transitions on buttons.
+
+    Targets stable data-testid hooks only (never st-emotion-cache-*
+    hash classes -- see _inject_wide_main_container_css()'s docstring
+    for why). Fixed, hardcoded CSS -- safe with unsafe_allow_html=True,
+    no user-controlled or treaty-derived content is interpolated here.
+
+    Deliberately entrance-only, not exit: Streamlit reruns the whole
+    script and only ever renders what the current run produces -- when
+    a container's code path stops running (e.g. "Close" deletes its
+    session_state entry and calls st.rerun()), the next render simply
+    never creates that element, leaving no DOM node for a CSS
+    transition to animate away. A real fade-*out* would need a hook to
+    delay Streamlit's own removal (custom JS/a custom component), which
+    is out of scope here -- fragile and unsupported by this repo's
+    plain-Streamlit approach. A newly-appearing element, by contrast,
+    is a genuine DOM insertion each time (confirmed against Streamlit's
+    own React reconciliation), so an on-mount keyframe animation here
+    reliably replays for it without spuriously re-triggering on
+    unrelated reruns of an already-mounted element.
+
+    @media (prefers-reduced-motion: reduce) disables all of this --
+    accessibility best practice, not optional.
+    """
+    st.markdown(
+        """
+        <style>
+        @keyframes fadeSlideIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        [data-testid="stVerticalBlock"] {
+            animation: fadeSlideIn 0.35s ease-out;
+        }
+        [data-testid="stAlert"] {
+            animation: fadeIn 0.3s ease-out;
+        }
+        [data-testid="stDialog"] {
+            animation: fadeIn 0.25s ease-out;
+        }
+        [data-testid="stButton"] button,
+        [data-testid="stDownloadButton"] button {
+            transition: transform 0.12s ease-out, box-shadow 0.12s ease-out;
+        }
+        [data-testid="stButton"] button:hover,
+        [data-testid="stDownloadButton"] button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+        }
+        [data-testid="stButton"] button:active,
+        [data-testid="stDownloadButton"] button:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            [data-testid="stVerticalBlock"],
+            [data-testid="stAlert"],
+            [data-testid="stDialog"],
+            [data-testid="stButton"] button,
+            [data-testid="stDownloadButton"] button {
+                animation: none !important;
+                transition: none !important;
+            }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def main() -> None:
     st.set_page_config(page_title="Reinsurance Treaty Agent", page_icon="📄")
     _inject_wide_main_container_css()
+    _inject_ui_animation_css()
     st.title("Reinsurance Treaty Agent")
     st.write(
         "Upload a treaty PDF, or choose one of the prepared sample "

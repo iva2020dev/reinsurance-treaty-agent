@@ -170,6 +170,25 @@ def test_app_injects_wider_main_container_css_targeting_stable_selector():
     assert "st-emotion-cache" not in style_blocks[0]
 
 
+def test_app_injects_ui_animation_css_targeting_stable_selectors_and_respects_reduced_motion():
+    """Entrance fade/slide-in + button hover transitions, targeting stable
+    data-testid hooks (never st-emotion-cache-* hash classes), and disabled
+    entirely under prefers-reduced-motion -- see _inject_ui_animation_css()'s
+    docstring for why this is entrance-only, not exit animation, too.
+    """
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+
+    assert not at.exception
+    style_blocks = [m.value for m in at.markdown if "fadeSlideIn" in m.value]
+    assert len(style_blocks) == 1
+    style = style_blocks[0]
+    assert "st-emotion-cache" not in style
+    for selector in ('[data-testid="stVerticalBlock"]', '[data-testid="stAlert"]', '[data-testid="stDialog"]'):
+        assert selector in style
+    assert "prefers-reduced-motion: reduce" in style
+
+
 def test_app_analyze_button_disabled_until_treaty_selected():
     at = AppTest.from_file("../src/app.py")
     at.run()
