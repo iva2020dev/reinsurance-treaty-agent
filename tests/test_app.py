@@ -33,6 +33,7 @@ from src.app import (
     highest_severity_label,
     render_report_bytes,
     render_report_pdf,
+    resolve_report_for_display,
     results_subdirectory,
     save_analysis_result_to_file,
     save_logs_to_file,
@@ -389,6 +390,61 @@ def test_app_analyze_disabled_when_no_task_is_selected():
 
     analyze_button = next(b for b in at.button if b.label == "Analyze")
     assert analyze_button.disabled
+
+
+def test_resolve_report_for_display_uses_real_report_when_burn_cost_check_ran():
+    treaty = TreatyTerms(cedent_name="X", attachment_point=1_000_000, limit=5_000_000, reinsurance_premium=250_000)
+    real_report = AnomalyReport(treaty=treaty, claims=[], loss_ratio=0.42, findings=[])
+
+    report = resolve_report_for_display({"treaty": treaty, "report": real_report})
+
+    assert report is real_report
+
+
+def test_resolve_report_for_display_builds_placeholder_when_burn_cost_check_did_not_run():
+    """The real bug this fixes: selecting tasks that exclude burn_cost_check
+    left state["report"] as None even though extraction (state["treaty"])
+    succeeded -- extract_report() incorrectly raised in that case.
+    """
+    treaty = TreatyTerms(cedent_name="X", attachment_point=1_000_000, limit=5_000_000, reinsurance_premium=250_000)
+
+    report = resolve_report_for_display({"treaty": treaty, "report": None})
+
+    assert report.treaty == treaty
+    assert report.claims == []
+    assert report.loss_ratio == 0.0
+    assert report.findings == []
+
+
+def test_resolve_report_for_display_raises_when_extraction_actually_failed():
+    with pytest.raises(ValueError, match="Could not extract required treaty terms"):
+        resolve_report_for_display({"treaty": None, "missing_fields": ["cedent_name"]})
+
+
+def test_app_analysis_results_render_without_error_when_burn_cost_check_not_selected():
+    """End-to-end regression test for the exact bug report: selecting only
+    exclusion_completeness_checklist (unchecking Burn-Cost Check) and
+    clicking Analyze must render the treaty terms + that task's results,
+    not a false "Could not extract required treaty terms" error.
+    """
+    pdf_bytes = Path(MINIMAL_TREATY_PATH).read_bytes()
+
+    at = AppTest.from_file("../src/app.py")
+    at.run()
+    at.file_uploader[0].set_value([("sample_treaty.pdf", pdf_bytes, "application/pdf")])
+    at.run()
+
+    burn_cost_checkbox = next(c for c in at.checkbox if c.label == "Burn-Cost Check")
+    at = burn_cost_checkbox.uncheck().run()
+    b1_checkbox = next(c for c in at.checkbox if c.label == "Mandatory-clause / exclusion completeness checklist")
+    at = b1_checkbox.check().run()
+    at = _click_button(at, "Analyze")
+
+    assert not at.exception
+    assert not any("Could not extract required treaty terms" in e.value for e in at.error)
+    rendered_text = _all_rendered_text(at)
+    assert "Acme Insurance Co." in rendered_text
+    assert "cyber" in rendered_text  # exclusion_completeness_checklist's own finding
 
 
 def test_app_cost_estimate_increases_with_a_larger_selected_document(monkeypatch):
