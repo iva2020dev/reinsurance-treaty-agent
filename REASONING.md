@@ -5746,3 +5746,107 @@ a one-line business-priority rationale) updated to match, per
 expected). Awaiting human review — no approval needed to *add* new
 staged tasks (only removing a done one requires the approval gate), so
 no further action pending here beyond opening the PR.
+
+## 2026-09-12 10:00:00 — Starting task: Key-date/renewal calendar extraction (key-date-renewal-calendar-extraction)
+
+**Goal**: Implement `B2` -- extract inception/expiry/notice-period dates
+from treaty text and flag treaties whose renewal/notice deadline falls
+within an upcoming window, following the `src/services/` per-task
+module pattern established by `isolate-domain-task-services`.
+
+**Analysis**: Unlike `burn_cost_check_node`/`exclusion_completeness_
+checklist_node` (which read from the already-extracted `state["treaty"]`
+`TreatyTerms`), this task needs data `TreatyTerms` doesn't model at all
+(no date fields) -- `TASKS.md`'s own file list for this task doesn't
+include `src/models.py` or the shared extractor, confirming the intended
+scope is a self-contained regex pass over `state["sections"]` (the raw
+parsed page text, already present in `WorkflowState` for every node),
+not a change to the shared extraction pipeline or schema. None of
+today's sample treaty fixtures (`data/*.pdf`) contain inception/expiry/
+notice-period dates in any format yet -- checked via
+`extract_treaty_sections()` against every fixture. This is fine: like
+`burn_cost_check_node`'s "no historical claims data" case, "no key dates
+found" is a graceful LOW-severity finding, not a hard failure --
+existing fixtures simply won't produce a renewal-window finding today,
+which is correct (they genuinely don't have this data).
+
+**Decision**:
+- New regex patterns for `"Inception Date: YYYY-MM-DD"`, `"Expiry
+  Date: YYYY-MM-DD"`, `"Notice Period: N days"` -- ISO date format,
+  matching the existing "Label: value" deterministic convention (`B0`/
+  `B1`'s fixtures use the same style for their fields), consistent with
+  this task's `shape="deterministic"` registry entry. No fuzzy date
+  parsing library (`dateutil` is present only as a transitive
+  dependency, not a declared one) -- staying regex/ISO-only keeps this
+  task genuinely deterministic and dependency-free, matching `B0`/`B1`.
+- `RENEWAL_WINDOW_DAYS = 90` constant (mirroring `burn_cost_check.py`'s
+  `LOSS_RATIO_*` threshold constants) -- flags MEDIUM when expiry or the
+  computed notice deadline falls within this window, HIGH when either
+  has already passed, LOW when no key dates are found at all.
+- Notice deadline is computed as `expiry_date - notice_period_days`
+  (both must be present to compute it) -- if it's already passed but
+  the treaty hasn't yet expired, that's the most urgent/actionable case
+  (HIGH), matching this task's stated business-priority rationale (a
+  missed notice deadline has real financial/legal consequences).
+- New `src/services/key_date_renewal_calendar_extraction.py` (node +
+  constants + date-search helpers), registered in `domain_tasks.py`
+  (`implementation_status="implemented"`,
+  `workflow_node="key_date_renewal_calendar_extraction_node"`), tests in
+  `tests/services/test_key_date_renewal_calendar_extraction.py` using
+  synthetic `PageSection`s (same pattern as the other two service
+  modules' tests) rather than new PDF fixtures, since this is pure
+  regex-over-text logic that doesn't need `parser.py` involved.
+
+**Action**: Implementing on `task/key-date-renewal-calendar-extraction`.
+
+## 2026-09-12 10:20:00 — Outcome: Key-date/renewal calendar extraction (key-date-renewal-calendar-extraction)
+
+**Implemented** per the plan above:
+- New `src/services/key_date_renewal_calendar_extraction.py`:
+  `key_date_renewal_calendar_extraction_node`, `RENEWAL_WINDOW_DAYS`
+  (90), regex patterns for `Inception Date:`/`Expiry Date:` (ISO
+  `YYYY-MM-DD`) and `Notice Period: N days`, and `_search_date`/
+  `_search_notice_period_days` helpers (same first-match-wins-in-page-
+  order convention as `extract_treaty_terms()`). Findings: LOW when no
+  key dates are found at all; MEDIUM when expiry or the computed notice
+  deadline (`expiry_date - notice_period_days`) falls within
+  `RENEWAL_WINDOW_DAYS`; HIGH when either has already passed (an already
+  expired treaty, or a lapsed notice deadline on a still-active treaty
+  -- the most urgent/actionable case, matching this task's own
+  business-priority rationale in `TASKS.md`).
+- `src/domain_tasks.py`: `key_date_renewal_calendar_extraction`'s entry
+  flipped to `implementation_status="implemented"`,
+  `workflow_node="key_date_renewal_calendar_extraction_node"`.
+- `src/workflow.py`: imports the new node function alongside the other
+  two service-module imports, preserving the `globals()[task.
+  workflow_node]` lookup mechanism -- no other changes needed.
+- New `tests/services/test_key_date_renewal_calendar_extraction.py` (8
+  cases): no-dates-found, expiry far in future (no findings), expiry
+  within window (MEDIUM), expiry already passed (HIGH), notice deadline
+  already passed alongside an approaching expiry (HIGH + MEDIUM
+  together), notice deadline upcoming (MEDIUM), inception-only (no
+  crash, no findings), and the task-id log tag. Dates are computed
+  relative to `date.today()` at test time (not hardcoded), so these
+  stay valid regardless of when the suite runs.
+- Fixed `tests/test_domain_tasks.py::test_b0_and_b1_are_implemented`
+  (renamed to `test_b0_b1_b2_are_implemented`), which asserted exactly
+  `{"B0", "B1"}` were implemented -- now includes `B2`.
+
+None of today's sample treaty PDF fixtures contain inception/expiry/
+notice-period dates, so this task correctly produces the LOW
+"no key dates found" finding against every existing fixture -- not a
+bug, just reflects that this data genuinely isn't in those documents
+yet. Tests use synthetic `PageSection`s directly rather than new PDF
+fixtures, since this is pure regex-over-text logic uninvolved with
+`parser.py`.
+
+**Verification**: `python -m pytest -q` -- 193 passed (185 + 8 new).
+`python -m tests.eval.run_eval` -- all 5 golden cases still 100%.
+Manually built a 3-task graph
+(`{"burn_cost_check", "exclusion_completeness_checklist",
+"key_date_renewal_calendar_extraction"}`) and ran it end-to-end via
+`run_workflow()` -- fans out correctly, `key_date_renewal_calendar_
+extraction`'s `TaskResult` populates as expected.
+
+Awaiting human review/approval before this task is marked done and
+removed from `TASKS.md`.

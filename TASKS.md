@@ -87,7 +87,7 @@
     accuracy below the agreed threshold fails the build with a clear
     message; a PR that doesn't regress passes.
 
-- [ ] Key-date/renewal calendar extraction
+- [ ] Key-date/renewal calendar extraction (@claude)
   - **ID**: key-date-renewal-calendar-extraction
   - **Tags**: business-domain, treaty, extraction
   - **Candidate ID**: B2 (`CANDIDATE_TASKS.md`, re-ranked Pri 2 of 8 on

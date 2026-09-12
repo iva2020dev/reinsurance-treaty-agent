@@ -60,9 +60,9 @@ DOMAIN_TASKS: list[DomainTask] = [
         id="key_date_renewal_calendar_extraction",
         title="Key-date/renewal calendar extraction",
         candidate_id="B2",
-        implementation_status="not_implemented",
+        implementation_status="implemented",
         shape="deterministic",
-        workflow_node=None,
+        workflow_node="key_date_renewal_calendar_extraction_node",
     ),
     DomainTask(
         id="renewal_year_over_year_diff",
