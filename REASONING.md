@@ -6217,3 +6217,86 @@ the "Recently completed" block. Synced `CANDIDATE_TASKS.md`'s `B7` row
 and detailed entry to `✅ Done (shipped as
 \`plain-english-treaty-summary\`)`, per `AGENTS.md`'s "Keeping
 CANDIDATE_TASKS.md in Sync" rule, same PR.
+## 2026-09-12 12:20:00 — Starting task: Add UX-polish animations to UI actions (ui-action-animations)
+
+**Goal**: Add tasteful motion to the app's UI per the human's request
+("add animation to UI actions, closing and opening fading, etc.",
+"according to best practices of UX").
+
+**Analysis (done before writing any code, since this determines real
+scope)**: Streamlit's frontend is a React app that reruns the whole
+script on every interaction and reconciles the resulting element tree
+against the previous one -- a genuinely new element (e.g. a
+conditionally-rendered `st.container` that didn't exist in the previous
+render) gets a real DOM insertion, so a CSS "on mount" animation
+(`animation: fadeIn ...` on a stable `data-testid` selector) will
+correctly replay for it; an element that persists across reruns (same
+position/type) is reconciled in place, not re-inserted, so it won't
+spuriously replay the animation on every unrelated rerun. This was
+confirmed by inspecting Streamlit 1.63's bundled frontend JS for stable
+`data-testid` hooks (`stVerticalBlock` for `st.container`/`st.columns`
+groups, `stAlert` for status banners, `stDialog` for `st.dialog`
+modals, `stButton`/`stDownloadButton` for buttons) before designing
+around them, rather than guessing.
+
+**Real constraint, not a shortcut**: a fade-*out* on close is not
+achievable this way. When "Close" deletes session state and calls
+`st.rerun()`, the very next render simply never creates that element --
+there's no DOM node left for a CSS transition to animate away, and no
+supported hook to delay Streamlit's own removal for one (that would
+need custom JS/a custom component, explicitly out of scope: fragile,
+version-fragile, unsupported by this repo's plain-Streamlit approach).
+So scope is entrance animations (fade/slide-in for conditionally-
+rendered containers, dialogs, and alert banners) plus interactive-
+element polish (button hover/active transitions), not exit animations
+-- communicated to the human as a real technical limitation, not
+silently dropped.
+
+**Decision**: One injected CSS block,
+`_inject_ui_animation_css()` (parallel to the existing
+`_inject_wide_main_container_css()`), targeting only stable
+`data-testid` selectors:
+- `[data-testid="stVerticalBlock"]`: fade+slight-slide-in keyframe on
+  mount -- covers the Analysis Results container, the Plain-English
+  Summary container, and the treaty-source input box's own container,
+  all of which are either conditionally created or created once at
+  first load.
+- `[data-testid="stAlert"]`: fade-in -- covers `st.success`/`st.error`/
+  `st.warning`/`st.info`, which are inherently transient/conditional.
+- `[data-testid="stDialog"]`: fade-in -- the "Review treaty" modal.
+- `[data-testid="stButton"] button`, `[data-testid="stDownloadButton"]
+  button`: smooth `transition` on hover/active (subtle lift + shadow),
+  standard affordance/feedback polish, safe on every button in the app.
+- `@media (prefers-reduced-motion: reduce)` disables all of the above
+  -- accessibility best practice, not optional.
+
+**Action**: Implementing on `task/ui-action-animations`.
+
+## 2026-09-12 12:30:00 — Outcome: Add UX-polish animations to UI actions (ui-action-animations)
+
+**Implemented** per the plan above:
+- New `_inject_ui_animation_css()` in `src/app.py` (called from `main()`
+  alongside `_inject_wide_main_container_css()`): `fadeSlideIn`
+  keyframe on `[data-testid="stVerticalBlock"]` (containers), `fadeIn`
+  on `[data-testid="stAlert"]` (success/error/warning/info banners) and
+  `[data-testid="stDialog"]` (the "Review treaty" modal), and hover/
+  active `transition`s (subtle lift + shadow) on `[data-testid=
+  "stButton"] button`/`[data-testid="stDownloadButton"] button`. A
+  `@media (prefers-reduced-motion: reduce)` block disables all of it.
+  Its docstring records the exit-animation constraint explicitly (see
+  the Starting entry above) so a future reader doesn't wonder why
+  "Close" isn't animated too.
+- New test asserting the style block renders, targets only stable
+  `data-testid` selectors (never `st-emotion-cache-*`), and includes
+  the reduced-motion override -- mirrors the existing
+  `_inject_wide_main_container_css()` test's structure.
+
+**Verification**: `python -m pytest -q` -- 194 passed (this branch was
+cut from `main` before `plain-english-treaty-summary` merged, so its
+count differs from that still-open PR's branch; unrelated to this
+task). `python -m tests.eval.run_eval` -- all 5 golden cases still
+100%. Manually printed the injected CSS via `AppTest` to confirm its
+exact content.
+
+Awaiting human review/approval before this task is marked done and
+removed from `TASKS.md`.
