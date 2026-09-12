@@ -100,7 +100,7 @@ discussion on how document quality drives task shape (see
 |---|---|---|---|---|---|---|---|
 | — | B0 | **Burn-Cost Check** | **✅ Done** | Hybrid | Extraction | — (shipped) | — |
 | 1 | B1 | Mandatory-clause / exclusion completeness checklist | ✅ Done | Deterministic | Extraction | S | — |
-| 2 | B2 | Key-date/renewal calendar extraction | 📋 In TASKS.md as `key-date-renewal-calendar-extraction` | Deterministic | Extraction | S | — |
+| 2 | B2 | Key-date/renewal calendar extraction | ✅ Done (shipped as `key-date-renewal-calendar-extraction`) | Deterministic | Extraction | S | — |
 | 5 | B3 | Renewal year-over-year diff | 📋 In TASKS.md as `renewal-year-over-year-diff` | Deterministic | Extraction | M | — |
 | 4 | B4 | Multi-layer program extraction & aggregation | 📋 In TASKS.md as `multi-layer-program-extraction` | Deterministic | Extraction | L | — |
 | 7 | B5 | Reinstatement cost modeling | 📋 In TASKS.md as `reinstatement-cost-modeling` | Deterministic | Extraction | M | B4 |
@@ -294,7 +294,7 @@ work tracked separately in `DOMAIN_TASK_SELECTION_PLAN.md`.*
   flag missing ones as a new finding category.
   *Deterministic. Effort: S. Answer type: Extraction (a set comparison
   over already-extracted clause names, no semantic judgment).*
-- **B2. Key-date/renewal calendar extraction** — Priority 2 — 📋 In TASKS.md as `key-date-renewal-calendar-extraction` —
+- **B2. Key-date/renewal calendar extraction** — Priority 2 — ✅ Done (shipped as `key-date-renewal-calendar-extraction`) —
   extract inception/expiry/notice-period dates and flag treaties approaching
   renewal.
   *Deterministic. Effort: S. Answer type: Extraction. Business-priority
