@@ -1,8 +1,10 @@
-"""Regenerate the workflow graph diagram in README.md and its PNG copy.
+"""Regenerate the workflow graph diagrams in README.md and the default
+selection's PNG copy: the default (single-task) diagram and a second,
+fixed multi-task selection example (MULTI_TASK_SELECTED_IDS below).
 
 Run manually:
-    python3 scripts/regenerate_workflow_graph.py         # updates README.md's mermaid block only
-    python3 scripts/regenerate_workflow_graph.py --png    # also regenerates data/workflow_graph.png
+    python3 scripts/regenerate_workflow_graph.py         # updates README.md's mermaid blocks only
+    python3 scripts/regenerate_workflow_graph.py --png    # also regenerates data/workflow_graph.png (default selection only)
 
 Both steps are invoked automatically by the pre-commit hook in
 .githooks/pre-commit whenever src/workflow.py is staged for commit. The
@@ -29,18 +31,44 @@ PNG_PATH = REPO_ROOT / "data" / "workflow_graph.png"
 START_MARKER = "<!-- workflow-graph:start -->"
 END_MARKER = "<!-- workflow-graph:end -->"
 
+# A real, currently-implemented multi-task selection -- both are actually
+# implemented in src/domain_tasks.py today, so this is exactly what a real
+# user could select in production, not a contrived/mocked example.
+MULTI_TASK_SELECTED_IDS = {"burn_cost_check", "exclusion_completeness_checklist"}
+MULTI_TASK_START_MARKER = "<!-- workflow-graph-multi-task:start -->"
+MULTI_TASK_END_MARKER = "<!-- workflow-graph-multi-task:end -->"
+
 
 def get_mermaid_text() -> str:
     return build_workflow_graph().get_graph().draw_mermaid()
 
 
-def update_readme(mermaid_text: str) -> bool:
-    """Replace the mermaid block between the markers. Returns True if content changed."""
-    original = README_PATH.read_text()
-    start = original.index(START_MARKER) + len(START_MARKER)
-    end = original.index(END_MARKER)
+def get_multi_task_mermaid_text() -> str:
+    return build_workflow_graph(MULTI_TASK_SELECTED_IDS).get_graph().draw_mermaid()
+
+
+def _replace_between_markers(text: str, start_marker: str, end_marker: str, mermaid_text: str) -> str:
+    """Replace the mermaid code block between start_marker/end_marker with mermaid_text."""
+    start = text.index(start_marker) + len(start_marker)
+    end = text.index(end_marker)
     new_block = f"\n```mermaid\n{mermaid_text.rstrip()}\n```\n"
-    updated = original[:start] + new_block + original[end:]
+    return text[:start] + new_block + text[end:]
+
+
+def update_readme(mermaid_text: str) -> bool:
+    """Replace the default single-task mermaid block. Returns True if content changed."""
+    original = README_PATH.read_text()
+    updated = _replace_between_markers(original, START_MARKER, END_MARKER, mermaid_text)
+    if updated == original:
+        return False
+    README_PATH.write_text(updated)
+    return True
+
+
+def update_readme_multi_task(mermaid_text: str) -> bool:
+    """Replace the multi-task example mermaid block. Returns True if content changed."""
+    original = README_PATH.read_text()
+    updated = _replace_between_markers(original, MULTI_TASK_START_MARKER, MULTI_TASK_END_MARKER, mermaid_text)
     if updated == original:
         return False
     README_PATH.write_text(updated)
@@ -70,6 +98,10 @@ def main() -> None:
     mermaid_text = get_mermaid_text()
     changed = update_readme(mermaid_text)
     print(f"README.md workflow graph {'updated' if changed else 'already up to date'}")
+
+    multi_task_mermaid_text = get_multi_task_mermaid_text()
+    multi_task_changed = update_readme_multi_task(multi_task_mermaid_text)
+    print(f"README.md multi-task workflow graph {'updated' if multi_task_changed else 'already up to date'}")
 
     if args.png:
         update_png()

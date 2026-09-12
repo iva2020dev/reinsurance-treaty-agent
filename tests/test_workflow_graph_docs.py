@@ -8,7 +8,14 @@ of letting the documented diagram silently go stale.
 
 from pathlib import Path
 
-from scripts.regenerate_workflow_graph import END_MARKER, START_MARKER, get_mermaid_text
+from scripts.regenerate_workflow_graph import (
+    END_MARKER,
+    MULTI_TASK_END_MARKER,
+    MULTI_TASK_START_MARKER,
+    START_MARKER,
+    get_mermaid_text,
+    get_multi_task_mermaid_text,
+)
 
 README_PATH = Path(__file__).resolve().parent.parent / "README.md"
 
@@ -23,5 +30,22 @@ def test_readme_workflow_graph_matches_live_graph():
 
     assert current_mermaid in documented_block, (
         "README.md's workflow graph diagram is out of date. Run: "
+        "python3 scripts/regenerate_workflow_graph.py"
+    )
+
+
+def test_readme_multi_task_workflow_graph_matches_live_graph():
+    """Sibling of the above for the second, multi-task-example diagram
+    (multi-task-graph-diagram-example) -- same safety net, different
+    marker pair and selection."""
+    readme_text = README_PATH.read_text()
+    start = readme_text.index(MULTI_TASK_START_MARKER) + len(MULTI_TASK_START_MARKER)
+    end = readme_text.index(MULTI_TASK_END_MARKER)
+    documented_block = readme_text[start:end]
+
+    current_mermaid = get_multi_task_mermaid_text().rstrip()
+
+    assert current_mermaid in documented_block, (
+        "README.md's multi-task workflow graph diagram is out of date. Run: "
         "python3 scripts/regenerate_workflow_graph.py"
     )

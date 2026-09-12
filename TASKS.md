@@ -65,7 +65,7 @@
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
 
-- [ ] Regenerate workflow diagram for a multi-task selection example
+- [ ] Regenerate workflow diagram for a multi-task selection example (@claude)
   - **ID**: multi-task-graph-diagram-example
   - **Tags**: harness, docs, multi-domain-task-selection
   - **Candidate ID**: N/A (not graduated from `CANDIDATE_TASKS.md`; a
@@ -82,16 +82,14 @@
     otherwise the diagram will keep looking identical forever even
     after fan-out is exercised in production, which hides the
     capability from anyone reading the README.
-    **Important caveat, noted for whoever picks this up**: this is only
-    meaningfully verifiable once a *second real* domain task (e.g. a
-    graduated/implemented `B1`) exists in `src/domain_tasks.py`'s
-    registry — today, demonstrating a 2-task selection still needs a
-    mocked/monkeypatched node (like `multi-task-graph-fanout`'s own
-    test uses), which isn't suitable content for a real, permanently-
-    committed README diagram. If no second domain task is implemented
-    yet when this is picked up, re-scope (e.g. to just the script
-    plumbing, with the actual second example diagram deferred) or hold
-    off rather than faking an example task.
+    **Update (2026-09-12)**: the caveat noted when this task was
+    originally drafted — that it needed a second real domain task to
+    be meaningfully verifiable — no longer applies. `exclusion-
+    completeness-checklist` (B1) is now `implementation_status=
+    "implemented"` in `src/domain_tasks.py`'s registry, so the example
+    selection (`{"burn_cost_check", "exclusion_completeness_
+    checklist"}`) is a real, genuinely-runnable two-task fan-out, not
+    a mocked stand-in.
   - **Files**: `scripts/regenerate_workflow_graph.py`, `README.md`,
     `tests/test_workflow_graph_docs.py`
   - **Acceptance**: `README.md` gains a second, clearly-labeled
