@@ -55,6 +55,7 @@
      ✅ 2026-09-11 20:14:07 Include every selected task's results in the saved/downloaded results file, styled as a final report (multi-task-results-in-saved-file)
      ✅ 2026-09-11 15:22:12 Mandatory-clause / exclusion completeness checklist (exclusion-completeness-checklist)
      ✅ 2026-09-12 07:34:37 Add a Download button (with format selection) for the "Analysis Workflow execution" debug panel (debug-panel-download)
+     ✅ 2026-09-12 08:10:00 Regenerate workflow diagram for a multi-task selection example (multi-task-graph-diagram-example)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -64,42 +65,6 @@
 ## P1
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
-
-- [ ] Regenerate workflow diagram for a multi-task selection example (@claude)
-  - **ID**: multi-task-graph-diagram-example
-  - **Tags**: harness, docs, multi-domain-task-selection
-  - **Candidate ID**: N/A (not graduated from `CANDIDATE_TASKS.md`; a
-    follow-up found directly while discussing `multi-task-graph-
-    fanout` with the human)
-  - **Details**: `scripts/regenerate_workflow_graph.py`'s
-    `get_mermaid_text()` always calls `build_workflow_graph()` with no
-    arguments, rendering only the *default* single-task selection
-    (`{"burn_cost_check"}`) into `README.md`'s mermaid block and
-    `data/workflow_graph.png`. Now that `multi-task-graph-fanout` made
-    the graph-building code genuinely selection-count-agnostic, the
-    shipped diagram should also be able to show what a real multi-task
-    selection looks like (`Verifier` branching to 2+ analysis nodes) —
-    otherwise the diagram will keep looking identical forever even
-    after fan-out is exercised in production, which hides the
-    capability from anyone reading the README.
-    **Update (2026-09-12)**: the caveat noted when this task was
-    originally drafted — that it needed a second real domain task to
-    be meaningfully verifiable — no longer applies. `exclusion-
-    completeness-checklist` (B1) is now `implementation_status=
-    "implemented"` in `src/domain_tasks.py`'s registry, so the example
-    selection (`{"burn_cost_check", "exclusion_completeness_
-    checklist"}`) is a real, genuinely-runnable two-task fan-out, not
-    a mocked stand-in.
-  - **Files**: `scripts/regenerate_workflow_graph.py`, `README.md`,
-    `tests/test_workflow_graph_docs.py`
-  - **Acceptance**: `README.md` gains a second, clearly-labeled
-    diagram (e.g. a `<!-- workflow-graph-multi-task:start/end -->`
-    block) showing `build_workflow_graph()` for an explicit real
-    multi-task selection, branching from `Verifier` to every included
-    task's node; `tests/test_workflow_graph_docs.py` (or a new sibling
-    test) verifies this second diagram also stays in sync with the
-    live graph, the same way the existing single-task one does;
-    `python -m pytest -q` passes.
 
 - [ ] CI-Integrated Regression Eval Gate
   - **ID**: extraction-eval-ci-gate
