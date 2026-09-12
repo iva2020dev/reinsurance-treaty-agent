@@ -54,6 +54,7 @@
      ✅ 2026-09-11 19:59:18 Adjust main container width to a fixed 800px (adjust-main-container-width)
      ✅ 2026-09-11 20:14:07 Include every selected task's results in the saved/downloaded results file, styled as a final report (multi-task-results-in-saved-file)
      ✅ 2026-09-11 15:22:12 Mandatory-clause / exclusion completeness checklist (exclusion-completeness-checklist)
+     ✅ 2026-09-12 07:34:37 Add a Download button (with format selection) for the "Analysis Workflow execution" debug panel (debug-panel-download)
      See REASONING.md for detailed decision logs. -->
 
 ## P0
@@ -63,32 +64,6 @@
 ## P1
 
 <!-- policy: P1 tasks are core work that should ship. Default for planned features and important improvements. -->
-
-- [ ] Add a Download button (with format selection) for the "Analysis Workflow execution" debug panel (@claude)
-  - **ID**: debug-panel-download
-  - **Tags**: ui, streamlit
-  - **Candidate ID**: N/A (ad-hoc UI feature requested directly by the
-    human, not staged in `CANDIDATE_TASKS.md`)
-  - **Details**: The "Analysis Results" container has a "Result file
-    format" radio (Markdown/PDF) plus Save/Download buttons. The
-    "Analysis Workflow execution" debug expander (extraction status,
-    multi-task status, captured log lines, and the full serialized
-    `WorkflowState` JSON) only has a "Save to logs file" form (fixed
-    default path, Append/Overwrite mode) — no client-side Download
-    button, and no format choice. The human asked for a Download
-    button here too, with format selection, mirroring the Analysis
-    Results pattern.
-  - **Files**: `src/app.py`, `tests/test_app.py`
-  - **Acceptance**: A "Debug report format" radio (Text (.txt) / JSON
-    (.json)) plus a "Download workflow execution details" button
-    appear in the debug expander, alongside (not replacing) the
-    existing "Save to logs file" form; the `.txt` download contains
-    the run header, extraction status, multi-task status, log lines,
-    and a pretty-printed JSON dump of the debug state; the `.json`
-    download contains the same information as a real JSON document
-    (parseable via `json.loads`); works correctly even when `state` is
-    `None` (parser failure, no workflow ran); `python -m pytest -q`
-    passes.
 
 - [ ] Regenerate workflow diagram for a multi-task selection example
   - **ID**: multi-task-graph-diagram-example
