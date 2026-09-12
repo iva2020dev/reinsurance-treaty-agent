@@ -5652,3 +5652,14 @@ new service modules -- none found.
 
 Awaiting human review/approval before this task is marked done and
 removed from `TASKS.md`.
+
+## 2026-09-12 09:15:00 — Closing task: Isolate domain-task business logic into per-task service modules (isolate-domain-task-services)
+
+PR #105 merged to `main` per human confirmation ("pr 105 merged"). Human
+then approved closing it out ("yes, close it out").
+
+Removing the task entry from `TASKS.md`'s P1 section and logging it in
+the "Recently completed" block, per the mandatory closing workflow. No
+`CANDIDATE_TASKS.md` sync needed — this task was never graduated from
+there (requested directly by the human as a refactor of
+`src/workflow.py`).
