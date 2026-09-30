@@ -93,6 +93,7 @@ discussion on how document quality drives task shape (see
 | 9 | A9 | Fallback tiering / cost-aware escalation | Proposed | Hybrid | N/A | M | — |
 | 10 | A10 | Human-in-the-loop review workflow | Proposed | Deterministic | N/A | M | — |
 | 11 | A11 | Treaty sample selection UI (prepared/golden samples, no local disk) | ✅ Done | Deterministic | N/A | S/M | — |
+| 12 | A12 | LLM evaluation, tracing & regression-check upgrade (Opik + OpenTelemetry) | Proposed | Hybrid | N/A | M/L | A3, A4 |
 
 ### Business Domain — Treaty
 
@@ -263,6 +264,21 @@ Effort: S/M. Answer type: N/A (infrastructure/UX, not itself a
 content-answering task) — this is app-generic UX unrelated to which
 domain task runs, distinct from the Multi Domain-Task Selection (`S`)
 work tracked separately in `DOMAIN_TASK_SELECTION_PLAN.md`.*
+
+### A12. LLM evaluation, tracing & regression-check upgrade (Opik + OpenTelemetry) — Priority 12
+Extend `A3`'s golden-dataset eval suite with real observability instead
+of a one-off scorer script: instrument `src/llm_client.py` and the
+workflow nodes' LLM calls with OpenTelemetry spans (prompt, response,
+latency, token/cost per call), and integrate Opik as the trace/eval
+backend for offline test-set runs. This makes extraction-quality
+regressions visible per-field and per-model-version on a dashboard
+over time, complementing (not replacing) `A4`'s pass/fail CI gate.
+*Hybrid: deterministic instrumentation wiring + an external eval/trace
+platform integration. Effort: M/L. Answer type: N/A (a harness that
+measures other tasks' LLM output quality, not itself an
+extraction/interpretation task). Depends on A3 (needs the golden
+dataset to trace against) and A4 (this upgrades, rather than
+duplicates, the CI regression gate).*
 
 ---
 
